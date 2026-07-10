@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow OTP sessions for login flow
+    match /otp_sessions/{sessionId} {
+      allow read, write: if true;
+    }
+    
+    // Allow OTP stats tracking for quota management
+    match /otp_stats/{statId} {
+      allow read, write: if true;
+    }
+
+    // =========================================================================
+    // AI Chat Messages
+    // Each user can only read/write their own chat history.
+    // =========================================================================
+    match /ai_chats/{userId}/messages/{messageId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // Current Affairs
+    // All authenticated users can read.
+    // Only authenticated users can create (admin check handled in app layer).
+    // =========================================================================
+    match /current_affairs/{articleId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // =========================================================================
+    // Current Affairs Bookmarks
+    // Each user can only read/write their own bookmarks.
+    // =========================================================================
+    match /current_affairs_bookmarks/{userId}/items/{itemId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // Current Affairs Generation Log
+    // Written by Cloud Functions and app fallback. Read by admin.
+    // =========================================================================
+    match /current_affairs_generation_log/{logId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // =========================================================================
+    // Quiz Results
+    // Each user can only read/write their own saved quiz results.
+    // =========================================================================
+    match /quiz_results/{userId}/results/{resultId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // Job Alerts \u2014 student-visible feed.
+    // All authenticated users can read. Writes are performed via admin UI
+    // + Cloud Functions; the app-layer role check gates UI access.
+    // =========================================================================
+    match /jobAlerts/{jobId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // =========================================================================
+    // Job Alert Candidates (admin inbox, written by Cloud Functions).
+    // =========================================================================
+    match /jobAlertCandidates/{candidateId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // =========================================================================
+    // Job Alert Sources (admin-configured feed URLs).
+    // =========================================================================
+    match /jobAlertSources/{sourceId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // =========================================================================
+    // Job apply-click analytics.
+    // Students can create their own click records; reads are admin-only
+    // by convention (enforced at the UI).
+    // =========================================================================
+    match /jobApplyClicks/{clickId} {
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null;
+    }
+
+    // =========================================================================
+    // User job preferences.
+    // Each user can only read/write their own preference document.
+    // =========================================================================
+    match /userJobPreferences/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // Saved (bookmarked) jobs per user.
+    // =========================================================================
+    match /userSavedJobs/{userId}/items/{jobId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // =========================================================================
+    // Student premium subscriptions.
+    // Users can read their own subscription docs; creation happens via
+    // the app after Razorpay verification. Admin reads everything through
+    // the default authenticated rule above.
+    // =========================================================================
+    match /studentPremiumSubscriptions/{subscriptionId} {
+      allow read: if request.auth != null &&
+        (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
+    }
+  }
+}

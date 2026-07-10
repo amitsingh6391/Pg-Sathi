@@ -1,0 +1,137 @@
+name: pg_manager
+description: "A new PG Sathi application built with Flutter, utilizing Firebase for backend services and following a clean architecture approach. "
+
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.1.0+3
+
+environment:
+  sdk: ^3.10.4
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+
+  # Domain layer dependencies (framework-agnostic)
+  equatable: ^2.0.7
+  dartz: ^0.10.1
+
+  # Data layer dependencies (Firebase)
+  firebase_core: ^4.3.0
+  firebase_auth: ^6.1.3
+  cloud_firestore: ^6.1.1
+  firebase_messaging: ^16.1.0
+  firebase_crashlytics: ^5.0.6
+  firebase_remote_config: ^6.1.3
+  firebase_storage: ^13.4.2
+  firebase_analytics: ^12.1.1
+  
+  # Local Notifications for displaying foreground notifications
+  flutter_local_notifications: ^18.0.1
+  
+  # Device info for device binding
+  device_info_plus: ^11.4.0
+
+  # Presentation layer dependencies
+  flutter_bloc: ^9.1.1
+  freezed_annotation: ^3.0.0
+  
+  # Dependency injection
+  get_it: ^8.0.3
+  
+  # Navigation
+  go_router: ^15.1.2
+  intl: ^0.20.2
+  path: ^1.9.1
+
+  # Payment
+  razorpay_flutter: ^1.4.0
+  http: ^1.2.2
+  crypto: ^3.0.6
+  uuid: ^4.5.1
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
+  
+  # Charts
+  fl_chart: ^0.69.2
+  
+  # PDF Generation
+  pdf: ^3.11.1
+  printing: ^5.13.3
+  path_provider: ^2.1.5
+  share_plus: ^10.1.3
+  open_filex: ^4.5.0
+  url_launcher: ^6.3.1
+  
+  # Local Storage
+  shared_preferences: ^2.3.4
+  
+  # Network & Connectivity
+  connectivity_plus: ^7.0.0
+  
+  # Package Info
+  package_info_plus: ^8.3.1
+  
+  # Icons
+  unicons: ^3.0.0
+  
+  # Web Landing
+  carousel_slider: ^5.1.1
+  
+  # Image Picker
+  image_picker: ^1.1.2
+  
+  # File Picker
+  file_picker: ^8.1.4
+  cloud_functions: ^6.0.5
+  
+  # Excel parsing for bulk import
+  excel: ^4.0.6
+  
+  # Tools module dependencies
+  flutter_image_compress: ^2.3.0  # Image compression
+  syncfusion_flutter_pdf: ^28.1.36  # PDF manipulation
+  fluttertoast: ^8.2.8  # User feedback
+  qr_flutter: ^4.1.0  # QR Code generation
+  pdfx: ^2.7.0  # PDF to image rendering (better compatibility)
+  gal: ^2.3.2  # Save images to gallery (modern alternative)
+  
+  in_app_review: ^2.0.11
+  in_app_purchase: ^3.3.0
+  font_awesome_flutter: ^11.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Code generation
+  freezed: ^3.0.0
+  
+  # Testing dependencies
+  mockito: ^5.6.1
+  mocktail: ^1.0.4
+  build_runner: ^2.10.4
+  fake_cloud_firestore: ^4.0.0
+  bloc_test: ^10.0.0
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/xl_sheet/
+    - assets/images/
+  config:
+    enable-swift-package-manager: false

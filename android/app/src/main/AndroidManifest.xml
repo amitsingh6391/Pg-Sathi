@@ -1,0 +1,124 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Internet permission for geocoding API calls -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Explicitly remove AD_ID permission injected by Firebase Analytics.
+         This app does not use advertising ID. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+    
+    <!-- Notification permission for Android 13+ (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Location permissions for fetching device location -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- 
+        EXPLICITLY REMOVE READ_MEDIA_IMAGES/VIDEO (added by dependencies like image_picker, gal, file_picker)
+        Google Play Policy: Apps with only one-time/infrequent photo access must NOT use these permissions.
+        Instead, we use Android Photo Picker (Android 13+) and scoped storage (Android 12-)
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
+    
+    <!-- 
+        Scoped storage permissions for Android 12 and below:
+        - Android 13+ (API 33+): Uses built-in photo picker automatically (no permission)
+        - Android 12 and below: Uses READ_EXTERNAL_STORAGE (limited, scoped access)
+        - Saving to gallery: Uses MediaStore API (Android 10+) or WRITE_EXTERNAL_STORAGE (Android 9-)
+    -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    
+    <!-- Optional: Background location for future use -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
+    
+    <application
+        android:label="PG Sathi"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        
+        <!-- Firebase Cloud Messaging default notification channel -->
+        <!-- This ensures notifications work in Play Store builds -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="default" />
+        
+        
+        <!-- FileProvider for sharing files with other apps -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        
+        <!-- UPI Intent for launching UPI payment apps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="upi"/>
+        </intent>
+        
+        <!-- Common UPI apps package queries (for canLaunchUrl) -->
+        <package android:name="com.google.android.apps.nbu.paisa.user"/>  <!-- Google Pay -->
+        <package android:name="net.one97.paytm"/>  <!-- Paytm -->
+        <package android:name="com.phonepe.app"/>  <!-- PhonePe -->
+        <package android:name="in.org.npci.upiapp"/>  <!-- BHIM -->
+        <package android:name="com.whatsapp"/>  <!-- WhatsApp -->
+        <package android:name="com.whatsapp.w4b"/>  <!-- WhatsApp Business -->
+        <!-- whatsapp:// scheme — used on Android to show the app chooser
+             when both WhatsApp and WhatsApp Business are installed -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="whatsapp"/>
+        </intent>
+    </queries>
+</manifest>

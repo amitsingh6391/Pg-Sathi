@@ -1,0 +1,71 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Profile pictures / User avatars
+    match /profile_pictures/{userId}/{filename} {
+      allow write: if request.auth != null && 
+                   request.auth.uid == userId &&
+                   request.resource.size < 5 * 1024 * 1024; // 5MB max
+      allow read: if request.auth != null;
+    }
+    
+    // User avatars (alternative path)
+    match /user_avatars/{userId}/{filename} {
+      allow write: if request.auth != null && 
+                   request.auth.uid == userId &&
+                   request.resource.size < 5 * 1024 * 1024; // 5MB max
+      allow read: if request.auth != null;
+    }
+    
+    // Library photos
+    match /library_photos/{libraryId}/{filename} {
+      allow write: if request.auth != null && 
+                   request.resource.size < 10 * 1024 * 1024; // 10MB max
+      allow read: if request.auth != null;
+    }
+
+    // PG / hostel photos
+    match /pg_photos/{propertyId}/{filename} {
+      allow write: if request.auth != null && 
+                   request.resource.size < 10 * 1024 * 1024; // 10MB max
+      allow read: if request.auth != null;
+    }
+    
+    // Book covers
+    match /book_covers/{libraryId}/{bookId}/{filename} {
+      allow write: if request.auth != null && 
+                   request.resource.size < 5 * 1024 * 1024; // 5MB max
+      allow read: if request.auth != null;
+    }
+    
+    // Notice attachments
+    match /notices/{libraryId}/{noticeId}/{filename} {
+      allow write: if request.auth != null && 
+                   request.resource.size < 10 * 1024 * 1024; // 10MB max
+      allow read: if request.auth != null;
+    }
+    
+    // General documents
+    match /documents/{libraryId}/{filename} {
+      allow write: if request.auth != null && 
+                   request.resource.size < 20 * 1024 * 1024; // 20MB max
+      allow read: if request.auth != null;
+    }
+    
+    // Promo images (admin only - access controlled in app)
+    match /promo_images/{filename} {
+      allow write: if request.auth != null && 
+                   request.resource.size < 5 * 1024 * 1024; // 5MB max
+      allow read: if true; // Public read for promo display
+    }
+    
+    // Student documents (uploaded by students or owners)
+    match /students/{studentId}/documents/{filename} {
+      allow write: if request.auth != null && 
+                   request.resource.size < 20 * 1024 * 1024; // 20MB max
+      allow read: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+  }
+}
