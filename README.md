@@ -171,7 +171,7 @@ Features designed to add value for students studying for competitive/government 
 
 ### AI Chat
 - In-app AI assistant accessible to students
-- Ask study-related queries
+- Ask study-related queries d
 - Supports tool-calling for enriched responses
 
 ---
