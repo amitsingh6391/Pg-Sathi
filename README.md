@@ -1,726 +1,130 @@
-# 📚 LibraryTrack
+# PG Sathi
 
-A production-ready Flutter application for managing study libraries (reading rooms / co-working spaces). Built with **Clean Architecture** principles, **BLoC/Cubit** state management, and **Firebase** backend.
+PG Sathi is a Flutter-based PG and hostel management application for owners, tenants, and admins.
 
-**Version:** 46.0.1+73  
-**Dart SDK:** ^3.10.4
+## What this project does
 
----
+This app helps manage the full lifecycle of a PG business:
 
-## 📋 Table of Contents
+- Owner dashboard for managing rooms, beds, and tenants
+- Tenant onboarding and stay management
+- Rent/payment tracking with online, cash, and UPI flows
+- Attendance tracking for members
+- Notice board and communication features
+- Revenue analytics and financial reporting
+- Subscription management and trial flow
+- Admin monitoring and approval system
+- Push notifications and deep linking
 
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Project Structure](#-project-structure)
-- [Key Screens](#-key-screens)
-- [Domain Layer](#-domain-layer)
-- [Subscription System](#-subscription-system)
-- [Seat & Slot Management](#-seat--slot-management)
-- [Payment Flow](#-payment-flow)
-- [Attendance System](#-attendance-system)
-- [Invoice System](#-invoice-system)
-- [Student Premium](#-student-premium)
-- [Job Alerts & Current Affairs](#-job-alerts--current-affairs)
-- [Tools Module](#-tools-module)
-- [Notices System](#-notices-system)
-- [Expense Tracking](#-expense-tracking)
-- [Referral System](#-referral-system)
-- [Device Session Management](#-device-session-management)
-- [Admin Intelligence](#-admin-intelligence)
-- [Push Notifications](#-push-notifications)
-- [Testing](#-testing)
-- [Getting Started](#-getting-started)
-- [Web Landing Page](#-web-landing-page)
-- [Dependencies](#-dependencies)
+## Main users
 
----
+### Owner
+- Create and manage PG profile
+- Assign rooms/beds to tenants
+- Track occupancy and reservations
+- Approve payments and manage dues
+- View revenue and analytics
+- Send notices and reminders
+- Manage subscriptions and invoices
 
-## ✨ Features
+### Tenant
+- Sign in and manage profile
+- View assigned PG stay details
+- Pay fees through available payment modes
+- Check attendance and invoices
+- Upload documents
+- Read notices and updates
 
-### Authentication
-- 📱 Phone number OTP-based sign-in (Firebase Auth)
-- 👤 Role-based access (OWNER / STUDENT / ADMIN)
-- 🔐 Persistent authenticated user state with device binding
-- 🚪 Secure sign-out with session cleanup
-- 📱 **Multi-device session management** - View and revoke active sessions
+### Admin
+- Review platform activity
+- Manage subscriptions and coupons
+- Monitor revenue and user growth
+- Approve withdrawals and promotions
+- Handle platform-wide notifications
 
-### Owner Features
-- 🏛️ Create and manage library (single library per owner)
-- 📊 Dashboard with real-time slot-aware statistics
-- 💺 **Slot-aware seat management** (Morning / Evening / Custom slots)
-- 📅 Seat reservation with payment-driven activation
-- 👥 View occupied AND reserved seats with student details
-- 🔄 Edit memberships (change seat/slot)
-- ❌ Cancel active memberships or remove pending reservations
-- 📈 Dashboard cards showing Available / Reserved / Occupied per slot
-- 💵 **Cash payment approval** - Approve or reject student cash payments
-- 📱 **UPI payment approval** - Separate approval queue for UPI payments
-- 💰 **Revenue Analytics** - Comprehensive earnings dashboard with charts
-- 💸 **Expense Tracking** - Record and categorise library running costs
-- 📋 **Attendance analytics** - Daily/weekly/monthly attendance insights
-- 🧾 **Invoice management** - View, download, and delete student invoices
-- 📥 **Bulk Import** - Import multiple students via Excel file
-- 🔑 **Custom Razorpay** - Use your own Razorpay account (optional)
-- 🔔 **Expiry Reminders** - Send push notifications to members with expiring memberships
-- 📲 **WhatsApp Reminders** - Send bulk/individual WhatsApp messages
-- 🎫 **Student ID Cards** - Generate downloadable ID cards for members
-- 📄 **Document Verification** - Approve student verification documents
-- 🔄 **Force Update** - Automatic version checking via Firebase Remote Config
-- 💳 **Subscription Management** - View subscription status, renew, upgrade plans
-- 📣 **Notices Board** - Post announcements to all members or targeted slots/seats
-- 🤝 **Referral Program** - Earn wallet credits or a free month by referring new owners
+## Tech stack
 
-### Student Features
-- 🎫 View active membership with assigned seat, slot & session timing
-- 💳 **Razorpay payment** integration for online seat activation
-- 📱 **UPI payment** - Pay directly to owner's UPI (PhonePe, GPay, Paytm)
-- 💵 **Cash payment** option - Pay at library with owner approval
-- 🔄 **Switch to online** - Convert pending cash/UPI to instant online payment
-- 🧾 **Monthly invoices** - Download, share, and delete PDF invoices
-- 📅 Check membership validity
-- ✅ **Daily attendance** - Check-in & check-out tracking
-- 📊 **Attendance analytics** - View history, graphs & statistics
-- 🔍 **Explore libraries** - Search and discover nearby libraries
-- 👤 **Profile management** - Update name and contact details
-- 📤 **Document upload** - Upload verification documents (Aadhar, PAN, etc.)
-- 📰 **Notices** - Read library announcements from owner
-- 🗞️ **Current Affairs** - AI-generated daily exam prep news with bookmarks & likes
-- 💼 **Job Alerts** - Curated government/competitive exam job notifications
-- 🤖 **AI Chat** - In-app AI assistant for study queries
-- 🧠 **AI Quiz** - Generate multiple-choice quizzes from any study material
-- 📜 **Quiz History** - Review past quiz attempts and scores
-- 🛠️ **Tools Dashboard** - PDF & image productivity tools (OCR, compress, convert, QR)
-- ⭐ **Student Premium** - Ad-free experience and priority features via paid plan
+- Flutter + Dart
+- Firebase Auth
+- Cloud Firestore
+- Firebase Storage
+- Firebase Messaging
+- Firebase Analytics
+- Firebase Crashlytics
+- Firebase Remote Config
+- Flutter Bloc / Cubit
+- GoRouter
+- Razorpay
+- SharedPreferences
+- PDF and file handling libraries
 
-### Admin Features
-- 📊 **Platform Dashboard** - Global statistics (libraries, students, revenue)
-- 🔍 **Library Analytics** - Deep-dive into individual library metrics
-- 👥 **User Activity** - Track user engagement and activity patterns
-- ⏰ **Hourly Activity Drill-Down** - View active users for any hour with detailed session info
-- 📅 **User Activity Timeline** - Track individual user activity patterns over time
-- 💳 **Subscription Management** - Approve/reject owner subscriptions
-- 🎟️ **Coupon Management** - Create and manage discount coupons
-- 📢 **Broadcast Notifications** - Send platform-wide announcements
-- 🧠 **Admin Intelligence** - AI-powered insights and recommendations
-- 📉 **Churn Prediction** - Identify at-risk libraries
-- 🎯 **Retention Tools** - Extend trials, apply discounts, manage offers
-- 🚨 **Alert System** - Real-time alerts for critical events
-- 📈 **Revenue Intelligence** - Deep revenue analytics (MRR, ARR, plan-wise breakdown, churn)
-- 🎁 **Promo Management** - Create targeted promotional offers for owners/students
-- 💼 **Jobs Management** - Post and manage job alerts visible to students
-- 🗞️ **Current Affairs Management** - Publish and manage daily current affairs articles
-- 💸 **Withdrawal Approvals** - Process referral wallet withdrawal requests
-- 📊 **Affiliate Analytics** - Track referral program performance
-- 📊 **Feature Analytics** - Monitor feature adoption across the platform
-- 👨‍🎓 **Student Analytics** - Platform-wide student engagement insights
+## Architecture
 
-### Seat & Slot System
-- ☀️ **Morning Slot** and 🌙 **Evening Slot** per seat
-- ⏰ **Custom Slots** - Define flexible time ranges
-- A seat can be occupied in one slot and available in another
-- Three seat states per slot:
-  - 🟢 **Available** - Free for assignment
-  - 🟡 **Reserved** - Payment pending (student not yet paid)
-  - 🔴 **Occupied** - Active membership
+The project follows a clean layered architecture:
 
-### Payment Modes
-- 💳 **Online (Razorpay)** - Instant activation after payment
-- 📱 **UPI Direct** - Pay to owner's UPI ID with approval workflow
-- 💵 **Cash** - Owner approval required before activation
-- 🔄 **Switch Payment Mode** - Convert pending cash/UPI to online payment
+- Presentation layer: screens, widgets, and state management
+- Domain layer: business logic and use cases
+- Data layer: repositories and Firebase integrations
 
-### Revenue Analytics (Owner)
-- 📊 **Earnings Dashboard** - Today, Month, Year, All-time earnings
-- 🥧 **Pie Chart** - Payment distribution by mode (Online/UPI/Cash)
-- 📈 **Line Charts** - Daily (30 days) and Monthly (12 months) trends
-- ⏳ **Pending Approvals** - Cash & UPI payments awaiting action
+## Project structure
 
----
-
-## 🏗️ Architecture
-
-This project follows **Pragmatic Clean Architecture** with three distinct layers:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      PRESENTATION LAYER                         │
-│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │     Screens     │  │   Widgets   │  │   BLoCs / Cubits    │ │
-│  │      (UI)       │  │ (Reusable)  │  │ (State Management)  │ │
-│  └────────┬────────┘  └─────────────┘  └──────────┬──────────┘ │
-│           │                                        │            │
-│           │          Depends on Domain             │            │
-└───────────┼────────────────────────────────────────┼────────────┘
-            │                                        │
-            ▼                                        ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        DOMAIN LAYER                             │
-│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │    Entities     │  │  Use Cases  │  │ Repository Interfaces│ │
-│  │    (Models)     │  │  (Business  │  │    (Contracts)      │ │
-│  │                 │  │    Logic)   │  │                     │ │
-│  └─────────────────┘  └─────────────┘  └──────────┬──────────┘ │
-│                                                    │            │
-│            Framework-agnostic (no Flutter/Firebase imports)     │
-└────────────────────────────────────────────────────┼────────────┘
-                                                     │
-                                                     ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         DATA LAYER                              │
-│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │      DTOs       │  │   Mappers   │  │     Repository      │ │
-│  │   (Firebase     │  │  (DTO ↔     │  │   Implementations   │ │
-│  │     Models)     │  │   Entity)   │  │ (Firebase/Razorpay) │ │
-│  └─────────────────┘  └─────────────┘  └─────────────────────┘ │
-│                                                                 │
-│                    Implements Domain Contracts                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Dependency Rule
-
-> Dependencies always point **inward**. The Domain layer knows nothing about Presentation or Data layers.
-
-```
-Presentation → Domain ← Data
-```
-
----
-
-## 📁 Project Structure
-
-```
+```text
 lib/
-├── core/                          # Shared infrastructure
-│   ├── config/                    # Firebase options
-│   ├── constants/                 # UI constants
-│   ├── di/                        # Dependency injection (get_it)
-│   │   └── injection_container.dart
-│   ├── router/                    # Navigation (go_router)
-│   │   └── app_router.dart
-│   ├── services/                  # Core services
-│   ├── utils/                     # Utility functions
-│   │   └── file_download_helper.dart  # Cross-platform file downloads
-│   └── widgets/                   # Shared widgets
-│
-├── domain/                        # Business logic (framework-agnostic)
-│   ├── core/                      # Base classes (Failure, UseCase)
-│   ├── entities/                  # Domain models (55+ entities)
-│   ├── failures/                  # Typed failures
-│   ├── repositories/              # Abstract interfaces (32 repositories)
-│   ├── services/                  # External service abstractions
-│   └── usecases/                  # Business operations (130+ use cases)
-│       ├── admin_intelligence/    # Admin-specific use cases
-│       ├── ai/                    # AI chat use cases
-│       ├── current_affairs/       # Current affairs generation
-│       ├── job_alerts/            # Job alert use cases
-│       ├── promo/                 # Promotional offer use cases
-│       ├── quiz/                  # Quiz history use cases
-│       ├── referral/              # Referral & wallet use cases
-│       ├── student_premium/       # Student subscription use cases
-│       └── tools/                 # PDF/image tool use cases
-│
-├── data/                          # External data sources
-│   ├── models/                    # DTOs (Firebase models)
-│   ├── mappers/                   # DTO ↔ Entity conversion
-│   ├── repositories/              # Firebase implementations (32)
-│   ├── services/                  # External service implementations
-│   └── utils/                     # Data layer utilities
-│
-├── presentation/                  # UI layer
-│   ├── admin/                     # Admin module
-│   │   ├── cubit/                 # Admin state management
-│   │   ├── screens/               # Admin screens (incl. jobs, analytics)
-│   │   └── widgets/               # Admin widgets
-│   ├── auth/                      # Authentication module
-│   ├── core/                      # Shared presentation utilities
-│   ├── onboarding/                # Onboarding flow
-│   ├── owner/                     # Owner module
-│   │   ├── bloc/                  # Owner BLoCs
-│   │   ├── cubit/                 # Owner Cubits
-│   │   ├── screens/               # Owner screens
-│   │   └── widgets/               # Owner widgets
-│   └── student/                   # Student module
-│       ├── bloc/                  # Student BLoCs
-│       ├── cubit/                 # Student Cubits
-│       ├── screens/               # Student screens
-│       │   ├── jobs/              # Job alerts screens
-│       │   └── tools/             # Tools dashboard screens
-│       └── widgets/               # Student widgets
-│
-└── main.dart                      # App entry point
+├── core/
+├── data/
+├── domain/
+├── presentation/
+├── main.dart
+├── firebase_options.dart
+└── ...
 ```
 
----
+## Features implemented
 
-## 📱 Key Screens
+- Role-based authentication
+- PG profile and room management
+- Tenant membership workflow
+- Payment approval system
+- Invoice generation and PDF support
+- Attendance tracking
+- Notifications and deep links
+- Analytics dashboards
+- Subscription and trial handling
+- Referral and promo support
+- Admin oversight tools
 
-### Owner Screens
-| Screen | Description |
-|--------|-------------|
-| Owner Dashboard | Library stats, revenue card, quick actions, subscription status |
-| Revenue Analytics | Earnings charts (pie, line), daily/monthly trends |
-| Library Form | Create/edit library, facilities, pricing, payment settings |
-| Seat Grid | Visual seat assignment with slot filtering |
-| Slot Management | Create and manage custom time slots |
-| Occupied Seats | View all assigned seats with edit/cancel actions |
-| Cash Approvals | Approve or reject pending cash payments |
-| UPI Approvals | Separate queue for UPI payment approvals |
-| Payment Approvals | Unified payment approval view |
-| Attendance Analytics | Daily/weekly attendance insights with graphs |
-| Attendance Management | Mark and manage student attendance |
-| Owner Invoices | View, download, share, and delete student invoices |
-| Bulk Import | Import multiple students via Excel file |
-| Unified Notifications | Send Push + WhatsApp reminders |
-| Payment Reminder | Send targeted payment reminders |
-| Student Documents | View and approve uploaded documents |
-| Subscription Overview | View subscription status, renew, upgrade |
-| Pricing Screen | View subscription pricing tiers |
-| Notices | Create and manage library announcements |
-| Owner Profile | Update owner settings and contact info |
-| Referral | Share referral code, track earnings, request withdrawal |
-| Active Devices | View and revoke active login sessions |
-| Library Preview | Preview library page as a student would see it |
+## Setup
 
-### Student Screens
-| Screen | Description |
-|--------|-------------|
-| Student Dashboard | Membership card, check-in/out, explore libraries |
-| Library Details | Complete library info with member-specific data |
-| Payment | Online, UPI, or cash payment options |
-| Attendance Details | History, graphs, daily/weekly stats |
-| Invoices | View, download, share, and delete PDF invoices |
-| Profile | Update personal information |
-| Profile Completion | Complete profile after signup |
-| Explore Libraries | Search and discover nearby libraries |
-| Student Documents | Upload verification documents |
-| Notices | View library announcements from owner |
-| Current Affairs | Daily AI-generated exam prep news feed |
-| Current Affair Detail | Full article view with bookmarks and likes |
-| Jobs | Curated government/competitive exam job alerts |
-| Job Alert Detail | Full job detail with apply link |
-| Job Preferences | Set preferred job categories and states |
-| Saved Jobs | View bookmarked job alerts |
-| Student Premium | Upgrade to premium for ad-free experience |
-| AI Chat | In-app AI assistant for study help |
-| Tools Dashboard | PDF & image productivity tools hub |
-| OCR | Extract text from images using ML Kit |
-| Image Compressor | Compress images with quality control |
-| Images to PDF | Combine images into a single PDF |
-| PDF to Images | Convert PDF pages to image files |
-| PDF Page Extractor | Extract specific pages from a PDF |
-| QR Generator | Generate QR codes for any text or URL |
-| AI Quiz | Generate MCQ quiz from study material |
-| Quiz History | Review past quiz attempts and scores |
+### Prerequisites
+- Flutter SDK
+- Android Studio / VS Code
+- Firebase project
+- Emulator or physical device
 
-### Admin Screens
-| Screen | Description |
-|--------|-------------|
-| Admin Dashboard | Platform overview, key metrics, quick actions |
-| Admin Analytics | Deep platform analytics |
-| Library Analytics | Individual library metrics |
-| Owner Details | Detailed owner & library profile |
-| Student Analytics | Platform-wide student engagement data |
-| Feature Analytics | Monitor feature adoption across the platform |
-| Affiliate Analytics | Referral program performance |
-| Hourly Activity Drill-Down | View active users for a specific hour with session details |
-| User Activity Timeline | Track individual user's activity history over date ranges |
-| Subscriptions | Approve/reject owner subscriptions |
-| Coupon Management | Create and manage coupons |
-| Broadcast | Send platform-wide notifications |
-| Admin Intelligence | AI-powered insights dashboard |
-| Revenue Intelligence | Revenue analytics: MRR, ARR, churn, plan-wise breakdown |
-| Promo Management | Create targeted promo offers for owners/students |
-| Jobs Management | Post and manage student-facing job alerts |
-| Job Analytics | Job alert engagement metrics |
-| Current Affairs Management | Publish and manage daily current affairs articles |
-| Withdrawal Approvals | Process referral wallet withdrawal requests |
-| Admin Invoices | View all platform invoices |
+### Install
 
----
-
-## 🎯 Domain Layer
-
-### Key Entities (55+ entities)
-
-| Entity | Description |
-|--------|-------------|
-| `User` | Student or Owner profile with role |
-| `Library` | Library details, facilities, pricing, UPI ID, Razorpay keys |
-| `Membership` | Student-library assignment with seat & slot |
-| `Seat` | Individual seat with slot availability |
-| `Slot` | Time slot (Morning/Evening) |
-| `CustomSlot` | Flexible time range slots |
-| `Payment` | Payment record (Online/Cash/UPI) with UTR, proof URL |
-| `RevenueAnalytics` | Earnings, trends, payment distribution |
-| `RevenueStats` | Admin-level revenue (MRR, ARR, plan-wise breakdown, churn) |
-| `Attendance` | Daily check-in/out record |
-| `AttendanceStats` | Analytics (hours, streaks, averages) |
-| `AttendanceSession` | Individual session tracking |
-| `OwnerAttendanceAnalytics` | Owner-level attendance overview |
-| `Invoice` | Monthly billing record |
-| `Subscription` | Owner subscription with trial, pricing, status |
-| `SubscriptionPlan` | Pricing tiers based on seat count |
-| `OwnerTrial` | 7-day free trial for new owners |
-| `Coupon` | Discount coupon for subscriptions |
-| `StudentDocument` | Verification document (Aadhar, PAN, etc.) |
-| `AppVersion` | Version info for force update |
-| `FcmToken` | Push notification token |
-| `WhatsAppReminder` | WhatsApp reminder record |
-| `UserActivityDetail` | Detailed user activity for hourly drill-down |
-| `UserActivityStats` | Aggregated user activity statistics |
-| `AdminDashboardStats` | Platform-wide statistics |
-| `AdminDashboardData` | Rich admin dashboard payload |
-| `AdminAlert` | Auto-generated admin alerts |
-| `ChurnData` | Churn prediction data |
-| `AdminAction` | Admin action log |
-| `AdminNote` | Notes on libraries/owners |
-| `PricingExperiment` | A/B pricing experiments |
-| `Expense` | Library expense entry (rent, electricity, salary, etc.) |
-| `Notice` | Library announcement with targeting, scheduling, and attachments |
-| `CurrentAffair` | AI-generated daily exam prep news article |
-| `JobAlert` | Government/competitive exam job alert |
-| `JobAlertSource` | Source metadata for a job alert |
-| `JobAlertCandidate` | Student job application record |
-| `UserJobPreferences` | Student's preferred job categories and states |
-| `Quiz` | AI-generated multiple-choice quiz |
-| `QuizQuestion` | Individual MCQ within a quiz |
-| `QuizResult` | Student's quiz attempt result |
-| `StudentPremiumSubscription` | Student paid subscription for premium features |
-| `Referral` | Owner referral code and redemption stats |
-| `PromoOffer` | Targeted promotional offer for owners/students |
-| `DeviceSession` | Active device login session with security info |
-| `UserSession` | Aggregated user session record |
-| `Presence` | Real-time online/offline presence status |
-| `LibraryStats` | Library-level engagement statistics |
-| `LibrarySummary` | Lightweight library card for explore view |
-| `AnalyticsSummary` | High-level platform analytics snapshot |
-| `PaymentBreakdown` | Itemised payment details |
-| `LabeledLink` | Key-value link (used in job alerts, notices) |
-| `ExtractedJobFields` | ML-extracted fields from job posting text |
-| `ToolParams` / `ToolResult` | AI function-calling tool parameter/result types |
-
-### Key Use Cases (130+ use cases)
-
-| Use Case | Description |
-|----------|-------------|
-| `ReserveSeatForStudent` | Owner assigns seat → creates pending membership |
-| `AssignMembershipWithCustomSlot` | Assign with custom time slot |
-| `InitiatePayment` | Student starts online payment |
-| `InitiateCashPayment` | Student opts for cash payment |
-| `InitiateUpiPayment` | Student selects UPI payment option |
-| `MarkUpiAsPaid` | Student confirms UPI payment with optional UTR |
-| `ApproveCashPayment` | Owner approves cash/UPI → activates membership |
-| `RejectCashPayment` | Owner rejects → cancels reservation |
-| `GetPendingApprovalPayments` | Fetch all pending cash + UPI approvals |
-| `ConfirmPaymentSuccess` | Online payment success → activates membership |
-| `GetRevenueAnalytics` | Calculate earnings, charts, time-series data |
-| `ResolveRazorpayConfig` | Select owner's or app's Razorpay keys |
-| `CheckIn` / `CheckOut` | Student daily attendance |
-| `GetAttendanceHistory` | Fetch attendance records |
-| `GetAttendanceStats` | Calculate attendance analytics |
-| `GetOwnerAttendanceAnalytics` | Owner-level attendance overview |
-| `MarkOwnerAttendance` | Mark owner's own attendance |
-| `GenerateInvoice` | Create monthly invoice |
-| `DeleteInvoice` | Delete invoice and associated payment |
-| `GetSeatOccupancySummary` | Slot-aware seat counts |
-| `CreateSubscription` | Create new owner subscription |
-| `ApproveSubscription` | Admin approves subscription payment |
-| `RejectSubscription` | Admin rejects subscription |
-| `GetOwnerSubscription` | Get owner's subscription status |
-| `CalculateSubscriptionPrice` | Calculate price with discounts |
-| `ValidateCoupon` | Validate discount coupon |
-| `CreateCoupon` | Admin creates new coupon |
-| `StartOwnerTrial` | Start 7-day free trial |
-| `CheckVersionUpdate` | Check for force update |
-| `SendMembershipExpiryReminder` | Send push notification reminders |
-| `SendPaymentReminder` | Send payment reminder notification |
-| `SendAdminBroadcastNotification` | Send platform-wide announcement |
-| `GenerateStudentIdCard` | Generate downloadable ID card |
-| `UploadStudentDocument` | Upload verification document |
-| `ApproveStudentDocument` | Owner approves document |
-| `GetChurnData` | Get churn prediction data |
-| `ExtendTrial` | Admin extends owner trial |
-| `ApplyDiscount` | Admin applies retention discount |
-| `SuspendLibrary` | Suspend library for violations |
-| `GetHourlyActiveUsers` | Fetch active users for a specific hour |
-| `GetUserActivityDetails` | Get user's activity timeline over date range |
-| `GetUserDeviceSessions` | List active device sessions |
-| `LogoutDeviceSession` | Revoke a specific device session |
-| `LogoutAllOtherDevices` | Security: sign out all sessions except current |
-| `ValidateDailyPresence` | Check/record real-time presence |
-| `GetJobAlerts` | Paginated student job alert feed |
-| `RecordJobView` | Track job alert engagement |
-| `GetActiveStudentPremium` | Check student's premium status |
-| `ActivateStudentPremium` | Activate student premium after payment |
-| `CancelStudentPremium` | Cancel student premium subscription |
-| `GenerateDailyCurrentAffairs` | AI-generate daily news articles |
-| `GenerateOnDemandCurrentAffairs` | On-demand current affairs generation |
-| `CreateReferralCode` | Owner creates shareable referral code |
-| `ValidateReferralCode` | Validate code on subscription |
-| `ClaimReferralReward` | Process referral reward (free month / wallet credit) |
-| `GetReferralStats` | Owner's referral performance stats |
-| `RequestWalletWithdrawal` | Owner requests payout of wallet balance |
-| `ApproveWithdrawal` / `RejectWithdrawal` | Admin processes withdrawal |
-| `GetActivePromo` | Get active promo for owner |
-| `GetActivePromoForStudent` | Get active promo for student |
-| `RecordPromoInteraction` | Track promo impression/click/dismiss |
-| `CompressImage` | Compress image with quality settings |
-| `ConvertImagesToPdf` | Merge images into a PDF |
-| `ConvertPdfToImages` | Render PDF pages as images |
-| `ExtractPdfPages` | Extract specific pages from a PDF |
-| `ExtractTextFromImage` | OCR text extraction using ML Kit |
-
----
-
-## 💳 Subscription System
-
-### Overview
-- **7-day free trial** for all new owners
-- **Seat-based pricing** tiers
-- **Duration discounts** (3, 6, 12 months)
-- **Coupon support** for additional discounts
-- **Manual UPI payment** with admin verification
-
-### Pricing Tiers
-
-| Plan | Seats | Monthly Price (₹) |
-|------|-------|-------------------|
-| Starter | 1-50 | 99 |
-| Growth | 51-99 | 149 |
-| Professional | 100-149 | 199 |
-| Business | 150-199 | 249 |
-| Business Plus | 200-249 | 299 |
-| Enterprise | 250+ | 349 |
-
-### Duration Discounts
-
-| Duration | Discount |
-|----------|----------|
-| 1 month | 0% |
-| 3 months | 10% |
-| 6 months | 15% |
-| 12 months | 20% |
-
-### Subscription Workflow
-
-```
-Owner creates library → 7-day trial starts → Trial expires
-                                                   │
-                              ┌────────────────────┴────────────────────┐
-                              ▼                                         ▼
-                        Subscribe                              Trial Extension
-                              │                               (Admin can extend)
-                              ▼
-                    Select plan + duration
-                              │
-                              ▼
-                    Apply coupon (optional)
-                              │
-                              ▼
-                    Pay via UPI + enter UTR
-                              │
-                              ▼
-                    Admin verifies payment
-                              │
-                    ┌─────────┴─────────┐
-                    ▼                   ▼
-               Approved            Rejected
-                    │                   │
-                    ▼                   ▼
-          Subscription Active    Notification sent
+```bash
+flutter pub get
 ```
 
-### Access Control
+### Run
 
-| Status | Can Access Features |
-|--------|---------------------|
-| Trial Active | ✅ Full access |
-| Subscription Active | ✅ Full access |
-| Admin Bypassed | ✅ Full access (free) |
-| Pending Verification | ❌ Blocked (waiting) |
-| Trial Expired | ❌ Blocked |
-| Subscription Expired | ❌ Blocked |
-
----
-
-## 💺 Seat & Slot Management
-
-### Dashboard Statistics (Owner)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Seat Availability                          │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ☀️ Morning Slot (6 AM - 12 PM)                              │
-│  ┌───────────┬───────────┬───────────┐                       │
-│  │ Available │ Reserved  │ Occupied  │                       │
-│  │    15     │     3     │    32     │                       │
-│  └───────────┴───────────┴───────────┘                       │
-│                                                              │
-│  🌙 Evening Slot (4 PM - 10 PM)                              │
-│  ┌───────────┬───────────┬───────────┐                       │
-│  │ Available │ Reserved  │ Occupied  │                       │
-│  │    20     │     1     │    29     │                       │
-│  └───────────┴───────────┴───────────┘                       │
-│                                                              │
-│  ⏰ Custom Slots                                              │
-│  (Configurable per library)                                  │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+```bash
+flutter run
 ```
 
-### Seat States
+### Test
 
-```
-🟢 Available     → Owner can assign
-🟡 Reserved      → Payment pending (blocked)
-🔴 Occupied      → Active membership (blocked)
-🔵 Selected      → Current selection
+```bash
+flutter test
 ```
 
----
+## Summary
 
-## 💳 Payment Flow
+PG Sathi is a complete PG management platform built in Flutter with Firebase, covering operations for owners, tenants, and admins in one app.
 
-### Online Payment (Razorpay)
+It is designed as a production-ready multi-role system with real business workflows, analytics, payments, and notifications.
 
-```
-Owner assigns seat  →  Membership pending  →  Student pays online
-                                                      │
-                                          ┌───────────┴───────────┐
-                                          ▼                       ▼
-                                    Success                    Failed
-                                       │                         │
-                                       ▼                         ▼
-                              Membership ACTIVE         Membership CANCELLED
-                              Seat OCCUPIED             Seat AVAILABLE
-```
-
-### Cash Payment Flow
-
-```
-Student selects "Pay Cash"  →  Membership pending  →  Owner sees in "Cash Approvals"
-                                                               │
-                                               ┌───────────────┴───────────────┐
-                                               ▼                               ▼
-                                          Approve                           Reject
-                                              │                               │
-                                              ▼                               ▼
-                                    Membership ACTIVE            Membership CANCELLED
-                                    Seat OCCUPIED                Seat AVAILABLE
-                                    Invoice Generated            Student Notified
-```
-
-### UPI Payment Flow
-
-```
-Student selects "Pay via UPI"  →  Opens UPI app (PhonePe/GPay/Paytm)
-                                          │
-                                          ▼
-                              Student pays to owner's UPI ID
-                                          │
-                                          ▼
-                              Student clicks "I've Paid" (+ optional UTR)
-                                          │
-                                          ▼
-                              Owner sees in "UPI Approvals"
-                                          │
-                              ┌───────────┴───────────┐
-                              ▼                       ▼
-                          Approve                   Reject
-                              │                       │
-                              ▼                       ▼
-                    Membership ACTIVE      Membership CANCELLED
-                    Seat OCCUPIED          Seat AVAILABLE
-```
-
-### Switch Payment Mode
-
-Students with pending cash/UPI payments can switch to online payment:
-```
-Pending Cash/UPI  →  Click "Pay Online"  →  Razorpay checkout  →  Instant activation
-```
-
----
-
-## ✅ Attendance System
-
-### Features
-- **One check-in/check-out per day** per membership
-- Time-window validation (optional)
-- Duration tracking
-- History and statistics
-
-### Analytics
-- 📊 Daily hours spent
-- 📈 Weekly/monthly trends
-- 🔥 Attendance streaks
-- ⏱️ Average session duration
-
----
-
-## 📥 Bulk Import System
-
-### Overview
-Owners can import multiple students at once using an Excel file, streamlining the onboarding process for large groups.
-
-### Features
-- **Excel File Upload** - Support for `.xlsx` and `.xls` formats
-- **Data Validation** - Validates student information before import
-- **Preview Before Import** - Review data before processing
-- **Batch Processing** - Handles large datasets efficiently
-- **Error Handling** - Detailed error reporting for failed rows
-- **Progress Tracking** - Real-time import progress with statistics
-
-### Supported Fields
-- Student name
-- Phone number
-- Seat number
-- Slot assignment (Morning/Evening/Custom)
-- Payment mode (Online/Cash/UPI)
-
-### Import Workflow
-```
-Upload Excel File → Validate Data → Preview → Confirm Import → Process → Results
-```
-
-### Error Reporting
-- Row-by-row error details
-- Validation failures
-- Duplicate detection
-- Missing required fields
-
----
-
-## 🧾 Invoice System
-
-### Invoice Generation
-- Automatically generated after payment approval
-- Monthly billing cycle
-- PDF download support
-- Contains library details, membership info, payment breakdown
-
-### Invoice Management
-- **View invoices** - Students and owners can view all invoices
-- **Download PDF** - Cross-platform PDF download (web and mobile)
-- **Share invoices** - Share via system share sheet
-- **Delete invoices** - Owners and students can delete invoices (also removes associated payment for revenue accuracy)
-
-### PDF Features
-- Professional layout with library branding
-- Itemized billing breakdown
-- Cross-platform support (web and mobile)
-- Shareable via system share sheet
-- Unicode character sanitization for PDF compatibility
-
----
-
-## ⭐ Student Premium
-
-Students can subscribe to a premium plan for an enhanced experience:
-- **Ad-free** - No AdMob banners while using the app
 - **Priority push delivery** - Notifications delivered with higher priority
 - **Future premium features** - Gated behind the subscription
 
@@ -767,7 +171,7 @@ Features designed to add value for students studying for competitive/government 
 
 ### AI Chat
 - In-app AI assistant accessible to students
-- Ask study-related queries
+- Ask study-related queries d
 - Supports tool-calling for enriched responses
 
 ---
