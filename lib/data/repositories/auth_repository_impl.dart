@@ -55,18 +55,6 @@ class AuthRepositoryImpl implements AuthRepository {
       return firebaseOtpProvider.sendOtp(phoneNumber);
     }
 
-    // Mobile can complete the full login with Firebase Phone Auth alone.
-    // SMS Portals requires createCustomToken Cloud Function after OTP verify,
-    // which is only available after the Firebase project is on Blaze.
-    if (!kIsWeb) {
-      final result = await firebaseOtpProvider.sendOtp(phoneNumber);
-
-      return result.fold((failure) => Left(failure), (verificationId) async {
-        await otpQuotaService.incrementFirebaseOtpCount();
-        return Right(verificationId);
-      });
-    }
-
     // Remote Config Priority 1: Force Firebase only (ignore quota)
     final forceFirebaseOtp = remoteConfig.getBool('force_firebase_otp');
 

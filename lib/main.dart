@@ -4,6 +4,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -71,6 +72,12 @@ Future<void> main() async {
 
   // Initialize Firebase with platform-specific options
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Debug builds on Android (esp. emulators) fail Play Integrity checks for
+  // Phone Auth. Fall back to reCAPTCHA verification in debug only.
+  if (kDebugMode && defaultTargetPlatform == TargetPlatform.android) {
+    await FirebaseAuth.instance.setSettings(forceRecaptchaFlow: true);
+  }
 
   // Enable Firestore persistence for faster loading and offline support
   // This reduces server reads by ~36% by caching data locally
