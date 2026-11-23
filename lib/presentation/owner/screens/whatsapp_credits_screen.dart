@@ -68,9 +68,7 @@ class _WhatsAppCreditsScreenState extends State<WhatsAppCreditsScreen> {
     final options = <String, dynamic>{
       // Debug builds use the test key so the flow can be verified without
       // real money; release builds always use the live key.
-      'key': kDebugMode
-          ? SubscriptionPlan.razorpayTestKey
-          : SubscriptionPlan.razorpayLiveKey,
+      'key':SubscriptionPlan.razorpayLiveKey,
       'amount': amountInPaise,
       'currency': 'INR',
       'name': SubscriptionPlan.appName,

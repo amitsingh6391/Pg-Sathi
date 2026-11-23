@@ -129,7 +129,7 @@ class SubscriptionPlan extends Equatable {
   static const String appName = 'PG Sathi';
 
   /// Razorpay Keys
-  static const String razorpayLiveKey = 'rzp_live_ozPULXLDgca7CR';
+  static const String razorpayLiveKey = 'rzp_live_TYEj2AZ4AUIEwY';
   static const String razorpayTestKey = 'rzp_test_1iFdsz611tIZeV';
   static const double razorpayChargePercent = 2.5; // 2.5% transaction charge
 
