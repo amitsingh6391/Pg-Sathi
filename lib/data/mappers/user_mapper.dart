@@ -27,6 +27,8 @@ class UserMapper {
       autoWhatsAppInvoicesEnabled: dto.autoWhatsAppInvoicesEnabled,
       autoWhatsAppFeeRemindersEnabled: dto.autoWhatsAppFeeRemindersEnabled,
       createdAt: dto.createdAt?.toDate(),
+      managedByOwnerId: dto.managedByOwnerId,
+      managedLibraryIds: dto.managedLibraryIds,
     );
   }
 
@@ -52,6 +54,8 @@ class UserMapper {
       createdAt: entity.createdAt != null
           ? Timestamp.fromDate(entity.createdAt!)
           : null,
+      managedByOwnerId: entity.managedByOwnerId,
+      managedLibraryIds: entity.managedLibraryIds,
     );
   }
 

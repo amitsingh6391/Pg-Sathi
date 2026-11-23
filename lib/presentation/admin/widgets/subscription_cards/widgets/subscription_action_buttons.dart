@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/app_ui_constants.dart';
 
@@ -15,38 +15,40 @@ class SubscriptionActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+    );
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton(
+          child: OutlinedButton.icon(
             onPressed: onReject,
+            icon: const Icon(Icons.close_rounded, size: 18),
+            label: const Text('Reject'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppUIConstants.textSecondary,
+              foregroundColor: AppUIConstants.error,
               side: BorderSide(
-                color: AppUIConstants.divider.withValues(alpha: 0.3),
+                color: AppUIConstants.error.withValues(alpha: 0.5),
               ),
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              shape: shape,
             ),
-            child: const Text('Reject'),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
-          child: ElevatedButton(
+          flex: 2,
+          child: ElevatedButton.icon(
             onPressed: onApprove,
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Approve'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppUIConstants.textPrimary,
+              backgroundColor: AppUIConstants.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
               elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              shape: shape,
             ),
-            child: const Text('Approve'),
           ),
         ),
       ],

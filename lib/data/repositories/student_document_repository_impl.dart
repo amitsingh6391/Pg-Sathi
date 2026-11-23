@@ -241,6 +241,4 @@ class StudentDocumentRepositoryImpl implements StudentDocumentRepository {
       );
     }
   }
-
 }
-

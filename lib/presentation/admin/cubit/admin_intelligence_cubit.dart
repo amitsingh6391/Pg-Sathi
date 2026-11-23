@@ -115,7 +115,7 @@ class AdminIntelligenceCubit extends Cubit<AdminIntelligenceState> {
         emit(
           state.copyWith(
             isPerformingAction: false,
-            actionSuccess: 'Library suspended successfully',
+            actionSuccess: 'PG suspended successfully',
           ),
         );
         loadDashboard(); // Refresh data
@@ -147,7 +147,7 @@ class AdminIntelligenceCubit extends Cubit<AdminIntelligenceState> {
         emit(
           state.copyWith(
             isPerformingAction: false,
-            actionSuccess: 'Library unsuspended successfully',
+            actionSuccess: 'PG unsuspended successfully',
           ),
         );
         loadDashboard();

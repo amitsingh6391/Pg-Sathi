@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/app_ui_constants.dart';
+import '../../../core/widgets/premium_kit.dart';
 
-/// Modern notification form with title and message inputs.
+/// Notification composer card with title and message inputs and counters.
 class NotificationForm extends StatelessWidget {
   const NotificationForm({
     super.key,
@@ -15,56 +16,69 @@ class NotificationForm extends StatelessWidget {
   final TextEditingController titleController;
   final TextEditingController bodyController;
 
+  static const int _titleMax = 60;
+  static const int _bodyMax = 240;
+
+  InputDecoration _decoration(String label, String hint, IconData icon) {
+    OutlineInputBorder b(Color c, [double w = 1]) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusSm + 2),
+      borderSide: BorderSide(color: c, width: w),
+    );
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      counterText: '',
+      filled: true,
+      fillColor: AppUIConstants.surfaceMuted,
+      labelStyle: const TextStyle(color: AppUIConstants.textSecondary),
+      hintStyle: const TextStyle(color: AppUIConstants.textTertiary),
+      prefixIcon: Icon(icon, size: 20, color: AppUIConstants.primaryLight),
+      enabledBorder: b(AppUIConstants.border),
+      focusedBorder: b(AppUIConstants.primaryLight, 1.5),
+      errorBorder: b(AppUIConstants.error),
+      focusedErrorBorder: b(AppUIConstants.error, 1.5),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    );
+  }
+
+  Widget _counter(TextEditingController c, int max) {
+    return ListenableBuilder(
+      listenable: c,
+      builder: (_, _) => Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4, right: 4),
+          child: Text(
+            '${c.text.length} chars · aim for under $max',
+            style: AppUIConstants.caption.copyWith(
+              color: c.text.length > max
+                  ? AppUIConstants.warning
+                  : AppUIConstants.textTertiary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Notification Content',
-            style: AppUIConstants.headingSm.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Craft your message carefully - it will be sent instantly',
-            style: AppUIConstants.caption.copyWith(
-              color: AppUIConstants.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Title Field
-          Container(
-            decoration: BoxDecoration(
-              color: AppUIConstants.surface.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppUIConstants.border.withValues(alpha: 0.3),
-              ),
-            ),
-            child: TextFormField(
+    return PremiumCard(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PremiumSectionHeader('Message'),
+            TextFormField(
               controller: titleController,
-              decoration: InputDecoration(
-                labelText: 'Title',
-                hintText: 'e.g., Important Update',
-                labelStyle: TextStyle(
-                  color: AppUIConstants.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-                prefixIcon: Icon(
-                  Icons.title_rounded,
-                  color: AppUIConstants.primary,
-                  size: 20,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+              style: AppUIConstants.bodyLg,
+              textInputAction: TextInputAction.next,
+              decoration: _decoration(
+                'Title',
+                'e.g., Important update',
+                Icons.title_rounded,
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -76,43 +90,18 @@ class NotificationForm extends StatelessWidget {
                 return null;
               },
             ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Message Field
-          Container(
-            decoration: BoxDecoration(
-              color: AppUIConstants.surface.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppUIConstants.border.withValues(alpha: 0.3),
-              ),
-            ),
-            child: TextFormField(
+            _counter(titleController, _titleMax),
+            const SizedBox(height: 8),
+            TextFormField(
               controller: bodyController,
               maxLines: 5,
-              decoration: InputDecoration(
-                labelText: 'Message',
-                hintText: 'Enter your notification message here...',
-                labelStyle: TextStyle(
-                  color: AppUIConstants.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-                alignLabelWithHint: true,
-                prefixIcon: Padding(
-                  padding: const EdgeInsets.only(bottom: 60),
-                  child: Icon(
-                    Icons.message_rounded,
-                    color: AppUIConstants.primary,
-                    size: 20,
-                  ),
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
+              minLines: 4,
+              style: AppUIConstants.bodyLg,
+              decoration: _decoration(
+                'Message',
+                'Write your notification message...',
+                Icons.message_rounded,
+              ).copyWith(alignLabelWithHint: true),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Message is required';
@@ -123,8 +112,9 @@ class NotificationForm extends StatelessWidget {
                 return null;
               },
             ),
-          ),
-        ],
+            _counter(bodyController, _bodyMax),
+          ],
+        ),
       ),
     );
   }

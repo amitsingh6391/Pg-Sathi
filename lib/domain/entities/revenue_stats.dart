@@ -56,7 +56,7 @@ class RevenueStats extends Equatable {
 
   /// Monthly revenue data points (last 12 months) for trend chart.
   final List<MonthlyRevenuePoint> monthlyData;
-  
+
   /// Monthly subscription counts (last 12 months) for growth chart.
   final List<MonthlySubscriptionPoint> monthlySubscriptionData;
 
@@ -79,26 +79,29 @@ class RevenueStats extends Equatable {
   final List<SeatSlabBreakdown> seatSlabBreakdown;
 
   final int freeTrialLibraries;
-  
+
   /// Libraries that have ever made a payment (lifetime).
   final int paidLibraries;
-  
+
   /// Libraries with currently active subscription (endDate in future).
   final int activeSubscriptions;
-  
+
   /// Libraries that churned (expired/cancelled, not active anymore).
   final int churnedLibraries;
-  
+
   /// New subscriptions this month.
   final int thisMonthSubscriptions;
-  
+
   /// New subscriptions last month.
   final int lastMonthSubscriptions;
-  
+
   /// Subscription growth % (this month vs last month).
   double get subscriptionGrowthPercent {
-    if (lastMonthSubscriptions == 0) return thisMonthSubscriptions > 0 ? 100.0 : 0.0;
-    return ((thisMonthSubscriptions - lastMonthSubscriptions) / lastMonthSubscriptions) * 100;
+    if (lastMonthSubscriptions == 0)
+      return thisMonthSubscriptions > 0 ? 100.0 : 0.0;
+    return ((thisMonthSubscriptions - lastMonthSubscriptions) /
+            lastMonthSubscriptions) *
+        100;
   }
 
   final UpcomingRenewals upcomingRenewals;
@@ -158,10 +161,7 @@ class DailyRevenuePoint extends Equatable {
 
 /// Single data point for monthly revenue trend chart.
 class MonthlyRevenuePoint extends Equatable {
-  const MonthlyRevenuePoint({
-    required this.date,
-    required this.revenue,
-  });
+  const MonthlyRevenuePoint({required this.date, required this.revenue});
 
   final DateTime date;
   final double revenue;
@@ -172,10 +172,7 @@ class MonthlyRevenuePoint extends Equatable {
 
 /// Single data point for monthly subscription count chart.
 class MonthlySubscriptionPoint extends Equatable {
-  const MonthlySubscriptionPoint({
-    required this.date,
-    required this.count,
-  });
+  const MonthlySubscriptionPoint({required this.date, required this.count});
 
   final DateTime date;
   final int count;

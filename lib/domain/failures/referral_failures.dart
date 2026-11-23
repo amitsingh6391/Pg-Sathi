@@ -7,8 +7,7 @@ class ReferralFailure extends Failure {
 class NoActiveSubscriptionForReferralFailure extends ReferralFailure {
   const NoActiveSubscriptionForReferralFailure()
     : super(
-        message:
-            'You need an active subscription to create a referral code',
+        message: 'You need an active subscription to create a referral code',
       );
 }
 
@@ -18,8 +17,7 @@ class ReferralCodeAlreadyExistsFailure extends ReferralFailure {
 }
 
 class InvalidReferralCodeFailure extends ReferralFailure {
-  const InvalidReferralCodeFailure()
-    : super(message: 'Invalid referral code');
+  const InvalidReferralCodeFailure() : super(message: 'Invalid referral code');
 }
 
 class SelfReferralNotAllowedFailure extends ReferralFailure {

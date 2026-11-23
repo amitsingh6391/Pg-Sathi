@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,7 +17,7 @@ class _CompanyInfo {
   static const String tagline = 'Smart Library Management Platform';
   static const String email = 'service@pgsathi.in';
   static const String phone = '+91 9548582776';
-  static const String website = 'www.pgsathi.in';
+  static const String website = 'pg-sathi.web.app';
 }
 
 /// Service for generating subscription invoice PDFs.

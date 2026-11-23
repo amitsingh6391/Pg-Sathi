@@ -40,6 +40,7 @@ class LibraryFormDraftService {
         'hasDrinkingWater': library.hasDrinkingWater,
         'hasCCTV': library.hasCCTV,
         'ownerUpiId': library.ownerUpiId,
+        'ownerUpiQrUrl': library.ownerUpiQrUrl,
         'ownerPhone': library.ownerPhone,
         'totalSeatCapacity': library.totalSeatCapacity,
       };
@@ -94,6 +95,7 @@ class LibraryFormDraftService {
         hasDrinkingWater: data['hasDrinkingWater'] as bool? ?? false,
         hasCCTV: data['hasCCTV'] as bool? ?? false,
         ownerUpiId: stringOrNull('ownerUpiId'),
+        ownerUpiQrUrl: stringOrNull('ownerUpiQrUrl'),
         ownerPhone: stringOrNull('ownerPhone'),
         totalSeatCapacity: data['totalSeatCapacity'] as int?,
       );

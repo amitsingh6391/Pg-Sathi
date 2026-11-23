@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
@@ -127,13 +127,21 @@ void showOccupiedSeatsSnackBar(
         children: [
           Icon(
             isError ? Icons.error_rounded : Icons.check_circle_rounded,
-            color: Colors.white,
+            color: isError ? Colors.white : AppUIConstants.background,
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(message)),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: isError ? Colors.white : AppUIConstants.background,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
-      backgroundColor: isError ? Colors.red.shade600 : const Color(0xFF10B981),
+      backgroundColor: isError ? AppUIConstants.error : AppUIConstants.success,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
@@ -151,6 +159,7 @@ void showOccupiedSeatsSortDialog(BuildContext context) {
 
   showModalBottomSheet(
     context: context,
+    backgroundColor: AppUIConstants.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -160,7 +169,7 @@ void showOccupiedSeatsSortDialog(BuildContext context) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Sort By', style: Theme.of(context).textTheme.titleLarge),
+          const Text('Sort By', style: AppUIConstants.headingMd),
           const SizedBox(height: 16),
           _SortOption(
             title: 'By bed number',
@@ -173,7 +182,7 @@ void showOccupiedSeatsSortDialog(BuildContext context) {
           ),
           _SortOption(
             title: 'By Added Date',
-            subtitle: 'Newest tenants first',
+            subtitle: 'Newest residents first',
             selected: currentSort == SortBy.addedDate,
             onTap: () {
               cubit.setSortBy(SortBy.addedDate);
@@ -257,7 +266,7 @@ class _SortOption extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: selected
                             ? AppUIConstants.primary
-                            : Colors.black87,
+                            : AppUIConstants.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -265,7 +274,7 @@ class _SortOption extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: AppUIConstants.textSecondary,
                       ),
                     ),
                   ],
@@ -305,7 +314,7 @@ void showCancelMembershipDialog(
         children: [
           Icon(
             isPending ? Icons.delete_rounded : Icons.cancel_rounded,
-            color: Colors.red.shade600,
+            color: AppUIConstants.error,
           ),
           const SizedBox(width: 12),
           Text(isPending ? 'Remove Pending' : 'Cancel Stay'),
@@ -318,7 +327,7 @@ void showCancelMembershipDialog(
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: AppUIConstants.surfaceMuted,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -330,7 +339,7 @@ void showCancelMembershipDialog(
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.amber.shade600, Colors.amber.shade700],
+                      colors: [AppUIConstants.warning, AppUIConstants.warning],
                     ),
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -351,13 +360,13 @@ void showCancelMembershipDialog(
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
+                      color: AppUIConstants.warning.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       'Pending',
                       style: TextStyle(
-                        color: Colors.amber.shade800,
+                        color: AppUIConstants.warning,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -372,13 +381,13 @@ void showCancelMembershipDialog(
             isPending
                 ? 'This will remove the pending reservation and free up the bed.'
                 : 'This will cancel the stay and free up the bed.',
-            style: TextStyle(color: Colors.grey.shade700),
+            style: TextStyle(color: AppUIConstants.textSecondary),
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange.shade50,
+              color: AppUIConstants.primaryLight.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -386,14 +395,14 @@ void showCancelMembershipDialog(
                 Icon(
                   Icons.warning_rounded,
                   size: 18,
-                  color: Colors.orange.shade700,
+                  color: AppUIConstants.primaryLight,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'This action cannot be undone.',
                     style: TextStyle(
-                      color: Colors.orange.shade800,
+                      color: AppUIConstants.primaryLight,
                       fontSize: 12,
                     ),
                   ),
@@ -410,7 +419,7 @@ void showCancelMembershipDialog(
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: AppUIConstants.error,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -439,14 +448,14 @@ Future<void> handleOccupiedSeatsRefund(
 }) async {
   final authRepo = sl<AuthRepository>();
   final userResult = await authRepo.getCurrentUser();
-  final ownerId = userResult.fold((_) => null, (user) => user?.id);
+  final ownerId = userResult.fold((_) => null, (user) => user?.ownerAccountId);
 
   if (ownerId == null) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Failed to get current user'),
-        backgroundColor: Colors.red,
+        backgroundColor: AppUIConstants.error,
       ),
     );
     return;
@@ -463,7 +472,7 @@ Future<void> handleOccupiedSeatsRefund(
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to load payment: ${failure.message}'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppUIConstants.error,
         ),
       );
     },
@@ -474,7 +483,7 @@ Future<void> handleOccupiedSeatsRefund(
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No payment found for this stay'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppUIConstants.primary,
           ),
         );
         return;
@@ -484,7 +493,7 @@ Future<void> handleOccupiedSeatsRefund(
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Only successful payments can be refunded'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppUIConstants.primary,
           ),
         );
         return;
@@ -494,7 +503,7 @@ Future<void> handleOccupiedSeatsRefund(
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Payment already refunded'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppUIConstants.primary,
           ),
         );
         return;

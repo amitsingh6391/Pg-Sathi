@@ -56,21 +56,21 @@ class PromoOffer extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        imageUrl,
-        ctaText,
-        ctaAction,
-        ctaValue,
-        description,
-        targetAudience,
-        displayFrequency,
-        startDate,
-        endDate,
-        priority,
-        isActive,
-        createdAt,
-      ];
+    id,
+    title,
+    imageUrl,
+    ctaText,
+    ctaAction,
+    ctaValue,
+    description,
+    targetAudience,
+    displayFrequency,
+    startDate,
+    endDate,
+    priority,
+    isActive,
+    createdAt,
+  ];
 }
 
 /// Action types for promo CTA button
@@ -156,13 +156,13 @@ class PromoInteraction extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        promoOfferId,
-        ownerId,
-        libraryId,
-        action,
-        timestamp,
-      ];
+    id,
+    promoOfferId,
+    ownerId,
+    libraryId,
+    action,
+    timestamp,
+  ];
 }
 
 /// Types of interactions with a promo

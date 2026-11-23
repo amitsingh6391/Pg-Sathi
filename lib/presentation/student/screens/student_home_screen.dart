@@ -1,43 +1,56 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/di/injection_container.dart';
 import '../../../core/router/app_router.dart';
 import '../../../domain/entities/user.dart';
-import '../../../domain/usecases/get_student_memberships.dart';
 import '../../auth/cubit/phone_auth_cubit.dart';
 import '../../auth/cubit/phone_auth_state.dart';
 import '../../core/app_ui_constants.dart';
-import '../cubit/attendance_history_cubit.dart';
-import '../cubit/invoice_cubit.dart';
 import '../cubit/profile_cubit.dart';
 import '../cubit/student_home_cubit.dart';
 import '../cubit/student_home_state.dart';
-import '../cubit/student_payment_cubit.dart';
+import '../home/home_navigator.dart';
+import '../home/membership_groups.dart';
+import '../widgets/home/home_featured_membership.dart';
+import '../widgets/home/home_quick_actions_section.dart';
+import '../widgets/home/past_memberships.dart';
 import '../widgets/home_dashboard_widgets.dart';
 import '../widgets/no_membership_card.dart';
 import '../widgets/profile_completion_banner.dart';
 import '../widgets/sync_memberships_banner.dart';
-import '../widgets/unified_membership_card.dart';
-import 'attendance_details_screen.dart';
-import 'invoices_screen.dart';
-import 'library_details_screen.dart';
-import 'payment_screen.dart';
 import 'profile_form_screen.dart';
 import 'profile_screen.dart';
-import 'student_documents_screen.dart';
 
 /// Student home screen focused on PG stays and tenant account actions.
 class StudentHomeScreen extends StatefulWidget {
-  const StudentHomeScreen({super.key, required this.userId});
+  const StudentHomeScreen({
+    super.key,
+    required this.userId,
+    this.onOpenExploreTab,
+  });
 
   final String userId;
+
+  /// Switches the shell to the Explore tab (null when pushed standalone).
+  final VoidCallback? onOpenExploreTab;
 
   @override
   State<StudentHomeScreen> createState() => _StudentHomeScreenState();
 }
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
+  /// Stay chosen in the header switcher (null = most urgent).
+  String? _selectedMembershipId;
+
+  late final StudentHomeNavigator _navigator = StudentHomeNavigator(
+    userId: widget.userId,
+    onRefresh: () {
+      if (mounted) _refreshDashboard(context);
+    },
+  );
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<PhoneAuthCubit, PhoneAuthState>(
@@ -53,31 +66,44 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               return const _StudentHomeSkeleton();
             }
 
-            return Column(
-              children: [
-                StudentDashboardHeader(
-                  user: state.user,
-                  onRefresh: () => _refreshDashboard(context),
-                  onProfile: state.user != null
-                      ? () => _navigateToProfile(context, state.user!)
-                      : null,
-                  onSignOut: () => _showSignOutDialog(context),
-                ),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      _refreshDashboard(context);
-                    },
-                    color: AppUIConstants.primary,
-                    backgroundColor: AppUIConstants.surface,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                      children: [_buildContent(context, state)],
-                    ),
+            final groups = groupMemberships(
+              state.memberships,
+              selectedId: _selectedMembershipId,
+            );
+            return RefreshIndicator(
+              onRefresh: () async {
+                _refreshDashboard(context);
+              },
+              color: AppUIConstants.primaryLight,
+              backgroundColor: AppUIConstants.surface,
+              edgeOffset: MediaQuery.of(context).padding.top,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 32),
+                children: [
+                  StudentDashboardHeader(
+                    user: state.user,
+                    onRefresh: () => _refreshDashboard(context),
+                    onProfile: state.user != null
+                        ? () => _navigateToProfile(context, state.user!)
+                        : null,
+                    onSignOut: () => _showSignOutDialog(context),
+                    figure: groups.featured == null
+                        ? null
+                        : HomeFeaturedMembership(
+                            groups: groups,
+                            userId: widget.userId,
+                            navigator: _navigator,
+                            onSelected: (id) =>
+                                setState(() => _selectedMembershipId = id),
+                          ),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildContent(context, state, groups),
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -89,17 +115,45 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   // Content Sections
   // ===========================================================================
 
-  Widget _buildContent(BuildContext context, StudentHomeState state) {
+  Widget _buildContent(
+    BuildContext context,
+    StudentHomeState state,
+    MembershipGroups groups,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 20),
+        HomeReveal(child: _buildBanners(context, state)),
+        if (groups.featured == null)
+          HomeReveal(
+            index: 1,
+            child: NoMembershipCard(
+              onExplore: state.canShowExploreLibraries
+                  ? widget.onOpenExploreTab
+                  : null,
+            ),
+          )
+        else ...[
+          HomeReveal(
+            index: 1,
+            child: HomeQuickActionsSection(
+              memberships: groups.all,
+              documentStatus: state.documentStatus,
+              navigator: _navigator,
+            ),
+          ),
+          if (groups.past.isNotEmpty)
+            HomeReveal(
+              index: 2,
+              child: PastMembershipsRow(
+                past: groups.past,
+                userId: widget.userId,
+                navigator: _navigator,
+              ),
+            ),
+        ],
         const SizedBox(height: 8),
-
-        // Banners (profile completion, sync memberships)
-        _buildBanners(context, state),
-
-        // Memberships
-        _buildMembershipsSection(context, state),
       ],
     );
   }
@@ -133,58 +187,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildMembershipsSection(
-    BuildContext context,
-    StudentHomeState state,
-  ) {
-    if (!state.hasMemberships) return const NoMembershipCard();
-
-    final merged = _mergeMemberships(state.memberships);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HomeSectionHeader(
-          title: 'My Memberships',
-          trailing: Text(
-            '${merged.length}',
-            style: TextStyle(
-              color: AppUIConstants.textTertiary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        ...merged.map((info) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: UnifiedMembershipCard(
-              info: info,
-              userId: widget.userId,
-              documentStatus: state.documentStatus,
-              onCardTap: info.library != null
-                  ? () => info.isPendingPayment
-                        ? _navigateToPayment(context, info)
-                        : _navigateToLibraryDetails(context, info)
-                  : null,
-              onViewAttendance: info.isActive && info.library != null
-                  ? () => _navigateToAttendance(context, info)
-                  : null,
-              onViewInvoices: info.isActive
-                  ? () => _navigateToInvoices(context)
-                  : null,
-              onViewDocuments: info.isActive
-                  ? () => _navigateToDocuments(context)
-                  : null,
-            ),
-          );
-        }),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
   // ===========================================================================
   // Helpers
   // ===========================================================================
@@ -214,75 +216,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       userId: user.id,
       phoneNumber: user.phone,
     );
-  }
-
-  List<StudentMembershipInfo> _mergeMemberships(
-    List<StudentMembershipInfo> memberships,
-  ) {
-    final merged = <String, StudentMembershipInfo>{};
-
-    for (final info in memberships) {
-      final slot = info.displaySlot;
-      final slotKey = slot != null
-          ? slot.name
-          : (info.customSlot?.id ?? 'unknown');
-      final key = '${info.membership.libraryId}_$slotKey';
-
-      if (!merged.containsKey(key)) {
-        merged[key] = info;
-        continue;
-      }
-
-      final existing = merged[key]!;
-      StudentMembershipInfo primary = existing;
-      StudentMembershipInfo other = info;
-
-      if (!existing.isActive && info.isActive) {
-        primary = info;
-        other = existing;
-      } else if (existing.isActive && !info.isActive) {
-        primary = existing;
-        other = info;
-      } else {
-        if (info.membership.startDate.isBefore(existing.membership.startDate)) {
-          primary = info;
-          other = existing;
-        }
-      }
-
-      var upcoming = primary.upcomingMembership;
-      if (upcoming == null) {
-        if (other.membership.startDate.isAfter(primary.membership.startDate)) {
-          upcoming = other.membership;
-        } else if (other.upcomingMembership != null) {
-          upcoming = other.upcomingMembership;
-        }
-      } else {
-        final candidate =
-            other.upcomingMembership ??
-            (other.membership.startDate.isAfter(primary.membership.startDate)
-                ? other.membership
-                : null);
-        if (candidate != null &&
-            candidate.startDate.isBefore(upcoming.startDate)) {
-          upcoming = candidate;
-        }
-      }
-
-      merged[key] = StudentMembershipInfo(
-        membership: primary.membership,
-        library: primary.library,
-        libraryName: primary.libraryName,
-        customSlot: primary.customSlot,
-        daysRemaining: primary.daysRemaining,
-        isPendingPayment: primary.isPendingPayment,
-        isActive: primary.isActive,
-        isExpired: primary.isExpired,
-        upcomingMembership: upcoming,
-      );
-    }
-
-    return merged.values.toList();
   }
 
   // ===========================================================================
@@ -319,107 +252,92 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     }
   }
 
-  void _navigateToPayment(BuildContext ctx, StudentMembershipInfo info) async {
-    final result = await Navigator.of(ctx).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => sl<StudentPaymentCubit>(),
-          child: PaymentScreen(membershipInfo: info),
-        ),
-      ),
-    );
-    if (result == true && ctx.mounted) _refreshDashboard(ctx);
-  }
-
-  void _navigateToLibraryDetails(BuildContext ctx, StudentMembershipInfo info) {
-    if (info.library == null) return;
-    Navigator.of(ctx).push(
-      MaterialPageRoute(
-        builder: (_) => LibraryDetailsScreen(
-          library: info.library!,
-          membershipInfo: info,
-          userId: widget.userId,
-        ),
-      ),
-    );
-  }
-
-  void _navigateToAttendance(BuildContext ctx, StudentMembershipInfo info) {
-    if (info.library == null) return;
-    Navigator.of(ctx).push(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => sl<AttendanceHistoryCubit>(),
-          child: AttendanceDetailsScreen(
-            userId: widget.userId,
-            libraryId: info.library!.id,
-            libraryName: info.library!.name,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _navigateToDocuments(BuildContext ctx) {
-    Navigator.of(ctx)
-        .push(
-          MaterialPageRoute(
-            builder: (_) => StudentDocumentsScreen(studentId: widget.userId),
-          ),
-        )
-        .then((_) {
-          if (ctx.mounted) _refreshDashboard(ctx);
-        });
-  }
-
-  void _navigateToInvoices(BuildContext ctx) {
-    Navigator.of(ctx).push(
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => sl<InvoiceCubit>(),
-          child: InvoicesScreen(userId: widget.userId),
-        ),
-      ),
-    );
-  }
-
   void _showSignOutDialog(BuildContext ctx) {
-    showDialog(
+    HapticFeedback.selectionClick();
+    showModalBottomSheet<void>(
       context: ctx,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AppUIConstants.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+      backgroundColor: AppUIConstants.surface,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppUIConstants.radiusXl),
         ),
-        title: Text('Sign Out', style: AppUIConstants.headingMd),
-        content: Text(
-          'Are you sure you want to sign out?',
-          style: AppUIConstants.bodyMd,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: AppUIConstants.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogCtx).pop();
-              ctx.read<PhoneAuthCubit>().signOut();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppUIConstants.error,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppUIConstants.error.withValues(alpha: 0.14),
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: AppUIConstants.error,
+                  size: 28,
+                ),
               ),
-            ),
-            child: const Text('Sign Out'),
+              const SizedBox(height: 16),
+              const Text(
+                'Sign out of PG Sathi?',
+                style: AppUIConstants.headingMd,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'You can sign back in anytime with your phone number.',
+                style: AppUIConstants.bodyMd,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(sheetCtx).pop(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppUIConstants.textSecondary,
+                        side: const BorderSide(color: AppUIConstants.border),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppUIConstants.radiusMd,
+                          ),
+                        ),
+                      ),
+                      child: const Text('Stay signed in'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(sheetCtx).pop();
+                        ctx.read<PhoneAuthCubit>().signOut();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppUIConstants.error,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppUIConstants.radiusMd,
+                          ),
+                        ),
+                      ),
+                      child: const Text('Sign out'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -462,34 +380,78 @@ class _StudentHomeSkeletonState extends State<_StudentHomeSkeleton>
       animation: _anim,
       builder: (_, _) => ListView(
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+        padding: EdgeInsets.zero,
         children: [
-          _Bone(width: double.infinity, height: 56, anim: _anim),
-          const SizedBox(height: 16),
-          _Bone(width: double.infinity, height: 100, anim: _anim),
-          const SizedBox(height: 16),
-          _Bone(width: double.infinity, height: 120, anim: _anim),
-          const SizedBox(height: 12),
-          _Bone(width: double.infinity, height: 120, anim: _anim),
-          const SizedBox(height: 16),
-          _Bone(width: 160, height: 18, anim: _anim),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _Bone(height: 110, anim: _anim)),
-              const SizedBox(width: 12),
-              Expanded(child: _Bone(height: 110, anim: _anim)),
-            ],
+          Container(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              MediaQuery.of(context).padding.top + 16,
+              20,
+              24,
+            ),
+            decoration: const BoxDecoration(
+              color: AppUIConstants.surface,
+              border: Border(bottom: BorderSide(color: AppUIConstants.border)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _Bone(width: 48, height: 48, radius: 24, anim: _anim),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Bone(width: 90, height: 10, anim: _anim),
+                        const SizedBox(height: 8),
+                        _Bone(width: 150, height: 16, anim: _anim),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _Bone(
+                  width: double.infinity,
+                  height: 128,
+                  radius: AppUIConstants.radiusLg,
+                  anim: _anim,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _Bone(width: 160, height: 18, anim: _anim),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _Bone(height: 90, anim: _anim)),
-              const SizedBox(width: 12),
-              Expanded(child: _Bone(height: 90, anim: _anim)),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Bone(width: 120, height: 16, anim: _anim),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _Bone(height: 64, radius: 20, anim: _anim)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _Bone(height: 64, radius: 20, anim: _anim)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: _Bone(height: 64, radius: 20, anim: _anim)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _Bone(height: 64, radius: 20, anim: _anim)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _Bone(width: 100, height: 16, anim: _anim),
+                const SizedBox(height: 12),
+                _Bone(
+                  width: double.infinity,
+                  height: 220,
+                  radius: AppUIConstants.radiusLg,
+                  anim: _anim,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -498,11 +460,17 @@ class _StudentHomeSkeletonState extends State<_StudentHomeSkeleton>
 }
 
 class _Bone extends StatelessWidget {
-  const _Bone({required this.anim, required this.height, this.width});
+  const _Bone({
+    required this.anim,
+    required this.height,
+    this.width,
+    this.radius = 12,
+  });
 
   final Animation<double> anim;
   final double height;
   final double? width;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
@@ -510,14 +478,14 @@ class _Bone extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(radius),
         gradient: LinearGradient(
           begin: Alignment(anim.value - 1, 0),
           end: Alignment(anim.value + 1, 0),
           colors: const [
-            Color(0xFFE8EEF4),
-            Color(0xFFD0DCE8),
-            Color(0xFFE8EEF4),
+            AppUIConstants.surfaceMuted,
+            AppUIConstants.border,
+            AppUIConstants.surfaceMuted,
           ],
         ),
       ),

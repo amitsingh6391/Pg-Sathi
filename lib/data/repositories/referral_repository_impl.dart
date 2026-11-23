@@ -42,7 +42,9 @@ class ReferralRepositoryImpl implements ReferralRepository {
           .set({'code': referral.code});
       return Right(referral);
     } catch (e) {
-      return Left(_ReferralDataFailure(message: 'Failed to create referral: $e'));
+      return Left(
+        _ReferralDataFailure(message: 'Failed to create referral: $e'),
+      );
     }
   }
 
@@ -84,7 +86,9 @@ class ReferralRepositoryImpl implements ReferralRepository {
       await _referralsRef.doc(referral.id).update(_referralToMap(referral));
       return Right(referral);
     } catch (e) {
-      return Left(_ReferralDataFailure(message: 'Failed to update referral: $e'));
+      return Left(
+        _ReferralDataFailure(message: 'Failed to update referral: $e'),
+      );
     }
   }
 
@@ -273,7 +277,7 @@ class ReferralRepositoryImpl implements ReferralRepository {
 
   @override
   Future<Either<Failure, List<WithdrawalRequest>>>
-      getAllPendingWithdrawals() async {
+  getAllPendingWithdrawals() async {
     try {
       final query = await _withdrawalsRef
           .where('status', isEqualTo: 'pending')
@@ -289,9 +293,7 @@ class ReferralRepositoryImpl implements ReferralRepository {
       return Right(results);
     } catch (e) {
       return Left(
-        _ReferralDataFailure(
-          message: 'Failed to get pending withdrawals: $e',
-        ),
+        _ReferralDataFailure(message: 'Failed to get pending withdrawals: $e'),
       );
     }
   }
@@ -301,9 +303,7 @@ class ReferralRepositoryImpl implements ReferralRepository {
     WithdrawalRequest request,
   ) async {
     try {
-      await _withdrawalsRef
-          .doc(request.id)
-          .update(_withdrawalToMap(request));
+      await _withdrawalsRef.doc(request.id).update(_withdrawalToMap(request));
       return Right(request);
     } catch (e) {
       return Left(

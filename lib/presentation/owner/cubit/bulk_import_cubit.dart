@@ -132,7 +132,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
       emit(
         state.copyWith(
           status: BulkImportStatus.error,
-          errorMessage: 'Library not initialized',
+          errorMessage: 'PG not initialized',
         ),
       );
       return;
@@ -242,7 +242,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
           rowIndex: row.rowIndex,
           phone: row.phone,
           status: ImportStatus.failed,
-          message: 'Failed to create/find student',
+          message: 'Failed to create/find tenant',
         );
       }
 
@@ -256,7 +256,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
           rowIndex: row.rowIndex,
           phone: row.phone,
           status: ImportStatus.failed,
-          message: 'Seat ${row.seatNumber} not found in library',
+          message: 'Bed ${row.seatNumber} not found in PG',
           studentId: userId,
         );
       }
@@ -315,7 +315,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
           phone: row.phone,
           status: ImportStatus.failed,
           message:
-              'Failed to create membership: ${membershipResult.fold((l) => l.message, (r) => '')}',
+              'Failed to create stay: ${membershipResult.fold((l) => l.message, (r) => '')}',
           studentId: userId,
         );
       }
@@ -407,7 +407,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
     }
 
     // No user found with any format - create new
-    log('BulkImportCubit: No existing user found, creating new student');
+    log('BulkImportCubit: No existing user found, creating new tenant');
     return _createStudent(row);
   }
 
@@ -462,12 +462,12 @@ class BulkImportCubit extends Cubit<BulkImportState> {
 
       final result = await userRepository.createUser(user);
 
-      return result.fold((failure) {
-        log('BulkImportCubit: Failed to create student - ${failure.message}');
+      return await result.fold((failure) {
+        log('BulkImportCubit: Failed to create tenant - ${failure.message}');
         return null;
       }, (createdUser) => (createdUser.id, true));
     } catch (e) {
-      log('BulkImportCubit: Student creation error - $e');
+      log('BulkImportCubit: Tenant creation error - $e');
       return null;
     }
   }
@@ -653,12 +653,12 @@ class BulkImportCubit extends Cubit<BulkImportState> {
 
     return seatsResult.fold(
       (failure) {
-        log('BulkImportCubit: Failed to get seats - ${failure.message}');
+        log('BulkImportCubit: Failed to get beds - ${failure.message}');
         return null;
       },
       (seats) {
         if (seats.isEmpty) {
-          log('BulkImportCubit: No seats found for library $_libraryId');
+          log('BulkImportCubit: No beds found for PG $_libraryId');
           return null;
         }
 
@@ -669,14 +669,14 @@ class BulkImportCubit extends Cubit<BulkImportState> {
         );
 
         log(
-          'BulkImportCubit: Looking for seat "$seatNumber" (normalized: "$normalizedInput", num: $seatNum) in ${seats.length} seats',
+          'BulkImportCubit: Looking for bed "$seatNumber" (normalized: "$normalizedInput", num: $seatNum) in ${seats.length} beds',
         );
 
         // 1. Try exact match on seatNumber field
         for (final seat in seats) {
           if (seat.seatNumber == seatNumber ||
               seat.seatNumber == normalizedInput) {
-            log('BulkImportCubit: Found exact seat match: ${seat.seatNumber}');
+            log('BulkImportCubit: Found exact bed match: ${seat.seatNumber}');
             return seat.seatNumber; // Return the seat NUMBER, not doc ID
           }
         }
@@ -686,7 +686,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
           final normalizedSeat = _normalizeSeatNumber(seat.seatNumber);
           if (normalizedSeat == normalizedInput) {
             log(
-              'BulkImportCubit: Found normalized seat match: ${seat.seatNumber}',
+              'BulkImportCubit: Found normalized bed match: ${seat.seatNumber}',
             );
             return seat.seatNumber; // Return the seat NUMBER, not doc ID
           }
@@ -697,7 +697,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
           // Seats are sorted by seatNumber, so position matches
           final seat = seats[seatNum - 1];
           log(
-            'BulkImportCubit: Using seat at position ${seatNum - 1}: ${seat.seatNumber}',
+            'BulkImportCubit: Using bed at position ${seatNum - 1}: ${seat.seatNumber}',
           );
           return seat.seatNumber; // Return the seat NUMBER, not doc ID
         }
@@ -709,13 +709,13 @@ class BulkImportCubit extends Cubit<BulkImportState> {
           );
           if (existingSeatNum == seatNum) {
             log(
-              'BulkImportCubit: Found seat by number extraction: ${seat.seatNumber}',
+              'BulkImportCubit: Found bed by number extraction: ${seat.seatNumber}',
             );
             return seat.seatNumber; // Return the seat NUMBER, not doc ID
           }
         }
 
-        log('BulkImportCubit: No matching seat found for "$seatNumber"');
+        log('BulkImportCubit: No matching bed found for "$seatNumber"');
         return null;
       },
     );
@@ -731,12 +731,12 @@ class BulkImportCubit extends Cubit<BulkImportState> {
   /// Deletes: memberships, invoices, payments (but NOT the library or owner).
   Future<void> cleanupLibraryData() async {
     if (_libraryId == null || _ownerId == null) {
-      log('BulkImportCubit: Cannot cleanup - library or owner not set');
+      log('BulkImportCubit: Cannot cleanup - PG or owner not set');
       return;
     }
 
     emit(state.copyWith(status: BulkImportStatus.importing, clearError: true));
-    log('BulkImportCubit: Starting cleanup for library $_libraryId');
+    log('BulkImportCubit: Starting cleanup for PG $_libraryId');
 
     try {
       var deletedMemberships = 0;
@@ -744,32 +744,28 @@ class BulkImportCubit extends Cubit<BulkImportState> {
       var deletedPayments = 0;
 
       // 1. Delete all memberships for this library
-      log('BulkImportCubit: Fetching memberships...');
+      log('BulkImportCubit: Fetching stays...');
       final membershipsResult = await membershipRepository
           .getMembershipsByLibraryId(_libraryId!);
 
       await membershipsResult.fold(
         (failure) async {
-          log(
-            'BulkImportCubit: Failed to fetch memberships - ${failure.message}',
-          );
+          log('BulkImportCubit: Failed to fetch stays - ${failure.message}');
         },
         (memberships) async {
-          log(
-            'BulkImportCubit: Found ${memberships.length} memberships to delete',
-          );
+          log('BulkImportCubit: Found ${memberships.length} stays to delete');
           for (final membership in memberships) {
             final deleteResult = await membershipRepository.deleteMembership(
               membership.id,
             );
             deleteResult.fold(
               (failure) => log(
-                'BulkImportCubit: Failed to delete membership ${membership.id}',
+                'BulkImportCubit: Failed to delete stay ${membership.id}',
               ),
               (_) => deletedMemberships++,
             );
           }
-          log('BulkImportCubit: Deleted $deletedMemberships memberships');
+          log('BulkImportCubit: Deleted $deletedMemberships stays');
         },
       );
 
@@ -801,7 +797,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
       );
 
       // 3. Delete all invoices for this library
-      log('BulkImportCubit: Fetching invoices for library $_libraryId...');
+      log('BulkImportCubit: Fetching invoices for PG $_libraryId...');
       final invoicesResult = await invoiceRepository.getInvoicesForLibrary(
         _libraryId!,
       );
@@ -816,7 +812,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
         (invoices) async {
           log('BulkImportCubit: ✅ Found ${invoices.length} invoices to delete');
           if (invoices.isEmpty) {
-            log('BulkImportCubit: No invoices found for library $_libraryId');
+            log('BulkImportCubit: No invoices found for PG $_libraryId');
           } else {
             for (final invoice in invoices) {
               log(
@@ -846,7 +842,7 @@ class BulkImportCubit extends Cubit<BulkImportState> {
 
       log('BulkImportCubit: ✅ Cleanup complete!');
       log('  📊 Summary:');
-      log('    - Memberships deleted: $deletedMemberships');
+      log('    - Stays deleted: $deletedMemberships');
       log('    - Payments deleted: $deletedPayments');
       log('    - Invoices deleted: $deletedInvoices');
 

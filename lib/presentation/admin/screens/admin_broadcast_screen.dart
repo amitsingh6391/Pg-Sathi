@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/usecases/send_admin_broadcast_notification.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/admin_analytics_cubit.dart';
 import '../widgets/broadcast/audience_selector.dart';
 import '../widgets/broadcast/library_selector.dart';
 import '../widgets/broadcast/notification_form.dart';
+import '../widgets/broadcast/notification_preview.dart';
 
 /// Admin screen for sending broadcast notifications with modern UI.
 class AdminBroadcastScreen extends StatefulWidget {
@@ -36,70 +38,82 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppUIConstants.background,
-      appBar: AppBar(
-        title: Text(
-          'Broadcast Notification',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
-        ),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-      ),
-      body: BlocConsumer<AdminAnalyticsCubit, AdminAnalyticsState>(
-        listener: _handleBlocEvents,
-        builder: (context, state) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInfoCard(),
-                const SizedBox(height: 24),
-                
-                AudienceSelector(
-                  selectedAudience: _selectedAudience,
-                  onAudienceChanged: (audience) {
-                    setState(() {
-                      _selectedAudience = audience;
-                      if (!_needsLibrarySelection) {
-                        _selectedLibraries.clear();
-                      }
-                    });
-                  },
-                ),
-                
-                if (_needsLibrarySelection) ...[
-                  LibrarySelector(
-                    libraries: state.librarySummaries,
-                    selectedLibraryIds: _selectedLibraries,
-                    onSelectionChanged: (selection) {
-                      setState(() => _selectedLibraries = selection);
+    return BlocConsumer<AdminAnalyticsCubit, AdminAnalyticsState>(
+      listener: _handleBlocEvents,
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: AppUIConstants.background,
+          appBar: AppBar(
+            title: const Text(
+              'Broadcast',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+            ),
+            backgroundColor: AppUIConstants.surface,
+            foregroundColor: AppUIConstants.textPrimary,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: false,
+          ),
+          body: GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            behavior: HitTestBehavior.translucent,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInfoCard(),
+                  const SizedBox(height: 16),
+                  AudienceSelector(
+                    selectedAudience: _selectedAudience,
+                    onAudienceChanged: (audience) {
+                      setState(() {
+                        _selectedAudience = audience;
+                        if (!_needsLibrarySelection) {
+                          _selectedLibraries.clear();
+                        }
+                      });
                     },
-                    targetType: _selectedAudience == BroadcastAudience.selectedLibraries
-                        ? 'library owners'
-                        : 'library students',
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: _needsLibrarySelection
+                        ? LibrarySelector(
+                            libraries: state.librarySummaries,
+                            selectedLibraryIds: _selectedLibraries,
+                            onSelectionChanged: (selection) {
+                              setState(() => _selectedLibraries = selection);
+                            },
+                            targetType:
+                                _selectedAudience ==
+                                    BroadcastAudience.selectedLibraries
+                                ? 'PG owners'
+                                : 'PG residents',
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
+                  const SizedBox(height: 16),
+                  NotificationForm(
+                    formKey: _formKey,
+                    titleController: _titleController,
+                    bodyController: _bodyController,
+                  ),
+                  const PremiumSectionHeader('Live preview'),
+                  NotificationPreview(
+                    titleController: _titleController,
+                    bodyController: _bodyController,
+                    audienceLabel: _getAudienceDescription(),
                   ),
                 ],
-                
-                const SizedBox(height: 24),
-                
-                NotificationForm(
-                  formKey: _formKey,
-                  titleController: _titleController,
-                  bodyController: _bodyController,
-                ),
-                
-                const SizedBox(height: 24),
-                _buildSendButton(state),
-                const SizedBox(height: 16),
-              ],
+              ),
             ),
-          );
-        },
-      ),
+          ),
+          bottomNavigationBar: _buildSendBar(state),
+        );
+      },
     );
   }
 
@@ -117,51 +131,45 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
 
   Widget _buildInfoCard() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppUIConstants.accent.withValues(alpha: 0.12),
-            AppUIConstants.accent.withValues(alpha: 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppUIConstants.accent.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        color: AppUIConstants.surface,
+        border: Border.all(color: AppUIConstants.border),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppUIConstants.accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+              color: AppUIConstants.primarySoft,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
             ),
-            child: Icon(
-              Icons.notifications_active_rounded,
-              color: AppUIConstants.accent,
-              size: 22,
+            child: const Icon(
+              Icons.campaign_rounded,
+              color: AppUIConstants.primary,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
+          const SizedBox(width: 14),
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Push Notification Broadcast',
-                  style: AppUIConstants.bodyMd.copyWith(
-                    fontWeight: FontWeight.w600,
+                  'Push notification broadcast',
+                  style: TextStyle(
                     color: AppUIConstants.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
-                  'Messages are delivered instantly to selected users',
-                  style: AppUIConstants.caption.copyWith(
+                  'Pick an audience, write your message and send. Delivery is instant.',
+                  style: TextStyle(
                     color: AppUIConstants.textSecondary,
+                    fontSize: 12.5,
                   ),
                 ),
               ],
@@ -172,61 +180,73 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
     );
   }
 
-  Widget _buildSendButton(AdminAnalyticsState state) {
+  Widget _buildSendBar(AdminAnalyticsState state) {
+    final sending = state.isSendingNotification;
+    final summary = _needsLibrarySelection
+        ? (_selectedLibraries.isEmpty
+              ? 'Select at least one PG'
+              : _getAudienceDescription())
+        : _getAudienceDescription();
     return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          colors: [
-            AppUIConstants.primary,
-            AppUIConstants.primary.withValues(alpha: 0.8),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppUIConstants.primary.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border(top: BorderSide(color: AppUIConstants.border)),
       ),
-      child: ElevatedButton(
-        onPressed: state.isSendingNotification
-            ? null
-            : () => _sendNotification(context),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Sending to', style: AppUIConstants.caption),
+                    const SizedBox(height: 2),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: Text(
+                        summary,
+                        key: ValueKey(summary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppUIConstants.bodyLg.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: sending ? null : () => _sendNotification(context),
+                style: AppUIConstants.accentButtonStyle.copyWith(
+                  minimumSize: const WidgetStatePropertyAll(Size(140, 50)),
+                ),
+                icon: sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded, size: 18),
+                label: Text(
+                  sending ? 'Sending...' : 'Send',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        child: state.isSendingNotification
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.send_rounded, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Send Notification',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
       ),
     );
   }
@@ -241,7 +261,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_needsLibrarySelection && _selectedLibraries.isEmpty) {
-      _showWarningSnackBar(context, 'Please select at least one library');
+      _showWarningSnackBar(context, 'Please select at least one PG');
       return;
     }
 
@@ -253,6 +273,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          backgroundColor: AppUIConstants.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -271,7 +292,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text('Confirm Broadcast'),
+              const Text('Confirm broadcast', style: AppUIConstants.headingSm),
             ],
           ),
           content: Text(
@@ -293,7 +314,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                 _performSend(context);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppUIConstants.primary,
+                backgroundColor: AppUIConstants.accent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -309,31 +330,31 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
 
   void _performSend(BuildContext context) {
     context.read<AdminAnalyticsCubit>().sendBroadcast(
-          title: _titleController.text.trim(),
-          body: _bodyController.text.trim(),
-          audience: _selectedAudience,
-          libraryIds: _needsLibrarySelection ? _selectedLibraries.toList() : null,
-        );
+      title: _titleController.text.trim(),
+      body: _bodyController.text.trim(),
+      audience: _selectedAudience,
+      libraryIds: _needsLibrarySelection ? _selectedLibraries.toList() : null,
+    );
   }
 
   String _getAudienceDescription() {
     switch (_selectedAudience) {
       case BroadcastAudience.allOwners:
-        return 'all library owners';
+        return 'all PG owners';
       case BroadcastAudience.ownersWithLibrary:
-        return 'owners with active libraries';
+        return 'owners with active PGs';
       case BroadcastAudience.ownersWithoutLibrary:
-        return 'owners pending library setup';
+        return 'owners pending PG setup';
       case BroadcastAudience.allStudents:
-        return 'all registered students';
+        return 'all registered residents';
       case BroadcastAudience.studentsWithActiveMembership:
-        return 'students with active memberships';
+        return 'residents with active stays';
       case BroadcastAudience.activeStudents:
-        return 'recently active students (30 days)';
+        return 'recently active residents (30 days)';
       case BroadcastAudience.selectedLibraries:
-        return '${_selectedLibraries.length} selected library owners';
+        return 'owners of ${_selectedLibraries.length} selected PGs';
       case BroadcastAudience.selectedLibraryStudents:
-        return 'students of ${_selectedLibraries.length} selected libraries';
+        return 'residents of ${_selectedLibraries.length} selected PGs';
     }
   }
 

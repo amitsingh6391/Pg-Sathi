@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../domain/core/failure.dart';
-import '../../../domain/entities/presence.dart';
 import '../../../domain/entities/seat.dart';
 import '../../../domain/entities/slot.dart';
 import '../../../domain/entities/user.dart';
@@ -15,8 +14,6 @@ class StudentHomeState extends Equatable {
     this.user,
     this.memberships = const [],
     this.assignedSeat,
-    this.todayPresence,
-    this.isCheckedIn = false,
     this.isProfilePromptDismissed = false,
     this.canShowExploreLibraries = true,
     this.hasUnregisteredMemberships = false,
@@ -29,8 +26,6 @@ class StudentHomeState extends Equatable {
   final User? user;
   final List<StudentMembershipInfo> memberships;
   final Seat? assignedSeat;
-  final Presence? todayPresence;
-  final bool isCheckedIn;
 
   /// Whether user has dismissed profile completion prompt.
   final bool isProfilePromptDismissed;
@@ -101,8 +96,6 @@ class StudentHomeState extends Equatable {
     User? user,
     List<StudentMembershipInfo>? memberships,
     Seat? assignedSeat,
-    Presence? todayPresence,
-    bool? isCheckedIn,
     bool? isProfilePromptDismissed,
     bool? canShowExploreLibraries,
     bool? hasUnregisteredMemberships,
@@ -116,8 +109,6 @@ class StudentHomeState extends Equatable {
       user: user ?? this.user,
       memberships: memberships ?? this.memberships,
       assignedSeat: assignedSeat ?? this.assignedSeat,
-      todayPresence: todayPresence ?? this.todayPresence,
-      isCheckedIn: isCheckedIn ?? this.isCheckedIn,
       isProfilePromptDismissed:
           isProfilePromptDismissed ?? this.isProfilePromptDismissed,
       canShowExploreLibraries:
@@ -137,8 +128,6 @@ class StudentHomeState extends Equatable {
     user,
     memberships,
     assignedSeat,
-    todayPresence,
-    isCheckedIn,
     isProfilePromptDismissed,
     canShowExploreLibraries,
     hasUnregisteredMemberships,

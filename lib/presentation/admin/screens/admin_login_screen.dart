@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,6 +8,7 @@ import '../../../domain/entities/user.dart';
 import '../../auth/cubit/phone_auth_cubit.dart';
 import '../../auth/cubit/phone_auth_state.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../../core/widgets/web_content_constraint.dart';
 import 'admin_intelligence_screen.dart';
 
@@ -82,7 +83,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                         content: Text(
                           'Access denied. This account is not an admin.',
                         ),
-                        backgroundColor: Colors.red,
+                        backgroundColor: AppUIConstants.error,
                       ),
                     );
                     // Sign out and go back
@@ -129,44 +130,18 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
 
-          // Admin Icon
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppUIConstants.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.admin_panel_settings,
-              color: AppUIConstants.primary,
-              size: 40,
-            ),
+          const _AdminBrand(
+            icon: Icons.admin_panel_settings_rounded,
+            title: 'Console sign-in',
+            subtitle: 'Restricted area. Sign in with your admin phone number.',
+            step: 1,
           ),
-          const SizedBox(height: AppUIConstants.spacingLg),
-
-          Text(
-            'Admin Access',
-            style: AppUIConstants.headingLg,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppUIConstants.spacingSm),
-          Text(
-            'Sign in with your admin phone number',
-            style: AppUIConstants.bodySm.copyWith(
-              color: AppUIConstants.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-
           const SizedBox(height: AppUIConstants.spacing2Xl),
 
           // Phone Input
-          Container(
-            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-            decoration: AppUIConstants.cardDecoration,
+          PremiumCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -246,7 +221,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                         );
                       }
                     },
-                    style: AppUIConstants.primaryButtonStyle,
+                    style: AppUIConstants.accentButtonStyle,
                     child: const Text(
                       'Send OTP',
                       style: TextStyle(
@@ -272,40 +247,15 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         children: [
           const SizedBox(height: 24),
 
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppUIConstants.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.lock_outline,
-              color: AppUIConstants.primary,
-              size: 40,
-            ),
+          _AdminBrand(
+            icon: Icons.lock_outline_rounded,
+            title: 'Verify it is you',
+            subtitle: 'Enter the 6-digit code sent to\n${state.phoneNumber}',
+            step: 2,
           ),
-          const SizedBox(height: AppUIConstants.spacingLg),
-
-          Text(
-            'Enter OTP',
-            style: AppUIConstants.headingLg,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppUIConstants.spacingSm),
-          Text(
-            'Enter the 6-digit code sent to\n${state.phoneNumber}',
-            style: AppUIConstants.bodySm.copyWith(
-              color: AppUIConstants.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-
           const SizedBox(height: AppUIConstants.spacing2Xl),
 
-          Container(
-            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-            decoration: AppUIConstants.cardDecoration,
+          PremiumCard(
             child: Column(
               children: [
                 TextField(
@@ -354,7 +304,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                         );
                       }
                     },
-                    style: AppUIConstants.primaryButtonStyle,
+                    style: AppUIConstants.accentButtonStyle,
                     child: const Text(
                       'Verify',
                       style: TextStyle(
@@ -389,6 +339,82 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Branded header with glow orb and a two-step progress indicator.
+class _AdminBrand extends StatelessWidget {
+  const _AdminBrand({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.step,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border.all(color: AppUIConstants.border),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppUIConstants.primarySoft,
+              border: Border.all(color: AppUIConstants.border),
+            ),
+            child: Icon(icon, color: AppUIConstants.primary, size: 30),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: AppUIConstants.headingLg.copyWith(
+              color: AppUIConstants.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: AppUIConstants.bodySm.copyWith(
+              color: AppUIConstants.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 1; i <= 2; i++)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == step ? 28 : 10,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: i == step
+                        ? AppUIConstants.primary
+                        : AppUIConstants.border,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

@@ -57,7 +57,7 @@ class InvoiceCubit extends Cubit<InvoiceState> {
 
     try {
       await pdfService.generateAndOpen(invoice);
-      
+
       // Track successful invoice download
       analyticsService.trackInvoiceDownloaded(
         invoiceId: invoice.id,
@@ -99,7 +99,7 @@ class InvoiceCubit extends Cubit<InvoiceState> {
 
     try {
       await pdfService.generateAndShare(invoice, shareOrigin: shareOrigin);
-      
+
       // Track successful invoice share
       analyticsService.trackInvoiceShared(
         invoiceId: invoice.id,

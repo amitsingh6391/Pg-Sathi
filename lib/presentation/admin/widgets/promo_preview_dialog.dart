@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/promo_offer.dart';
 import '../../core/app_ui_constants.dart';
@@ -28,6 +28,7 @@ class PromoPreviewDialog extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppUIConstants.surface,
           borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+          border: Border.all(color: AppUIConstants.border),
           boxShadow: [AppUIConstants.shadowLg],
         ),
         child: Column(
@@ -35,11 +36,7 @@ class PromoPreviewDialog extends StatelessWidget {
           children: [
             _buildPreviewBadge(),
             _buildHeader(context),
-            Flexible(
-              child: SingleChildScrollView(
-                child: _buildImage(),
-              ),
-            ),
+            Flexible(child: SingleChildScrollView(child: _buildImage())),
             _buildActions(context),
           ],
         ),
@@ -52,8 +49,8 @@ class PromoPreviewDialog extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: AppUIConstants.warning.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.vertical(
+        color: AppUIConstants.background,
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppUIConstants.radiusLg),
         ),
       ),
@@ -63,13 +60,13 @@ class PromoPreviewDialog extends StatelessWidget {
           Icon(
             Icons.visibility_outlined,
             size: 16,
-            color: AppUIConstants.warning,
+            color: AppUIConstants.textSecondary,
           ),
           const SizedBox(width: 6),
           Text(
-            'PREVIEW MODE',
+            'OWNER PREVIEW',
             style: TextStyle(
-              color: AppUIConstants.warning,
+              color: AppUIConstants.textSecondary,
               fontWeight: FontWeight.w600,
               fontSize: 12,
               letterSpacing: 1,
@@ -86,20 +83,18 @@ class PromoPreviewDialog extends StatelessWidget {
         horizontal: AppUIConstants.spacingLg,
         vertical: AppUIConstants.spacingMd,
       ),
-      decoration: BoxDecoration(
-        color: AppUIConstants.primary.withValues(alpha: 0.05),
-      ),
+      decoration: const BoxDecoration(color: AppUIConstants.surfaceMuted),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppUIConstants.accent.withValues(alpha: 0.1),
+              color: AppUIConstants.surface,
               borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
             ),
             child: Icon(
               Icons.local_offer_rounded,
-              color: AppUIConstants.accent,
+              color: AppUIConstants.primaryLight,
               size: 20,
             ),
           ),
@@ -178,20 +173,23 @@ class PromoPreviewDialog extends StatelessWidget {
     return Container(
       height: 200,
       width: double.infinity,
-      color: AppUIConstants.primary,
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border(bottom: BorderSide(color: AppUIConstants.border)),
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+            decoration: const BoxDecoration(
+              color: AppUIConstants.primarySoft,
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.local_offer_rounded,
               size: 48,
-              color: Colors.white,
+              color: AppUIConstants.primary,
             ),
           ),
           const SizedBox(height: 16),
@@ -200,7 +198,7 @@ class PromoPreviewDialog extends StatelessWidget {
             child: Text(
               promo.title.isNotEmpty ? promo.title : 'Special Offer',
               style: const TextStyle(
-                color: Colors.white,
+                color: AppUIConstants.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -210,12 +208,9 @@ class PromoPreviewDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Exclusive for You!',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 13,
-            ),
+            style: TextStyle(color: AppUIConstants.textSecondary, fontSize: 13),
           ),
         ],
       ),
@@ -236,13 +231,14 @@ class PromoPreviewDialog extends StatelessWidget {
                     foregroundColor: AppUIConstants.textSecondary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppUIConstants.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        AppUIConstants.radiusSm,
+                      ),
                       side: BorderSide(color: AppUIConstants.border),
                     ),
                   ),
                   child: const Text(
-                    'Not Now',
+                    'Not now',
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -258,8 +254,9 @@ class PromoPreviewDialog extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppUIConstants.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        AppUIConstants.radiusSm,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -286,7 +283,7 @@ class PromoPreviewDialog extends StatelessWidget {
             child: TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                'Close Preview',
+                'Close preview',
                 style: TextStyle(
                   color: AppUIConstants.textSecondary,
                   fontWeight: FontWeight.w500,

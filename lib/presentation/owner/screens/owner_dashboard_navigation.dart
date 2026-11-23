@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,6 +19,7 @@ import '../cubit/owner_invoice_cubit.dart';
 import '../cubit/referral_cubit.dart';
 import '../cubit/revenue_analytics_cubit.dart';
 import '../cubit/subscription_cubit.dart';
+import '../cubit/whatsapp_credits_cubit.dart';
 import 'cash_approvals_screen.dart';
 import 'library_form_screen.dart';
 import 'library_preview_screen.dart';
@@ -29,8 +30,8 @@ import 'owner_invoices_screen.dart';
 import 'payment_approvals_screen.dart';
 import 'referral_screen.dart';
 import 'revenue_analytics_screen.dart';
-import 'unified_notifications_screen.dart';
 import 'upi_approvals_screen.dart';
+import 'whatsapp_credits_screen.dart';
 
 /// Extracted navigation methods for the owner dashboard.
 ///
@@ -40,14 +41,37 @@ mixin OwnerDashboardNavigation<T extends StatefulWidget> on State<T> {
   void onLibraryReloaded();
   void onRevenueReloaded();
 
-  Future<void> navigateToForm(BuildContext context) async {
+  Future<void> navigateToAddBranch(BuildContext context) async {
     final user = context.read<PhoneAuthCubit>().state.currentUser;
     if (user == null) return;
 
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            LibraryFormScreen(ownerId: user.id, ownerPhone: user.phone),
+        builder: (_) => LibraryFormScreen(
+          ownerId: user.ownerAccountId,
+          ownerPhone: user.phone,
+          forceCreate: true,
+        ),
+      ),
+    );
+
+    if (result == true && context.mounted) onLibraryReloaded();
+  }
+
+  Future<void> navigateToForm(BuildContext context) async {
+    final user = context.read<PhoneAuthCubit>().state.currentUser;
+    if (user == null) return;
+
+    final libraryState = context.read<OwnerLibraryBloc>().state;
+    final libraryId = libraryState.library?.id;
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => LibraryFormScreen(
+          ownerId: user.ownerAccountId,
+          ownerPhone: user.phone,
+          libraryId: libraryId,
+        ),
       ),
     );
 
@@ -215,19 +239,6 @@ mixin OwnerDashboardNavigation<T extends StatefulWidget> on State<T> {
     }
   }
 
-  Future<void> navigateToNotifications(
-    BuildContext context,
-    OwnerLibraryState state,
-  ) async {
-    if (state.library == null) return;
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => UnifiedNotificationsScreen(library: state.library!),
-      ),
-    );
-  }
-
   Future<void> navigateToSubscription(
     BuildContext context,
     OwnerLibraryState state, {
@@ -242,6 +253,26 @@ mixin OwnerDashboardNavigation<T extends StatefulWidget> on State<T> {
     );
 
     if (mounted) onLibraryReloaded();
+  }
+
+  Future<void> navigateToWhatsAppCredits(
+    BuildContext context,
+    OwnerLibraryState state,
+  ) async {
+    final library = state.library;
+    if (library == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => sl<WhatsAppCreditsCubit>(),
+          child: WhatsAppCreditsScreen(
+            ownerId: library.ownerId,
+            ownerPhone: library.ownerPhone,
+          ),
+        ),
+      ),
+    );
   }
 
   void navigateToReferral(
@@ -259,7 +290,7 @@ mixin OwnerDashboardNavigation<T extends StatefulWidget> on State<T> {
         builder: (_) => BlocProvider(
           create: (_) => sl<ReferralCubit>(),
           child: ReferralScreen(
-            ownerId: user.id,
+            ownerId: user.ownerAccountId,
             ownerName: user.name,
             hasActiveSubscription: hasAccess,
           ),
@@ -300,83 +331,148 @@ mixin OwnerDashboardNavigation<T extends StatefulWidget> on State<T> {
     OwnerLibraryState state, {
     SubscriptionState? subState,
   }) {
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppUIConstants.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.lock_outline, color: AppUIConstants.warning, size: 24),
-            const SizedBox(width: AppUIConstants.spacingSm),
-            Text('Subscription Required', style: AppUIConstants.headingMd),
-          ],
-        ),
-        content: Text(
-          'This feature requires an active subscription. '
-          'Please subscribe to continue using all features.',
-          style: AppUIConstants.bodyMd,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Later',
-              style: TextStyle(color: AppUIConstants.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              navigateToSubscription(context, state, subState: subState);
-            },
-            style: AppUIConstants.primaryButtonStyle,
-            child: const Text('Subscribe Now'),
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _ActionSheet(
+        icon: Icons.lock_rounded,
+        tone: AppUIConstants.warning,
+        title: 'Unlock PG Sathi',
+        message:
+            'This feature needs an active subscription. Subscribe to manage '
+            'tenants, rent, receipts and notices without limits.',
+        primaryLabel: 'Subscribe now',
+        primaryStyle: AppUIConstants.primaryButtonStyle,
+        onPrimary: () {
+          Navigator.of(sheetContext).pop();
+          navigateToSubscription(context, state, subState: subState);
+        },
+        secondaryLabel: 'Maybe later',
+        onSecondary: () => Navigator.of(sheetContext).pop(),
       ),
     );
   }
 
   void showSignOutDialog(BuildContext context) {
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppUIConstants.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        ),
-        title: Text('Sign Out', style: AppUIConstants.headingMd),
-        content: Text(
-          'Are you sure you want to sign out?',
-          style: AppUIConstants.bodyMd,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: AppUIConstants.textSecondary),
-            ),
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _ActionSheet(
+        icon: Icons.logout_rounded,
+        tone: AppUIConstants.error,
+        title: 'Sign out?',
+        message: 'You will need to verify your phone number to sign back in.',
+        primaryLabel: 'Sign out',
+        primaryStyle: ElevatedButton.styleFrom(
+          backgroundColor: AppUIConstants.error,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.read<PhoneAuthCubit>().signOut();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppUIConstants.error,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+        ),
+        onPrimary: () {
+          Navigator.of(sheetContext).pop();
+          context.read<PhoneAuthCubit>().signOut();
+        },
+        secondaryLabel: 'Cancel',
+        onSecondary: () => Navigator.of(sheetContext).pop(),
+      ),
+    );
+  }
+}
+
+/// Compact confirmation bottom sheet shared by the dashboard prompts.
+class _ActionSheet extends StatelessWidget {
+  const _ActionSheet({
+    required this.icon,
+    required this.tone,
+    required this.title,
+    required this.message,
+    required this.primaryLabel,
+    required this.primaryStyle,
+    required this.onPrimary,
+    required this.secondaryLabel,
+    required this.onSecondary,
+  });
+
+  final IconData icon;
+  final Color tone;
+  final String title;
+  final String message;
+  final String primaryLabel;
+  final ButtonStyle primaryStyle;
+  final VoidCallback onPrimary;
+  final String secondaryLabel;
+  final VoidCallback onSecondary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppUIConstants.radiusXl),
+        ),
+        border: Border(top: BorderSide(color: AppUIConstants.border)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppUIConstants.disabled,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
-            child: const Text('Sign Out'),
+              const SizedBox(height: 22),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: tone.withValues(alpha: 0.4)),
+                ),
+                child: Icon(icon, color: tone, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(title, style: AppUIConstants.headingLg),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: AppUIConstants.bodyMd,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onPrimary,
+                  style: primaryStyle,
+                  child: Text(
+                    primaryLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: onSecondary,
+                child: Text(
+                  secondaryLabel,
+                  style: const TextStyle(color: AppUIConstants.textSecondary),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

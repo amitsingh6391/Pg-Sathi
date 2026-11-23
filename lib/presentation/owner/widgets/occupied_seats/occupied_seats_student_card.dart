@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -9,9 +9,10 @@ import '../../../../domain/entities/membership.dart';
 import '../../../../domain/entities/slot.dart';
 import '../../../../domain/usecases/get_occupied_seats.dart';
 import '../student_details_bottom_sheet.dart';
+import 'resident_status.dart';
 import 'student_card_sections.dart';
 
-/// Tenant card with clean design matching app's design language.
+/// Resident card, same layout as Library Manager's student card.
 /// Extracted from occupied_seats_screen.dart for maintainability.
 class OccupiedSeatsStudentCard extends StatelessWidget {
   const OccupiedSeatsStudentCard({
@@ -70,9 +71,9 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
     final slotName = _getSlotName(seatInfo, customSlots);
     final slotTiming = _getSlotTiming(seatInfo, customSlots);
     final paymentNotes = seatInfo.membership.paymentBreakdown?.notes;
+    final isUpcoming = seatInfo.isUpcoming;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -92,16 +93,20 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Column(
             children: [
-              // Header: Avatar/Photo + Name + Status
+              // Header: Avatar + Name + Status
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Profile pic or bed badge
-                    _buildProfileWithSeat(isPending),
+                    ResidentAvatar(
+                      name: seatInfo.displayName,
+                      avatarUrl: seatInfo.studentAvatarUrl,
+                      color: isPending
+                          ? AppUIConstants.warning
+                          : AppUIConstants.primary,
+                    ),
                     const SizedBox(width: 14),
-                    // Name and phone
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,19 +125,15 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // Show "Today" badge when expiring today (daysRemaining == 0)
-                              if (isExpiring &&
-                                  !isPending &&
-                                  seatInfo.daysRemaining == 0)
-                                _buildExpiryBadge()
-                              // Show "Expired" badge only if truly expired (daysRemaining < 0)
-                              else if (isExpired && !isPending)
+                              if (isPending)
+                                _buildPendingBadge()
+                              else if (isUpcoming)
+                                _buildUpcomingBadge()
+                              else if (isExpired)
                                 _buildExpiredBadge()
-                              // Show expiry badge for other expiring cases (1-7 days)
-                              else if (isExpiring && !isPending && !isExpired)
+                              else if (isExpiring)
                                 _buildExpiryBadge()
-                              // Show active badge for non-expiring, non-expired stays
-                              else if (!isExpired && !isExpiring && !isPending)
+                              else
                                 _buildActiveBadge(),
                             ],
                           ),
@@ -169,7 +170,7 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _buildInfoTile(
-                            'Plan',
+                            'Room',
                             slotName ?? '—',
                             Icons.meeting_room_outlined,
                           ),
@@ -177,9 +178,9 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildInfoTile(
-                            'Stay Type',
-                            slotTiming ?? '—',
-                            Icons.schedule_outlined,
+                            'Bed',
+                            seatInfo.seatId,
+                            Icons.bed_outlined,
                           ),
                         ),
                       ],
@@ -196,21 +197,40 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _buildInfoTile(
-                            'Expires',
-                            DateFormat(
-                              'dd MMM yyyy',
-                            ).format(seatInfo.membership.endDate),
-                            Icons.event_outlined,
-                            valueColor: isExpiring
-                                ? Colors.orange.shade700
-                                : null,
-                          ),
+                          child: isUpcoming
+                              ? _buildInfoTile(
+                                  'Starts',
+                                  DateFormat(
+                                    'dd MMM yyyy',
+                                  ).format(seatInfo.membership.startDate),
+                                  Icons.play_circle_outline,
+                                  valueColor: const Color(0xFF4F46E5),
+                                )
+                              : _buildInfoTile(
+                                  isExpired ? 'Ended' : 'Due date',
+                                  DateFormat(
+                                    'dd MMM yyyy',
+                                  ).format(seatInfo.membership.endDate),
+                                  Icons.event_outlined,
+                                  valueColor: isExpired
+                                      ? Colors.red.shade600
+                                      : isExpiring
+                                      ? Colors.orange.shade700
+                                      : null,
+                                ),
                         ),
                       ],
                     ),
+                    if (slotTiming != null) ...[
+                      const SizedBox(height: 12),
+                      _buildInfoTile(
+                        'Timing',
+                        slotTiming,
+                        Icons.schedule_outlined,
+                      ),
+                    ],
 
-                    // Upcoming Stay Notice
+                    // Upcoming stay notice
                     if (seatInfo.upcomingMembership != null) ...[
                       const SizedBox(height: 16),
                       _buildUpcomingMembershipNotice(
@@ -218,7 +238,7 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
                       ),
                     ],
 
-                    // Partial Payment Section
+                    // Partial rent section
                     if (hasPartialPayment) ...[
                       const SizedBox(height: 16),
                       PartialPaymentSection(
@@ -255,190 +275,85 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileWithSeat(bool isPending) {
-    final displayName = seatInfo.displayName;
-    final avatarUrl = seatInfo.studentAvatarUrl;
-    final initials = displayName.isNotEmpty
-        ? displayName
-              .split(' ')
-              .map((n) => n.isNotEmpty ? n[0] : '')
-              .take(2)
-              .join()
-              .toUpperCase()
-        : '?';
-
-    // If user has profile pic, show it with seat badge overlay
-    if (avatarUrl != null) {
-      return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              image: DecorationImage(
-                image: NetworkImage(avatarUrl),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          // Bed badge
-          Positioned(
-            bottom: -4,
-            right: -4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isPending
-                      ? [const Color(0xFFf59e0b), const Color(0xFFd97706)]
-                      : [AppUIConstants.primary, AppUIConstants.primaryLight],
-                ),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: Text(
-                seatInfo.seatId,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // No profile pic - show gradient bed badge with initials.
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isPending
-              ? [const Color(0xFFf59e0b), const Color(0xFFd97706)]
-              : [AppUIConstants.primary, AppUIConstants.primaryLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            seatInfo.seatId,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            ),
-          ),
-          if (isPending)
-            Container(
-              margin: const EdgeInsets.only(top: 2),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'PENDING',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 7,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            )
-          else
-            Text(
-              initials,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpiredBadge() {
+  Widget _badge(
+    String label,
+    Color bg,
+    Color border,
+    Color fg, {
+    IconData? icon,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Text(
-        'Expired',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.red.shade700,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExpiryBadge() {
-    final daysLabel = seatInfo.daysRemaining == 0
-        ? 'Today'
-        : seatInfo.daysRemaining == 1
-        ? 'Tomorrow'
-        : '${seatInfo.daysRemaining}d left';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.orange.shade200),
-      ),
-      child: Text(
-        daysLabel,
-        style: TextStyle(
-          color: Colors.orange.shade700,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActiveBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.shade200),
+        border: Border.all(color: border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle, size: 10, color: Colors.green.shade700),
-          const SizedBox(width: 4),
+          if (icon != null) ...[
+            Icon(icon, size: 10, color: fg),
+            const SizedBox(width: 4),
+          ],
           Text(
-            'Active',
+            label,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Colors.green.shade700,
+              color: fg,
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildExpiredBadge() => _badge(
+    'Expired',
+    Colors.red.shade50,
+    Colors.red.shade200,
+    Colors.red.shade700,
+  );
+
+  Widget _buildPendingBadge() => _badge(
+    'Pending',
+    Colors.amber.shade50,
+    Colors.amber.shade200,
+    Colors.amber.shade800,
+    icon: Icons.hourglass_top_rounded,
+  );
+
+  Widget _buildExpiryBadge() {
+    final d = seatInfo.daysRemaining;
+    final label = d == 0
+        ? 'Today'
+        : d == 1
+        ? 'Tomorrow'
+        : '${d}d left';
+    return _badge(
+      label,
+      Colors.orange.shade50,
+      Colors.orange.shade200,
+      Colors.orange.shade700,
+    );
+  }
+
+  Widget _buildUpcomingBadge() => _badge(
+    'Upcoming',
+    const Color(0xFF6366F1).withValues(alpha: 0.08),
+    const Color(0xFF6366F1).withValues(alpha: 0.35),
+    const Color(0xFF4F46E5),
+    icon: Icons.schedule_rounded,
+  );
+
+  Widget _buildActiveBadge() => _badge(
+    'Active',
+    Colors.green.shade50,
+    Colors.green.shade200,
+    Colors.green.shade700,
+    icon: Icons.check_circle,
+  );
 
   Widget _buildInfoTile(
     String label,
@@ -491,15 +406,16 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
     final dateFormat = DateFormat('dd MMM yyyy');
     final isActive = upcoming.status == MembershipStatus.active;
     final daysUntilStart = upcoming.startDate.difference(DateTime.now()).inDays;
+    final color = isActive ? Colors.green.shade700 : Colors.orange.shade700;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isActive ? Colors.green.shade50 : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive ? Colors.green.shade200 : Colors.orange.shade200,
-          width: 1,
         ),
       ),
       child: Column(
@@ -509,9 +425,7 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
             children: [
               Icon(
                 isActive ? Icons.check_circle_outline : Icons.schedule_outlined,
-                color: isActive
-                    ? Colors.green.shade700
-                    : Colors.orange.shade700,
+                color: color,
                 size: 18,
               ),
               const SizedBox(width: 8),
@@ -521,7 +435,7 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
                       ? 'Upcoming stay will start in $daysUntilStart ${daysUntilStart == 1 ? 'day' : 'days'}'
                       : 'Upcoming stay pending rent',
                   style: const TextStyle(
-                    color: Color(0xFF1a1a2e),
+                    color: AppUIConstants.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -529,10 +443,10 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             'Starts: ${dateFormat.format(upcoming.startDate)} • ${upcoming.planDisplayLabel}',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+            style: AppUIConstants.bodySm,
           ),
         ],
       ),
@@ -594,6 +508,7 @@ class OccupiedSeatsStudentCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: false,
       builder: (context) =>
           StudentDetailsBottomSheet(seatInfo: seatInfo, library: library),
     );

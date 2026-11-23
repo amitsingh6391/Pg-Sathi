@@ -33,8 +33,10 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     DateTime? endDate,
   }) async {
     return FirebaseErrorHandler.guard(() async {
-      Query<Map<String, dynamic>> query =
-          _collection.where('libraryId', isEqualTo: libraryId);
+      Query<Map<String, dynamic>> query = _collection.where(
+        'libraryId',
+        isEqualTo: libraryId,
+      );
 
       if (startDate != null) {
         query = query.where(

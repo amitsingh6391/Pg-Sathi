@@ -27,7 +27,7 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
   /// NOTE: Students with memberships in other libraries are preserved.
   Future<void> deleteLibraryData(String libraryId) async {
     emit(state.copyWith(status: AdminLibraryManagementStatus.deleting));
-    log('AdminLibraryManagementCubit: Starting delete for library $libraryId');
+    log('AdminLibraryManagementCubit: Starting delete for PG $libraryId');
 
     try {
       var deletedMemberships = 0;
@@ -36,19 +36,19 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
       final affectedStudentIds = <String>{};
 
       // 1. Delete all memberships for this library
-      log('AdminLibraryManagementCubit: Fetching memberships...');
+      log('AdminLibraryManagementCubit: Fetching stays...');
       final membershipsResult = await membershipRepository
           .getMembershipsByLibraryId(libraryId);
 
       await membershipsResult.fold(
         (failure) async {
           log(
-            'AdminLibraryManagementCubit: Failed to fetch memberships - ${failure.message}',
+            'AdminLibraryManagementCubit: Failed to fetch stays - ${failure.message}',
           );
         },
         (memberships) async {
           log(
-            'AdminLibraryManagementCubit: Found ${memberships.length} memberships to delete',
+            'AdminLibraryManagementCubit: Found ${memberships.length} stays to delete',
           );
 
           // Track affected students
@@ -62,16 +62,14 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
             );
             deleteResult.fold(
               (failure) => log(
-                'AdminLibraryManagementCubit: Failed to delete membership ${membership.id}',
+                'AdminLibraryManagementCubit: Failed to delete stay ${membership.id}',
               ),
               (_) => deletedMemberships++,
             );
           }
+          log('AdminLibraryManagementCubit: Deleted $deletedMemberships stays');
           log(
-            'AdminLibraryManagementCubit: Deleted $deletedMemberships memberships',
-          );
-          log(
-            'AdminLibraryManagementCubit: Affected ${affectedStudentIds.length} student accounts (NOT deleted)',
+            'AdminLibraryManagementCubit: Affected ${affectedStudentIds.length} tenant accounts (NOT deleted)',
           );
         },
       );
@@ -109,7 +107,7 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
 
       // 3. Delete all invoices for this library
       log(
-        'AdminLibraryManagementCubit: Fetching invoices for library $libraryId...',
+        'AdminLibraryManagementCubit: Fetching invoices for PG $libraryId...',
       );
       final invoicesResult = await invoiceRepository.getInvoicesForLibrary(
         libraryId,
@@ -130,7 +128,7 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
           );
           if (invoices.isEmpty) {
             log(
-              'AdminLibraryManagementCubit: No invoices found for library $libraryId',
+              'AdminLibraryManagementCubit: No invoices found for PG $libraryId',
             );
           } else {
             for (final invoice in invoices) {
@@ -164,20 +162,20 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
       // 4. Delete user accounts that only have membership in this library
       var deletedUsers = 0;
       var preservedUsers = 0;
-      
+
       log(
-        'AdminLibraryManagementCubit: Checking ${affectedStudentIds.length} students for deletion...',
+        'AdminLibraryManagementCubit: Checking ${affectedStudentIds.length} tenants for deletion...',
       );
-      
+
       for (final studentId in affectedStudentIds) {
         // Get all memberships for this student
         final studentMembershipsResult = await membershipRepository
             .getMembershipsByUserId(studentId);
-        
+
         await studentMembershipsResult.fold(
           (failure) async {
             log(
-              'AdminLibraryManagementCubit: Failed to check memberships for user $studentId',
+              'AdminLibraryManagementCubit: Failed to check stays for user $studentId',
             );
             preservedUsers++;
           },
@@ -186,26 +184,23 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
             final otherLibraryMemberships = studentMemberships
                 .where((m) => m.libraryId != libraryId)
                 .toList();
-            
+
             if (otherLibraryMemberships.isEmpty) {
               // Student only had membership in this library - delete the account
               log(
-                'AdminLibraryManagementCubit: Deleting user $studentId (no other memberships)',
+                'AdminLibraryManagementCubit: Deleting user $studentId (no other stays)',
               );
               final deleteResult = await userRepository.deleteUser(studentId);
-              deleteResult.fold(
-                (failure) {
-                  log(
-                    'AdminLibraryManagementCubit: Failed to delete user $studentId: ${failure.message}',
-                  );
-                  preservedUsers++;
-                },
-                (_) => deletedUsers++,
-              );
+              deleteResult.fold((failure) {
+                log(
+                  'AdminLibraryManagementCubit: Failed to delete user $studentId: ${failure.message}',
+                );
+                preservedUsers++;
+              }, (_) => deletedUsers++);
             } else {
               // Student has memberships in other libraries - preserve the account
               log(
-                'AdminLibraryManagementCubit: Preserving user $studentId (has ${otherLibraryMemberships.length} other memberships)',
+                'AdminLibraryManagementCubit: Preserving user $studentId (has ${otherLibraryMemberships.length} other stays)',
               );
               preservedUsers++;
             }
@@ -215,17 +210,17 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
 
       log('AdminLibraryManagementCubit: ✅ Delete complete!');
       log('  📊 Summary:');
-      log('    - Memberships deleted: $deletedMemberships');
+      log('    - Stays deleted: $deletedMemberships');
       log('    - Payments deleted: $deletedPayments');
       log('    - Invoices deleted: $deletedInvoices');
-      log('    - Student accounts deleted: $deletedUsers');
-      log('    - Student accounts preserved: $preservedUsers');
+      log('    - Tenant accounts deleted: $deletedUsers');
+      log('    - Tenant accounts preserved: $preservedUsers');
 
       emit(
         state.copyWith(
           status: AdminLibraryManagementStatus.success,
           successMessage:
-              'Deleted $deletedMemberships memberships, $deletedPayments payments, $deletedInvoices invoices, and $deletedUsers user accounts. $preservedUsers users preserved (have other library memberships).',
+              'Deleted $deletedMemberships stays, $deletedPayments payments, $deletedInvoices invoices, and $deletedUsers user accounts. $preservedUsers users preserved (have other PG stays).',
         ),
       );
     } catch (e) {
@@ -233,7 +228,7 @@ class AdminLibraryManagementCubit extends Cubit<AdminLibraryManagementState> {
       emit(
         state.copyWith(
           status: AdminLibraryManagementStatus.error,
-          errorMessage: 'Failed to delete library data: $e',
+          errorMessage: 'Failed to delete PG data: $e',
         ),
       );
     }

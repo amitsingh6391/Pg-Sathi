@@ -16,11 +16,12 @@ class OtpQuotaService {
   DateTime? _cacheTimestamp;
 
   static String _quotaDateKey() {
-    final nowIst = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    final nowIst = DateTime.now().toUtc().add(
+      const Duration(hours: 5, minutes: 30),
+    );
     final quotaDay = nowIst.subtract(const Duration(hours: 14));
     return DateFormat('yyyy-MM-dd').format(quotaDay);
   }
-
 
   Future<bool> canUseFirebaseOtp() async {
     try {

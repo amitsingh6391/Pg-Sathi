@@ -19,6 +19,7 @@ class MembershipDto {
     this.paymentMethod,
     this.paymentStatus,
     this.paymentBreakdown,
+    this.upiTransactionId,
     this.assignedByOwner,
     this.customDurationDays,
     this.customDurationMonths,
@@ -53,6 +54,7 @@ class MembershipDto {
   /// Payment breakdown for partial payments.
   /// Map with keys: amountPaid, amountRemaining, notes
   final Map<String, dynamic>? paymentBreakdown;
+  final String? upiTransactionId;
 
   /// Whether assigned by owner without student login.
   final bool? assignedByOwner;
@@ -84,6 +86,7 @@ class MembershipDto {
       paymentMethod: data['paymentMethod'] as String?,
       paymentStatus: data['paymentStatus'] as String?,
       paymentBreakdown: data['paymentBreakdown'] as Map<String, dynamic>?,
+      upiTransactionId: data['upiTransactionId'] as String?,
       assignedByOwner: data['assignedByOwner'] as bool? ?? false,
       customDurationDays: data['customDurationDays'] as int?,
       customDurationMonths: data['customDurationMonths'] as int?,
@@ -117,6 +120,9 @@ class MembershipDto {
     }
     if (paymentStatus != null) {
       map['paymentStatus'] = paymentStatus;
+    }
+    if (upiTransactionId != null) {
+      map['upiTransactionId'] = upiTransactionId;
     }
     if (paymentBreakdown != null) {
       map['paymentBreakdown'] = paymentBreakdown;

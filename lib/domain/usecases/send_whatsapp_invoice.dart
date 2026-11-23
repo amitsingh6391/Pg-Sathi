@@ -7,24 +7,27 @@ import '../entities/invoice.dart';
 import '../repositories/whatsapp_notification_repository.dart';
 
 class SendWhatsAppInvoice implements UseCase<void, Invoice> {
-  const SendWhatsAppInvoice({
-    required this.whatsAppNotificationRepository,
-  });
+  const SendWhatsAppInvoice({required this.whatsAppNotificationRepository});
 
   final WhatsAppNotificationRepository whatsAppNotificationRepository;
 
   @override
   Future<Either<Failure, void>> call(Invoice invoice) async {
     if (invoice.studentPhone.trim().isEmpty) {
-      log('SendWhatsAppInvoice: skipped — no student phone on invoice ${invoice.id}');
+      log(
+        'SendWhatsAppInvoice: skipped — no student phone on invoice ${invoice.id}',
+      );
       return const Right(null);
     }
 
-    log('SendWhatsAppInvoice: sending invoice ${invoice.invoiceNumber} '
-        'to ${invoice.studentPhone}');
+    log(
+      'SendWhatsAppInvoice: sending invoice ${invoice.invoiceNumber} '
+      'to ${invoice.studentPhone}',
+    );
 
-    final result =
-        await whatsAppNotificationRepository.sendInvoiceWhatsApp(invoice);
+    final result = await whatsAppNotificationRepository.sendInvoiceWhatsApp(
+      invoice,
+    );
 
     result.fold(
       (failure) => log('SendWhatsAppInvoice: failed — ${failure.message}'),

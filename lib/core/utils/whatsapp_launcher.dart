@@ -8,8 +8,9 @@ class WhatsAppLauncher {
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
         final parsed = Uri.parse(waUrl);
-        final phone =
-            parsed.pathSegments.isNotEmpty ? parsed.pathSegments.first : '';
+        final phone = parsed.pathSegments.isNotEmpty
+            ? parsed.pathSegments.first
+            : '';
         final text = parsed.queryParameters['text'] ?? '';
 
         if (phone.isNotEmpty) {
@@ -19,7 +20,7 @@ class WhatsAppLauncher {
             queryParameters: {'phone': phone, 'text': text},
           );
           if (await canLaunchUrl(androidUri)) {
-            return launchUrl(androidUri, mode: LaunchMode.externalApplication);
+            return await launchUrl(androidUri, mode: LaunchMode.externalApplication);
           }
         }
       } catch (_) {

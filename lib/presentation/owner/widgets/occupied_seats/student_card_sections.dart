@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/app_ui_constants.dart';
 import '../../../../domain/entities/membership.dart';
@@ -22,12 +22,15 @@ class PartialPaymentSection extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFFfef2f2), const Color(0xFFfee2e2)],
+          colors: [
+            AppUIConstants.error.withValues(alpha: 0.14),
+            AppUIConstants.error.withValues(alpha: 0.08),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFfecaca)),
+        border: Border.all(color: AppUIConstants.error.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +51,7 @@ class PartialPaymentSection extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'Partial Rent',
+                'Partial Rent due',
                 style: TextStyle(
                   color: AppUIConstants.error,
                   fontSize: 13,
@@ -63,7 +66,7 @@ class PartialPaymentSection extends StatelessWidget {
               _buildPaymentChip(
                 'Paid',
                 '₹${membership.paymentBreakdown?.amountPaid.toStringAsFixed(0) ?? 0}',
-                Colors.green.shade700,
+                AppUIConstants.success,
               ),
               const SizedBox(width: 10),
               _buildPaymentChip(
@@ -77,7 +80,7 @@ class PartialPaymentSection extends StatelessWidget {
                 _buildPaymentChip(
                   'Discount',
                   '₹${membership.paymentBreakdown!.discount.toStringAsFixed(0)}',
-                  Colors.blue.shade700,
+                  AppUIConstants.primaryLight,
                 ),
               ],
             ],
@@ -89,7 +92,7 @@ class PartialPaymentSection extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppUIConstants.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -98,7 +101,7 @@ class PartialPaymentSection extends StatelessWidget {
                   Icon(
                     Icons.note_outlined,
                     size: 16,
-                    color: Colors.grey.shade500,
+                    color: AppUIConstants.textTertiary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -106,7 +109,7 @@ class PartialPaymentSection extends StatelessWidget {
                       paymentNotes!,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: AppUIConstants.textSecondary,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -124,7 +127,7 @@ class PartialPaymentSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppUIConstants.surface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -133,7 +136,7 @@ class PartialPaymentSection extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.grey.shade500,
+              color: AppUIConstants.textTertiary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -197,7 +200,7 @@ class StudentCardActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -255,7 +258,7 @@ class StudentCardActions extends StatelessWidget {
               _buildActionBtn(
                 Icons.notifications_active_outlined,
                 'Remind',
-                const Color(0xFFf59e0b),
+                AppUIConstants.warning,
                 isActionInProgress ? null : onSendReminder,
               ),
               const SizedBox(width: 8),
@@ -271,20 +274,21 @@ class StudentCardActions extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             // Call button
-            if (studentPhone != null)
+            if (studentPhone != null) ...[
               _buildActionBtn(
                 Icons.phone,
                 'Call',
                 AppUIConstants.success,
                 () => _makePhoneCall(studentPhone!),
               ),
-            const SizedBox(width: 8),
+              const SizedBox(width: 8),
+            ],
             // Refund button for active stays with successful payments.
             if (!isPending && !isExpired && onRefund != null) ...[
               _buildActionBtn(
                 Icons.money_off_outlined,
                 'Refund',
-                Colors.deepOrange,
+                AppUIConstants.primaryLight,
                 isActionInProgress ? null : onRefund,
               ),
               const SizedBox(width: 8),
@@ -318,14 +322,14 @@ class StudentCardActions extends StatelessWidget {
                 HapticFeedback.lightImpact();
                 onTap();
               },
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
             color: disabled
-                ? Colors.grey.shade100
-                : color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
+                ? AppUIConstants.surfaceMuted
+                : color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -333,13 +337,13 @@ class StudentCardActions extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: disabled ? Colors.grey.shade400 : color,
+                color: disabled ? AppUIConstants.textTertiary : color,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
-                  color: disabled ? Colors.grey.shade400 : color,
+                  color: disabled ? AppUIConstants.textTertiary : color,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),

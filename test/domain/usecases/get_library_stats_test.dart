@@ -193,7 +193,8 @@ void main() {
           expect(r.reservedSeats, 0);
           expect(r.availableSeats, 19);
         });
-    });
+      },
+    );
 
     test('should return all available when no memberships', () async {
       final testSlots = [

@@ -21,7 +21,8 @@ class UpdateSlot implements UseCase<CustomSlot, UpdateSlotParams> {
     if (!params.slot.isValid) {
       return const Left(
         InvalidLibraryDataFailure(
-          message: 'Invalid slot times: times must be between 0-1440 minutes and start/end cannot be equal',
+          message:
+              'Invalid slot times: times must be between 0-1440 minutes and start/end cannot be equal',
         ),
       );
     }

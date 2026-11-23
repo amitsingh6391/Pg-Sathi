@@ -1,9 +1,11 @@
+import 'presentation/core/app_ui_constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/config/firebase_options.dart';
@@ -13,6 +15,7 @@ import 'core/core.dart';
 import 'core/services/notification_deep_link.dart';
 import 'data/services/crashlytics_service.dart';
 import 'data/services/fcm_token_service.dart';
+import 'core/services/app_store_purchase_service.dart';
 import 'data/services/local_notification_service.dart';
 import 'domain/usecases/expire_memberships.dart';
 import 'presentation/auth/cubit/phone_auth_cubit.dart';
@@ -55,6 +58,16 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Light-only app: dark status-bar icons on light surfaces, white nav bar.
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: AppUIConstants.surface,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
 
   // Initialize Firebase with platform-specific options
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -80,6 +93,10 @@ Future<void> main() async {
 
   // Register notification tap handler for deep linking
   _setupNotificationTapHandler();
+
+  // Listen for App Store purchases app-wide so a purchase completed after
+  // leaving the subscription screen (or after a crash) is still recorded.
+  sl<AppStorePurchaseService>().start();
 
   // ---- Non-blocking initializations: run in parallel after runApp() ----
   // These don't need to complete before UI renders.
@@ -131,8 +148,8 @@ void _storeDeepLink(Map<String, dynamic> data) {
 /// Runs non-critical service initializations in parallel after [runApp].
 ///
 /// Analytics, FCM token and membership expiry don't need to
-  /// complete before the first frame renders — deferring them shaves ~1s
-  /// off perceived startup.
+/// complete before the first frame renders — deferring them shaves ~1s
+/// off perceived startup.
 void _initServicesInBackground() {
   Future.microtask(() async {
     try {
@@ -259,6 +276,7 @@ class _LibraryManagerAppState extends State<LibraryManagerApp>
         title: 'PG Sathi',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
+        themeMode: ThemeMode.light,
         routerConfig: _router,
         builder: (context, child) {
           return NetworkStatusIndicator(child: child!);
@@ -268,9 +286,9 @@ class _LibraryManagerAppState extends State<LibraryManagerApp>
   }
 
   ThemeData _buildTheme() {
-    // Clean PG palette: neutral charcoal with a restrained blue accent.
-    const primaryColor = Color(0xFF1F2937);
-    const accentColor = Color(0xFF2563EB);
+    // Palette lives in AppUIConstants so theme and widgets stay in sync
+    const primaryColor = AppUIConstants.primary;
+    const accentColor = AppUIConstants.accent;
 
     return ThemeData(
       useMaterial3: true,
@@ -279,19 +297,26 @@ class _LibraryManagerAppState extends State<LibraryManagerApp>
         primary: primaryColor,
         secondary: accentColor,
         brightness: Brightness.light,
-        surface: const Color(0xFFFFFFFF),
-        surfaceContainerHighest: const Color(0xFFF8FAFC),
+        surface: AppUIConstants.surface,
+        surfaceContainerHighest: AppUIConstants.background,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      scaffoldBackgroundColor: AppUIConstants.background,
       appBarTheme: const AppBarTheme(
         centerTitle: true,
         elevation: 0,
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        scrolledUnderElevation: 0,
+        backgroundColor: AppUIConstants.surface,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: AppUIConstants.textPrimary,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        shape: Border(bottom: BorderSide(color: AppUIConstants.border)),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppUIConstants.border),
+        ),
         color: Colors.white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -319,11 +344,11 @@ class _LibraryManagerAppState extends State<LibraryManagerApp>
         fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: AppUIConstants.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: AppUIConstants.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -331,7 +356,7 @@ class _LibraryManagerAppState extends State<LibraryManagerApp>
         ),
       ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFFF1F5F9),
+        color: AppUIConstants.divider,
         thickness: 1,
       ),
       snackBarTheme: SnackBarThemeData(

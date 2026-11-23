@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/app_ui_constants.dart';
@@ -32,6 +32,24 @@ class SeatNumberingSection extends StatelessWidget {
 
   // ── helpers ────────────────────────────────────────────────────────────
 
+  /// Bed labels for the preview chips (first 4, then the last one).
+  List<String> _buildBedLabels() {
+    final capacity = int.tryParse(capacityText.trim()) ?? 0;
+    if (capacity <= 0) return const [];
+    final rawPrefix = prefixController.text.trim();
+    final prefix = rawPrefix.isEmpty ? 'B' : rawPrefix.toUpperCase();
+    final start = int.tryParse(startNumberController.text.trim()) ?? 1;
+    final end = start + capacity - 1;
+    final padLen = end.toString().length.clamp(2, 4);
+    String label(int n) => '$prefix${n.toString().padLeft(padLen, '0')}';
+    final shown = capacity <= 5 ? capacity : 4;
+    return [
+      for (var i = 0; i < shown; i++) label(start + i),
+      if (capacity > 5) '...',
+      if (capacity > 5) label(end),
+    ];
+  }
+
   String _buildPreview() {
     final capacity = int.tryParse(capacityText.trim()) ?? 0;
     if (capacity <= 0) return '';
@@ -53,12 +71,12 @@ class SeatNumberingSection extends StatelessWidget {
       duration: const Duration(milliseconds: 250),
       decoration: BoxDecoration(
         color: enabled
-            ? AppUIConstants.primary.withValues(alpha: 0.04)
-            : Colors.transparent,
+            ? AppUIConstants.primarySoft.withValues(alpha: 0.6)
+            : AppUIConstants.surfaceMuted,
         borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
         border: Border.all(
           color: enabled
-              ? AppUIConstants.primary.withValues(alpha: 0.18)
+              ? AppUIConstants.primaryLight.withValues(alpha: 0.35)
               : AppUIConstants.border,
         ),
       ),
@@ -75,21 +93,21 @@ class SeatNumberingSection extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    Icons.tag_rounded,
+                    Icons.bed_rounded,
                     size: 18,
                     color: enabled
-                        ? AppUIConstants.primary
-                        : Colors.grey.shade500,
+                        ? AppUIConstants.primaryLight
+                        : AppUIConstants.textTertiary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Customise Bed Numbers',
+                      'Customise bed numbers',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: enabled
-                            ? AppUIConstants.primary
+                            ? AppUIConstants.primaryLight
                             : AppUIConstants.textPrimary,
                       ),
                     ),
@@ -99,7 +117,7 @@ class SeatNumberingSection extends StatelessWidget {
                     child: Switch(
                       value: enabled,
                       onChanged: onToggle,
-                      activeThumbColor: AppUIConstants.primary,
+                      activeThumbColor: AppUIConstants.primaryLight,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
@@ -112,7 +130,7 @@ class SeatNumberingSection extends StatelessWidget {
           if (enabled) ...[
             Divider(
               height: 1,
-              color: AppUIConstants.primary.withValues(alpha: 0.15),
+              color: AppUIConstants.primaryLight.withValues(alpha: 0.15),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -126,8 +144,8 @@ class SeatNumberingSection extends StatelessWidget {
                       Expanded(
                         child: _buildTextField(
                           controller: prefixController,
-                          label: 'Prefix',
-                          hint: 'e.g. A, B, R1',
+                          label: 'Room type / bed prefix',
+                          hint: 'e.g. A, R1',
                           maxLength: 4,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
@@ -141,7 +159,7 @@ class SeatNumberingSection extends StatelessWidget {
                       Expanded(
                         child: _buildTextField(
                           controller: startNumberController,
-                          label: 'Start Number',
+                          label: 'First bed no.',
                           hint: 'e.g. 1, 20',
                           maxLength: 4,
                           keyboardType: TextInputType.number,
@@ -155,7 +173,10 @@ class SeatNumberingSection extends StatelessWidget {
 
                   // Live preview chip
                   const SizedBox(height: 10),
-                  _PreviewChip(previewText: _buildPreview()),
+                  _PreviewChip(
+                    previewText: _buildPreview(),
+                    bedLabels: _buildBedLabels(),
+                  ),
                 ],
               ),
             ),
@@ -193,16 +214,22 @@ class SeatNumberingSection extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
-          borderSide: BorderSide(color: AppUIConstants.primary, width: 1.5),
+          borderSide: BorderSide(
+            color: AppUIConstants.primaryLight,
+            width: 1.5,
+          ),
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppUIConstants.surface,
+        labelStyle: const TextStyle(color: AppUIConstants.textSecondary),
+        hintStyle: const TextStyle(color: AppUIConstants.textTertiary),
         isDense: true,
       ),
       maxLength: maxLength,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       textCapitalization: TextCapitalization.characters,
+      style: const TextStyle(color: AppUIConstants.textPrimary),
     );
   }
 }
@@ -210,48 +237,112 @@ class SeatNumberingSection extends StatelessWidget {
 // ── Preview chip ──────────────────────────────────────────────────────────────
 
 class _PreviewChip extends StatelessWidget {
-  const _PreviewChip({required this.previewText});
+  const _PreviewChip({required this.previewText, required this.bedLabels});
 
   final String previewText;
+  final List<String> bedLabels;
 
   @override
   Widget build(BuildContext context) {
     if (previewText.isEmpty) {
-      return Text(
-        'Enter seat count above to see preview',
+      return const Text(
+        'Enter the number of beds above to preview bed numbers',
         style: TextStyle(
           fontSize: 11,
-          color: Colors.grey.shade500,
+          color: AppUIConstants.textTertiary,
           fontStyle: FontStyle.italic,
         ),
       );
     }
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.visibility_outlined, size: 13, color: Colors.grey.shade500),
-        const SizedBox(width: 4),
-        Text(
-          'Preview: ',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+        Row(
+          children: [
+            const Icon(
+              Icons.visibility_outlined,
+              size: 13,
+              color: AppUIConstants.textTertiary,
+            ),
+            const SizedBox(width: 4),
+            const Text(
+              'Beds will be numbered ',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppUIConstants.textTertiary,
+              ),
+            ),
+            Text(
+              previewText,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppUIConstants.primaryLight,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppUIConstants.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppUIConstants.primary.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Text(
-            previewText,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppUIConstants.primary,
-              letterSpacing: 0.3,
-            ),
+        const SizedBox(height: 8),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Wrap(
+            key: ValueKey(previewText),
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final label in bedLabels)
+                label == '...'
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '...',
+                          style: TextStyle(
+                            color: AppUIConstants.textTertiary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppUIConstants.primaryLight.withValues(
+                            alpha: 0.12,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            AppUIConstants.radiusSm,
+                          ),
+                          border: Border.all(
+                            color: AppUIConstants.primaryLight.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.bed_outlined,
+                              size: 13,
+                              color: AppUIConstants.primaryLight,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              label,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppUIConstants.primaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+            ],
           ),
         ),
       ],

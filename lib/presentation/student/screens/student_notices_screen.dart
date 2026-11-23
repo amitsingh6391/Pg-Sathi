@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,20 +14,31 @@ class StudentNoticesScreen extends StatelessWidget {
     super.key,
     required this.libraryIds,
     required this.studentId,
+    this.cubit,
   });
 
   final List<String> libraryIds;
   final String studentId;
 
+  /// Pre-loaded cubit owned by the caller; when null the screen creates its own.
+  final StudentNoticeCubit? cubit;
+
   @override
   Widget build(BuildContext context) {
+    final view = _StudentNoticesView(
+      studentId: studentId,
+      libraryIds: libraryIds,
+    );
+    if (cubit != null) {
+      return BlocProvider.value(value: cubit!, child: view);
+    }
     return BlocProvider(
       create: (_) => sl<StudentNoticeCubit>()
         ..loadNoticesFromMultipleLibraries(
           libraryIds: libraryIds,
           studentId: studentId,
         ),
-      child: _StudentNoticesView(studentId: studentId, libraryIds: libraryIds),
+      child: view,
     );
   }
 }
@@ -151,25 +162,9 @@ class _StudentNoticesView extends StatelessWidget {
           },
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            itemCount:
-                allNotices.length + (allNotices.length ~/ 2), // Add ad slots
+            itemCount: allNotices.length,
             itemBuilder: (context, index) {
-              // Insert native ad after every 2 notices
-              // Ads at positions: 2, 5, 8, 11... (after every 2 items)
-              final adIndex = index ~/ 3;
-              final isAdPosition =
-                  (index + 1) % 3 == 0 && adIndex < (allNotices.length ~/ 2);
-
-              if (isAdPosition) {
-              }
-
-              // Calculate actual notice index (accounting for ads)
-              final noticeIndex = index - adIndex;
-              if (noticeIndex >= allNotices.length) {
-                return const SizedBox.shrink();
-              }
-
-              final notice = allNotices[noticeIndex];
+              final notice = allNotices[index];
               final isUnread = state.unreadNotices.contains(notice);
               final libInfo = state.libraryInfoCache[notice.libraryId];
               return _NoticeCard(
@@ -274,12 +269,12 @@ class _NoticeCardState extends State<_NoticeCard> {
     if (widget.ownerName != null && widget.ownerName!.isNotEmpty) {
       return widget.ownerName!;
     }
-    return 'Library Notice';
+    return 'PG Notice';
   }
 
   String _getLibraryInitials() {
     final name = _getDisplayName();
-    if (name == 'Library Notice') {
+    if (name == 'PG Notice') {
       // Extract last 2 characters from library ID for initials
       final id = widget.notice.libraryId;
       if (id.length >= 2) {
@@ -477,7 +472,6 @@ class _NoticeCardState extends State<_NoticeCard> {
                           height: 1.5,
                         ),
                         children: [
-                          TextSpan(text: '${widget.notice.title}\n'),
                           if (widget.notice.description.isNotEmpty)
                             TextSpan(
                               text:
@@ -598,19 +592,8 @@ class _NoticeCardState extends State<_NoticeCard> {
               ),
             const SizedBox(height: 12),
             Divider(height: 1, color: Colors.grey.shade200),
-            // LinkedIn-style interaction bar with comment count and view count
             Row(
               children: [
-                Expanded(
-                  child: _buildInteractionButton(
-                    icon: Icons.mode_comment_outlined,
-                    label: widget.notice.commentCount > 0
-                        ? '${widget.notice.commentCount}'
-                        : 'Comment',
-                    onTap: widget.onTap,
-                  ),
-                ),
-                Container(width: 1, height: 20, color: Colors.grey.shade300),
                 Expanded(
                   child: _buildInteractionButton(
                     icon: Icons.visibility_outlined,

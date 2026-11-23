@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/entities/promo_offer.dart';
@@ -9,7 +9,7 @@ Widget _buildDefaultPromoPlaceholder(String title) {
   return Container(
     height: 280,
     width: double.infinity,
-    color: AppUIConstants.primary,
+    decoration: const BoxDecoration(color: AppUIConstants.surface),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -74,10 +74,18 @@ class PromoPopupDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: AppUIConstants.surface,
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
-          boxShadow: [AppUIConstants.shadowLg],
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+          border: Border.all(color: AppUIConstants.border),
+          boxShadow: [
+            BoxShadow(
+              color: AppUIConstants.primaryLight.withValues(alpha: 0.18),
+              blurRadius: 36,
+              offset: const Offset(0, 12),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -97,23 +105,18 @@ class PromoPopupDialog extends StatelessWidget {
         horizontal: AppUIConstants.spacingLg,
         vertical: AppUIConstants.spacingMd,
       ),
-      decoration: BoxDecoration(
-        color: AppUIConstants.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppUIConstants.radiusLg),
-        ),
-      ),
+      decoration: BoxDecoration(color: AppUIConstants.surfaceMuted),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppUIConstants.accent.withValues(alpha: 0.1),
+              color: AppUIConstants.surfaceMuted,
               borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
             ),
             child: Icon(
               Icons.local_offer_rounded,
-              color: AppUIConstants.accent,
+              color: AppUIConstants.primaryLight,
               size: 20,
             ),
           ),
@@ -157,10 +160,7 @@ class PromoPopupDialog extends StatelessWidget {
 
     return ClipRRect(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxHeight: 400,
-          minHeight: 200,
-        ),
+        constraints: const BoxConstraints(maxHeight: 400, minHeight: 200),
         child: Image.network(
           promo.imageUrl,
           width: double.infinity,
@@ -174,10 +174,10 @@ class PromoPopupDialog extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: loadingProgress.expectedTotalBytes != null
                       ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
+                            loadingProgress.expectedTotalBytes!
                       : null,
                   strokeWidth: 2,
-                  color: AppUIConstants.primary,
+                  color: AppUIConstants.primaryLight,
                 ),
               ),
             );
@@ -219,12 +219,12 @@ class PromoPopupDialog extends StatelessWidget {
             child: ElevatedButton(
               onPressed: onCta,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppUIConstants.accent,
+                backgroundColor: AppUIConstants.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
                 ),
               ),
               child: Row(
@@ -238,10 +238,7 @@ class PromoPopupDialog extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Icon(
-                    _getCtaIcon(),
-                    size: 18,
-                  ),
+                  Icon(_getCtaIcon(), size: 18),
                 ],
               ),
             ),

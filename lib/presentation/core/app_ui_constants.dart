@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Premium UI Constants for consistent, professional styling.
 /// Uses a neutral color palette with a single accent color.
@@ -7,17 +7,17 @@ abstract class AppUIConstants {
   // COLORS - Neutral Professional Palette
   // =========================================================================
 
-  /// Primary brand color - simple charcoal
-  static const Color primary = Color(0xFF1F2937);
+  /// Primary brand color - Deep indigo
+  static const Color primary = Color(0xFF312E81);
 
-  /// Primary variant - slightly lighter charcoal
-  static const Color primaryLight = Color(0xFF374151);
+  /// Primary variant - slightly lighter
+  static const Color primaryLight = Color(0xFF3730A3);
 
   /// Secondary - slate grey
   static const Color secondary = Color(0xFF64748B);
 
-  /// Single accent color - clean blue (used sparingly)
-  static const Color accent = Color(0xFF2563EB);
+  /// Single accent color - Indigo (used sparingly)
+  static const Color accent = Color(0xFF4F46E5);
 
   /// Success - subtle green
   static const Color success = Color(0xFF059669);
@@ -28,12 +28,22 @@ abstract class AppUIConstants {
   /// Error - subdued red
   static const Color error = Color(0xFFDC2626);
 
+  /// Pending owner approval - violet
+  static const Color approval = Color(0xFF8B5CF6);
+
+  /// Premium subscriber highlight - gold
+  static const Color premiumGold = Color(0xFFFFD700);
+
+  /// Skeleton loading placeholders (base, shimmer highlight)
+  static const Color skeletonBase = Color(0xFFECEEF8);
+  static const Color skeletonHighlight = Color(0xFFDCDFF2);
+
   // =========================================================================
   // NEUTRAL GREYS - Typography & Background
   // =========================================================================
 
-  /// Background - off white
-  static const Color background = Color(0xFFF8FAFC);
+  /// Background - white
+  static const Color background = Color(0xFFFFFFFF);
 
   /// Surface - white cards
   static const Color surface = Color(0xFFFFFFFF);
@@ -82,7 +92,6 @@ abstract class AppUIConstants {
   static const double spacingLg = 16.0;
   static const double spacingXl = 20.0;
   static const double spacing2Xl = 24.0;
-  static const double spacing3Xl = 32.0;
 
   // =========================================================================
   // BORDER RADIUS - Consistent 12-14
@@ -196,33 +205,9 @@ abstract class AppUIConstants {
   // APP BAR - Solid, no gradient
   // =========================================================================
 
-  static BoxDecoration get appBarDecoration =>
-      const BoxDecoration(color: primary);
-
   // =========================================================================
   // STATUS COLORS - Muted
   // =========================================================================
-
-  static Color getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-      case 'complete':
-      case 'checked_out':
-        return success;
-      case 'pending':
-      case 'checked_in':
-        return accent;
-      case 'expired':
-      case 'error':
-        return error;
-      default:
-        return textSecondary;
-    }
-  }
-
-  static Color getStatusBackgroundColor(String status) {
-    return getStatusColor(status).withValues(alpha: 0.1);
-  }
 
   // =========================================================================
   // BUTTON STYLES
@@ -239,4 +224,72 @@ abstract class AppUIConstants {
       vertical: spacingMd,
     ),
   );
+
+  static ButtonStyle get secondaryButtonStyle => OutlinedButton.styleFrom(
+    foregroundColor: primary,
+    side: const BorderSide(color: border),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(radiusMd),
+    ),
+    padding: const EdgeInsets.symmetric(
+      horizontal: spacingLg,
+      vertical: spacingMd,
+    ),
+  );
+
+  // =========================================================================
+  // PG SATHI EXTRAS (tints derived from the indigo palette above)
+  // =========================================================================
+
+  /// Pale indigo tint for selected states and icon chips.
+  static const Color primarySoft = Color(0xFFEEF2FF);
+
+  /// Soft indigo tint for accent highlights.
+  static const Color accentSoft = Color(0xFFE0E7FF);
+
+  /// Muted surface for inset fields, chips and skeletons.
+  static const Color surfaceMuted = Color(0xFFF1F5F9);
+
+  /// Header band colors (white, matching the white theme).
+  static const List<Color> heroColors = [surface, surface];
+
+  static const double spacing3Xl = 32.0;
+
+  /// Accent call-to-action button.
+  static ButtonStyle get accentButtonStyle => ElevatedButton.styleFrom(
+    backgroundColor: accent,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(radiusMd),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: spacingXl, vertical: 14),
+  );
+
+  static Color getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'complete':
+      case 'paid':
+      case 'occupied':
+      case 'checked_out':
+        return success;
+      case 'pending':
+      case 'due':
+      case 'notice':
+      case 'checked_in':
+        return warning;
+      case 'vacant':
+        return accent;
+      case 'expired':
+      case 'overdue':
+      case 'error':
+        return error;
+      default:
+        return textSecondary;
+    }
+  }
+
+  static Color getStatusBackgroundColor(String status) =>
+      getStatusColor(status).withValues(alpha: 0.1);
 }

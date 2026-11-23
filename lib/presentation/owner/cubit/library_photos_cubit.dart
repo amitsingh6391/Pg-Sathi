@@ -21,13 +21,18 @@ class LibraryPhotosCubit extends Cubit<LibraryPhotosState> {
   Future<void> uploadPhotos({
     required Library library,
     required List<File> photoFiles,
+    bool persist = true,
   }) async {
     if (photoFiles.isEmpty) return;
 
     emit(state.copyWith(status: LibraryPhotosStatus.uploading));
 
     final result = await updateLibraryPhotos(
-      UpdateLibraryPhotosParams(library: library, newPhotos: photoFiles),
+      UpdateLibraryPhotosParams(
+        library: library,
+        newPhotos: photoFiles,
+        persist: persist,
+      ),
     );
 
     result.fold(
@@ -50,11 +55,16 @@ class LibraryPhotosCubit extends Cubit<LibraryPhotosState> {
   Future<void> deletePhoto({
     required Library library,
     required String photoUrl,
+    bool persist = true,
   }) async {
     emit(state.copyWith(status: LibraryPhotosStatus.deleting));
 
     final result = await deleteLibraryPhoto(
-      DeleteLibraryPhotoParams(library: library, photoUrl: photoUrl),
+      DeleteLibraryPhotoParams(
+        library: library,
+        photoUrl: photoUrl,
+        persist: persist,
+      ),
     );
 
     result.fold(

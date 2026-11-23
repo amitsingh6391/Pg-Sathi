@@ -85,7 +85,7 @@ class DeviceSessionsCubit extends Cubit<DeviceSessionsState> {
 
         // Wait a bit for the snackbar to show, then reload silently
         await Future.delayed(const Duration(milliseconds: 500));
-        
+
         // Reload in background without showing loading state
         final reloadResult = await getUserDeviceSessions(userId);
         reloadResult.fold(
@@ -129,7 +129,7 @@ class DeviceSessionsCubit extends Cubit<DeviceSessionsState> {
         final updatedSessions = state.sessions
             .where((s) => s.deviceId == currentDeviceId)
             .toList();
-        
+
         emit(
           state.copyWith(
             status: DeviceSessionsStatus.success,
@@ -139,7 +139,7 @@ class DeviceSessionsCubit extends Cubit<DeviceSessionsState> {
 
         // Wait a bit for the snackbar to show, then reload silently
         await Future.delayed(const Duration(milliseconds: 500));
-        
+
         // Reload in background without showing loading state
         final reloadResult = await getUserDeviceSessions(userId);
         reloadResult.fold(

@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/entities/device_session.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/device_sessions_cubit.dart';
 import '../cubit/device_sessions_state.dart';
+import '../../core/widgets/pulse_box.dart';
 
 /// Screen to display and manage active device sessions.
 class ActiveDevicesScreen extends StatefulWidget {
@@ -40,15 +43,10 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        backgroundColor: AppUIConstants.surface,
+        backgroundColor: AppUIConstants.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          'Active Devices',
-          style: AppUIConstants.headingMd.copyWith(
-            fontSize: 18,
-            letterSpacing: -0.3,
-          ),
-        ),
+        title: const Text('Your devices', style: AppUIConstants.headingMd),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, size: 24),
           color: AppUIConstants.textPrimary,
@@ -58,7 +56,10 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 22),
             color: AppUIConstants.textSecondary,
-            onPressed: _loadSessions,
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              _loadSessions();
+            },
             tooltip: 'Refresh',
           ),
         ],
@@ -66,24 +67,20 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
       body: BlocConsumer<DeviceSessionsCubit, DeviceSessionsState>(
         listener: _handleStateChanges,
         builder: (context, state) {
+          final Widget child;
           if (state.isLoading && state.sessions.isEmpty) {
-            return Center(
-              child: CircularProgressIndicator(
-                color: AppUIConstants.primary,
-                strokeWidth: 2,
-              ),
-            );
+            child = const _DevicesSkeleton(key: ValueKey('loading'));
+          } else if (state.isError) {
+            child = _buildErrorState(state.errorMessage);
+          } else if (state.sessions.isEmpty) {
+            child = _buildEmptyState();
+          } else {
+            child = _buildSessionsList(state);
           }
-
-          if (state.isError) {
-            return _buildErrorState(state.errorMessage);
-          }
-
-          if (state.sessions.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          return _buildSessionsList(state);
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: child,
+          );
         },
       ),
     );
@@ -128,61 +125,52 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
         : sessions.toList();
 
     return RefreshIndicator(
+      key: const ValueKey('list'),
       onRefresh: () async => _loadSessions(),
-      color: AppUIConstants.primary,
-      child: SingleChildScrollView(
+      color: AppUIConstants.primaryLight,
+      backgroundColor: AppUIConstants.surface,
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoCard(state),
-            const SizedBox(height: 24),
-            if (otherSessions.isNotEmpty) ...[
-              _buildLogoutAllButton(otherSessions.length),
-              const SizedBox(height: 20),
-            ],
-            if (currentSessions.isNotEmpty) ...[
-              _buildSectionHeader('Current Device'),
-              const SizedBox(height: 12),
-              ...currentSessions.map(
-                (session) => _buildDeviceCard(session, isCurrent: true),
-              ),
-              const SizedBox(height: 20),
-            ],
-            if (otherSessions.isNotEmpty) ...[
-              _buildSectionHeader('Other Devices'),
-              const SizedBox(height: 12),
-              ...otherSessions.map(
-                (session) => _buildDeviceCard(session, isCurrent: false),
-              ),
-            ],
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSummary(state),
+          if (currentSessions.isNotEmpty) ...[
+            const PremiumSectionHeader('This device'),
+            ...currentSessions.map(
+              (session) => _buildDeviceCard(session, isCurrent: true),
+            ),
           ],
-        ),
+          if (otherSessions.isNotEmpty) ...[
+            PremiumSectionHeader(
+              'Other devices',
+              action: widget.currentDeviceId != null ? 'Log out all' : null,
+              onAction: _showLogoutAllSheet,
+            ),
+            ...otherSessions.map(
+              (session) => _buildDeviceCard(session, isCurrent: false),
+            ),
+          ],
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoCard(DeviceSessionsState state) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        border: Border.all(color: AppUIConstants.accent.withValues(alpha: 0.2)),
-      ),
+  Widget _buildSummary(DeviceSessionsState state) {
+    return PremiumCard(
+      glow: AppUIConstants.primary,
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppUIConstants.accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+              color: AppUIConstants.primarySoft,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm + 2),
             ),
             child: const Icon(
-              Icons.security_rounded,
-              color: AppUIConstants.accent,
-              size: 24,
+              Icons.shield_moon_rounded,
+              color: AppUIConstants.primaryLight,
+              size: 26,
             ),
           ),
           const SizedBox(width: 14),
@@ -191,15 +179,13 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${state.activeSessions} Active Sessions',
-                  style: AppUIConstants.headingSm.copyWith(fontSize: 15),
+                  '${state.activeSessions} signed-in device${state.activeSessions == 1 ? '' : 's'}',
+                  style: AppUIConstants.headingSm,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Manage devices with access to your account',
-                  style: AppUIConstants.bodySm.copyWith(
-                    color: AppUIConstants.textSecondary,
-                  ),
+                const Text(
+                  'Log out anything you do not recognise.',
+                  style: AppUIConstants.bodySm,
                 ),
               ],
             ),
@@ -209,220 +195,156 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
     );
   }
 
-  Widget _buildLogoutAllButton(int deviceCount) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () => _showLogoutAllDialog(),
-        icon: const Icon(Icons.logout_rounded, size: 20),
-        label: Text('Logout All Other Devices ($deviceCount)'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppUIConstants.error,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 3,
-          height: 16,
-          decoration: BoxDecoration(
-            color: AppUIConstants.primary,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(title, style: AppUIConstants.headingSm.copyWith(fontSize: 14)),
-      ],
-    );
-  }
-
   Widget _buildDeviceCard(DeviceSession session, {required bool isCurrent}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        border: Border.all(
-          color: isCurrent
-              ? AppUIConstants.accent.withValues(alpha: 0.3)
-              : AppUIConstants.border,
+    final platformColor = _getPlatformColor(session.platform);
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(session.id),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _getPlatformColor(
-                    session.platform,
-                  ).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
-                ),
-                child: Icon(
-                  _getPlatformIcon(session.platform),
-                  color: _getPlatformColor(session.platform),
-                  size: 24,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: isCurrent
+              ? AppUIConstants.primarySoft
+              : AppUIConstants.surface,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+          border: Border.all(
+            color: isCurrent
+                ? AppUIConstants.primaryLight.withValues(alpha: 0.5)
+                : AppUIConstants.border,
+          ),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: platformColor.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(
+                  AppUIConstants.radiusSm + 2,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            session.deviceName,
-                            style: AppUIConstants.headingSm.copyWith(
-                              fontSize: 15,
-                            ),
+              child: Icon(
+                _getPlatformIcon(session.platform),
+                color: platformColor,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          session.deviceName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppUIConstants.bodyLg.copyWith(
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if (isCurrent)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppUIConstants.accent.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'Current',
-                              style: AppUIConstants.bodySm.copyWith(
-                                color: AppUIConstants.accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session.platform,
-                      style: AppUIConstants.bodySm.copyWith(
-                        color: AppUIConstants.textSecondary,
-                        fontSize: 13,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppUIConstants.divider),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildInfoItem(
-                icon: Icons.schedule_rounded,
-                label: 'Last active',
-                value: session.timeSinceActive,
-              ),
-              if (!isCurrent)
-                TextButton.icon(
-                  onPressed: () => _showLogoutDialog(session),
-                  icon: const Icon(Icons.logout_rounded, size: 16),
-                  label: const Text('Logout'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppUIConstants.error,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
+                      if (isCurrent) ...[
+                        const SizedBox(width: 8),
+                        const PremiumStatusPill(
+                          'This device',
+                          color: AppUIConstants.primaryLight,
+                        ),
+                      ],
+                    ],
                   ),
+                  const SizedBox(height: 4),
+                  Text(session.platform, style: AppUIConstants.bodySm),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.schedule_rounded,
+                        size: 14,
+                        color: AppUIConstants.textTertiary,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        isCurrent
+                            ? 'Active now'
+                            : 'Last active ${session.timeSinceActive}',
+                        style: AppUIConstants.caption.copyWith(
+                          color: isCurrent
+                              ? AppUIConstants.success
+                              : AppUIConstants.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (!isCurrent)
+              IconButton(
+                onPressed: () => _showLogoutSheet(session),
+                tooltip: 'Log out this device',
+                icon: const Icon(Icons.logout_rounded, size: 20),
+                style: IconButton.styleFrom(
+                  foregroundColor: AppUIConstants.error,
+                  backgroundColor: AppUIConstants.error.withValues(alpha: 0.12),
                 ),
-            ],
-          ),
-        ],
+              ),
+          ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildInfoItem({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: AppUIConstants.textTertiary),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: AppUIConstants.bodySm.copyWith(
-            color: AppUIConstants.textSecondary,
-            fontSize: 13,
-          ),
-        ),
-        Text(
-          value,
-          style: AppUIConstants.bodySm.copyWith(
-            color: AppUIConstants.textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
+      key: const ValueKey('empty'),
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppUIConstants.primary.withValues(alpha: 0.1),
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: AppUIConstants.primarySoft,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.devices_rounded,
-                size: 48,
-                color: AppUIConstants.primary,
+                size: 44,
+                color: AppUIConstants.primaryLight,
               ),
             ),
             const SizedBox(height: 20),
-            Text('No Active Devices', style: AppUIConstants.headingMd),
+            const Text('No active devices', style: AppUIConstants.headingMd),
             const SizedBox(height: 8),
-            Text(
-              'You have no active device sessions',
-              style: AppUIConstants.bodyMd.copyWith(
-                color: AppUIConstants.textSecondary,
-              ),
+            const Text(
+              'Signed-in devices will show up here.',
+              style: AppUIConstants.bodyMd,
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: _loadSessions,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Refresh'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppUIConstants.primaryLight,
+                side: const BorderSide(color: AppUIConstants.primaryLight),
+              ),
             ),
           ],
         ),
@@ -432,41 +354,46 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
 
   Widget _buildErrorState(String? message) {
     return Center(
+      key: const ValueKey('error'),
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              size: 48,
-              color: AppUIConstants.error,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppUIConstants.error.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.cloud_off_rounded,
+                size: 44,
+                color: AppUIConstants.error,
+              ),
             ),
             const SizedBox(height: 20),
-            Text('Error Loading Devices', style: AppUIConstants.headingMd),
+            const Text(
+              'Could not load devices',
+              style: AppUIConstants.headingMd,
+            ),
             const SizedBox(height: 8),
             Text(
               message ?? 'Something went wrong',
-              style: AppUIConstants.bodyMd.copyWith(
-                color: AppUIConstants.textSecondary,
-              ),
+              style: AppUIConstants.bodyMd,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: _loadSessions,
               icon: const Icon(Icons.refresh_rounded, size: 20),
               label: const Text('Retry'),
-              style: ElevatedButton.styleFrom(
+              style: FilledButton.styleFrom(
                 backgroundColor: AppUIConstants.primary,
                 foregroundColor: Colors.white,
-                elevation: 0,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
                 ),
               ),
             ),
@@ -476,96 +403,125 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
     );
   }
 
-  void _showLogoutDialog(DeviceSession session) {
-    showDialog(
+  Future<void> _confirmSheet({
+    required IconData icon,
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required VoidCallback onConfirm,
+  }) {
+    return showModalBottomSheet<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppUIConstants.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+      backgroundColor: AppUIConstants.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppUIConstants.radiusXl),
         ),
-        title: Text('Logout Device?', style: AppUIConstants.headingMd),
-        content: Text(
-          'This will log out ${session.deviceName}. You\'ll need to sign in again on that device.',
-          style: AppUIConstants.bodyMd,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: AppUIConstants.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.read<DeviceSessionsCubit>().logout(
-                userId: widget.userId,
-                sessionId: session.id,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppUIConstants.error,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppUIConstants.border,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
-            child: const Text('Logout'),
+              const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppUIConstants.error.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppUIConstants.error, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: AppUIConstants.headingMd,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: AppUIConstants.bodyMd,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppUIConstants.textSecondary,
+                        side: const BorderSide(color: AppUIConstants.border),
+                        minimumSize: const Size(0, 50),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        Navigator.of(sheetContext).pop();
+                        onConfirm();
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppUIConstants.error,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 50),
+                      ),
+                      child: Text(confirmLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  void _showLogoutAllDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppUIConstants.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        ),
-        title: Text(
-          'Logout All Other Devices?',
-          style: AppUIConstants.headingMd,
-        ),
-        content: Text(
-          'This will log out all devices except your current one. You\'ll need to sign in again on those devices.',
-          style: AppUIConstants.bodyMd,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: AppUIConstants.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              if (widget.currentDeviceId != null) {
-                context.read<DeviceSessionsCubit>().logoutAllOthers(
-                  userId: widget.userId,
-                  currentDeviceId: widget.currentDeviceId!,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppUIConstants.error,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
-              ),
-            ),
-            child: const Text('Logout All'),
-          ),
-        ],
-      ),
+  void _showLogoutSheet(DeviceSession session) {
+    _confirmSheet(
+      icon: Icons.logout_rounded,
+      title: 'Log out ${session.deviceName}?',
+      message: 'You will need to sign in again on that device.',
+      confirmLabel: 'Log out',
+      onConfirm: () {
+        context.read<DeviceSessionsCubit>().logout(
+          userId: widget.userId,
+          sessionId: session.id,
+        );
+      },
+    );
+  }
+
+  void _showLogoutAllSheet() {
+    _confirmSheet(
+      icon: Icons.devices_other_rounded,
+      title: 'Log out all other devices?',
+      message:
+          'Everything except this device will be signed out. You will need to sign in again on those devices.',
+      confirmLabel: 'Log out all',
+      onConfirm: () {
+        if (widget.currentDeviceId != null) {
+          context.read<DeviceSessionsCubit>().logoutAllOthers(
+            userId: widget.userId,
+            currentDeviceId: widget.currentDeviceId!,
+          );
+        }
+      },
     );
   }
 
@@ -584,11 +540,49 @@ class _ActiveDevicesScreenState extends State<ActiveDevicesScreen> {
 
   Color _getPlatformColor(String platform) {
     final lowerPlatform = platform.toLowerCase();
-    if (lowerPlatform.contains('android')) return const Color(0xFF3DDC84);
+    if (lowerPlatform.contains('android')) return AppUIConstants.success;
     if (lowerPlatform.contains('ios') || lowerPlatform.contains('iphone')) {
-      return const Color(0xFF000000);
+      return AppUIConstants.textPrimary;
     }
-    if (lowerPlatform.contains('web')) return AppUIConstants.accent;
-    return AppUIConstants.primary;
+    if (lowerPlatform.contains('web')) return AppUIConstants.primaryLight;
+    return AppUIConstants.primaryLight;
+  }
+}
+
+class _DevicesSkeleton extends StatelessWidget {
+  const _DevicesSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [
+        const PulseBox(height: 76, radius: AppUIConstants.radiusLg),
+        const SizedBox(height: 28),
+        for (var i = 0; i < 3; i++)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: AppUIConstants.cardDecorationFlat,
+            child: const Row(
+              children: [
+                PulseBox(width: 48, height: 48, radius: 12),
+                SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      PulseBox(width: 140, height: 14),
+                      SizedBox(height: 8),
+                      PulseBox(width: 90, height: 11),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 }

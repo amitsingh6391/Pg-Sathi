@@ -1,9 +1,15 @@
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 
 import '../../../domain/entities/user.dart';
+import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 
-/// Reusable profile widgets
+/// Reusable profile widgets for the resident profile experience.
 
+/// Circular avatar with a luminous gradient ring.
 class ProfileAvatar extends StatelessWidget {
   const ProfileAvatar({
     super.key,
@@ -15,14 +21,16 @@ class ProfileAvatar extends StatelessWidget {
 
   final User user;
   final String? avatarUrl;
+
+  /// Avatar radius.
   final double size;
   final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
-    Widget avatar = CircleAvatar(
+    final avatar = CircleAvatar(
       radius: size,
-      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      backgroundColor: AppUIConstants.primarySoft,
       backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
       child: avatarUrl == null
           ? Text(
@@ -30,37 +38,114 @@ class ProfileAvatar extends StatelessWidget {
               style: TextStyle(
                 fontSize: size * 0.6,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                color: AppUIConstants.primaryLight,
               ),
             )
           : null,
     );
 
-    if (showBorder) {
-      return Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
+    if (!showBorder) return avatar;
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [AppUIConstants.primaryLight, AppUIConstants.primaryLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.5),
-            width: 3,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          color: AppUIConstants.background,
         ),
         child: avatar,
-      );
-    }
-
-    return avatar;
+      ),
+    );
   }
 }
 
+/// Animated circular progress ring with a [child] in the middle.
+class CompletionRing extends StatelessWidget {
+  const CompletionRing({
+    super.key,
+    required this.progress,
+    required this.child,
+    this.size = 112,
+    this.strokeWidth = 5,
+    this.color = AppUIConstants.primaryLight,
+  });
+
+  /// 0..1
+  final double progress;
+  final Widget child;
+  final double size;
+  final double strokeWidth;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) {
+        return SizedBox(
+          width: size,
+          height: size,
+          child: CustomPaint(
+            painter: _RingPainter(
+              progress: value,
+              color: color,
+              strokeWidth: strokeWidth,
+            ),
+            child: Center(child: child),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter({
+    required this.progress,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  final double progress;
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final inset = rect.deflate(strokeWidth / 2);
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..color = AppUIConstants.surfaceMuted;
+    canvas.drawArc(inset, 0, math.pi * 2, false, track);
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = strokeWidth
+      ..color = color;
+    canvas.drawArc(inset, -math.pi / 2, math.pi * 2 * progress, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter old) =>
+      old.progress != progress ||
+      old.color != color ||
+      old.strokeWidth != strokeWidth;
+}
+
+/// Label + value row with a tinted icon well.
 class InfoTile extends StatelessWidget {
   const InfoTile({
     super.key,
@@ -84,47 +169,47 @@ class InfoTile extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: Colors.grey.shade600),
-              const SizedBox(width: 16),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppUIConstants.primaryLight.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+                ),
+                child: Icon(icon, size: 19, color: AppUIConstants.primaryLight),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    if (valueWidget != null)
-                      valueWidget!
-                    else
-                      Text(
-                        value,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: valueColor ?? Colors.grey.shade900,
+                    Text(label, style: AppUIConstants.caption),
+                    const SizedBox(height: 3),
+                    valueWidget ??
+                        Text(
+                          value,
+                          style: AppUIConstants.bodyLg.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: valueColor ?? AppUIConstants.textPrimary,
+                          ),
                         ),
-                      ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        if (showDivider) Divider(height: 1, color: Colors.grey.shade200),
+        if (showDivider)
+          const Divider(height: 1, color: AppUIConstants.divider),
       ],
     );
   }
 }
 
+/// Titled card that wraps a group of rows.
 class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
@@ -146,82 +231,41 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 600 + delay),
+      duration: Duration(milliseconds: 450 + delay),
+      curve: Curves.easeOutCubic,
       tween: Tween(begin: 0, end: 1),
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 20 * (1 - value)),
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, 18 * (1 - value)),
+          child: child,
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          icon,
-                          size: 20,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (actionButton != null) actionButton!,
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ...children,
-                ],
-              ),
+      ),
+      child: PremiumCard(
+        onTap: onTap,
+        margin: const EdgeInsets.only(bottom: AppUIConstants.spacingLg),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: AppUIConstants.primaryLight),
+                const SizedBox(width: 10),
+                Expanded(child: Text(title, style: AppUIConstants.headingSm)),
+                if (actionButton != null) actionButton!,
+              ],
             ),
-          ),
+            const SizedBox(height: 6),
+            ...children,
+          ],
         ),
       ),
     );
   }
 }
 
+/// Small pill showing whether the profile is complete.
 class ProfileStatusBadge extends StatelessWidget {
   const ProfileStatusBadge({super.key, required this.isComplete});
 
@@ -229,34 +273,29 @@ class ProfileStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = isComplete ? AppUIConstants.success : AppUIConstants.primaryLight;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isComplete
-            ? const Color(0xFF10B981).withValues(alpha: 0.1)
-            : Colors.orange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isComplete
-              ? const Color(0xFF10B981).withValues(alpha: 0.3)
-              : Colors.orange.withValues(alpha: 0.3),
-        ),
+        color: c.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+        border: Border.all(color: c.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             isComplete ? Icons.check_circle_rounded : Icons.pending_rounded,
-            size: 16,
-            color: isComplete ? const Color(0xFF10B981) : Colors.orange,
+            size: 15,
+            color: c,
           ),
           const SizedBox(width: 6),
           Text(
             isComplete ? 'Complete' : 'Incomplete',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isComplete ? const Color(0xFF10B981) : Colors.orange,
+              fontWeight: FontWeight.w700,
+              color: c,
             ),
           ),
         ],
@@ -265,6 +304,7 @@ class ProfileStatusBadge extends StatelessWidget {
   }
 }
 
+/// Call-to-action card nudging the resident to finish their profile.
 class ProfileCompletionCard extends StatelessWidget {
   const ProfileCompletionCard({super.key, required this.onComplete});
 
@@ -272,73 +312,170 @@ class ProfileCompletionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.orange.shade400,
-            Colors.deepOrange.shade400,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+    return PremiumCard(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onComplete();
+      },
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
+              color: AppUIConstants.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
             ),
             child: const Icon(
               Icons.edit_note_rounded,
-              color: Colors.white,
-              size: 28,
+              color: AppUIConstants.primaryLight,
+              size: 26,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Complete Your Profile',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  'Complete your profile',
+                  style: AppUIConstants.headingSm,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
-                  'Add your details to get started',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 13,
-                  ),
+                  'Add your details so your PG can recognise you',
+                  style: AppUIConstants.bodySm,
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: onComplete,
-            icon: const Icon(
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: AppUIConstants.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
               Icons.arrow_forward_rounded,
               color: Colors.white,
-            ),
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              size: 18,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Grouped list of settings rows inside one card, with optional caption.
+class SettingsGroup extends StatelessWidget {
+  const SettingsGroup({super.key, this.title, required this.children});
+
+  final String? title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      rows.add(children[i]);
+      if (i != children.length - 1) {
+        rows.add(
+          const Divider(height: 1, indent: 66, color: AppUIConstants.divider),
+        );
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title != null) PremiumSectionHeader(title!),
+        PremiumCard(
+          padding: EdgeInsets.zero,
+          child: Column(children: rows),
+        ),
+      ],
+    );
+  }
+}
+
+/// Single tappable / switchable settings row with a tinted icon well.
+class SettingsTile extends StatelessWidget {
+  const SettingsTile({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.color = AppUIConstants.primaryLight,
+    this.onTap,
+    this.trailing,
+    this.showChevron = true,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Color color;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+  final bool showChevron;
+
+  @override
+  Widget build(BuildContext context) {
+    final destructive = color == AppUIConstants.error;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: destructive
+                    ? AppUIConstants.error.withValues(alpha: 0.14)
+                    : AppUIConstants.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+              ),
+              child: Icon(
+                icon,
+                size: 19,
+                color: destructive
+                    ? AppUIConstants.error
+                    : AppUIConstants.primaryLight,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppUIConstants.bodyLg.copyWith(
+                      color: destructive
+                          ? AppUIConstants.error
+                          : AppUIConstants.textPrimary,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle!, style: AppUIConstants.bodySm),
+                  ],
+                ],
+              ),
+            ),
+            if (trailing != null)
+              trailing!
+            else if (onTap != null && showChevron)
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: AppUIConstants.textTertiary,
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../domain/entities/subscription.dart';
@@ -8,7 +8,7 @@ import 'widgets/subscription_action_buttons.dart';
 import 'widgets/subscription_amount_badge.dart';
 import 'widgets/subscription_info_row.dart';
 
-/// Premium subscription tile with minimal, clean design
+/// Status-colored subscription row used inside a PG subscription card.
 class SubscriptionTile extends StatelessWidget {
   const SubscriptionTile({
     required this.subscription,
@@ -27,73 +27,82 @@ class SubscriptionTile extends StatelessWidget {
       subscription.status == SubscriptionStatus.pending ||
       subscription.status == SubscriptionStatus.pendingVerification;
 
+  Color get _statusColor {
+    switch (subscription.status) {
+      case SubscriptionStatus.active:
+        return AppUIConstants.success;
+      case SubscriptionStatus.pending:
+        return AppUIConstants.warning;
+      case SubscriptionStatus.pendingVerification:
+        return AppUIConstants.primaryLight;
+      case SubscriptionStatus.cancelled:
+      case SubscriptionStatus.rejected:
+        return AppUIConstants.error;
+      case SubscriptionStatus.expired:
+        return AppUIConstants.textTertiary;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final color = _statusColor;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppUIConstants.divider.withValues(alpha: 0.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Column(
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildContent(),
-          if (_isPending) ...[
-            const SizedBox(height: 20),
-            SubscriptionActionButtons(
-              onApprove: onApprove,
-              onReject: onReject,
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(width: 4, color: color),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    _buildHeader(color),
+                    const SizedBox(height: 12),
+                    SubscriptionInfoRow(
+                      subscription: subscription,
+                      dateFormat: DateFormat('dd MMM yyyy'),
+                    ),
+                    if (_isPending) ...[
+                      const SizedBox(height: 14),
+                      SubscriptionActionButtons(
+                        onApprove: onApprove,
+                        onReject: onReject,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Color color) {
     return Row(
       children: [
         StatusBadge(status: subscription.status),
         const Spacer(),
+        SubscriptionAmountBadge(amount: subscription.finalAmount, color: color),
         if (!_isPending && onDelete != null)
           IconButton(
             onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_outline_rounded),
             iconSize: 18,
-            color: AppUIConstants.textSecondary.withValues(alpha: 0.5),
+            color: AppUIConstants.textTertiary,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             tooltip: 'Delete',
           ),
-      ],
-    );
-  }
-
-  Widget _buildContent() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: SubscriptionInfoRow(
-            subscription: subscription,
-            dateFormat: DateFormat('dd MMM yyyy'),
-          ),
-        ),
-        const SizedBox(width: 20),
-        SubscriptionAmountBadge(amount: subscription.finalAmount),
       ],
     );
   }

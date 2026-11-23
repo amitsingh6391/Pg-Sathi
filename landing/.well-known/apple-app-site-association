@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "D8HALNQ8N2.in.pgsathi.app",
+        "appIDs": [
+          "D8HALNQ8N2.in.pgsathi.app"
+        ],
+        "paths": [
+          "/pg/*"
+        ],
+        "components": [
+          {
+            "/": "/pg/*",
+            "comment": "PG registration QR"
+          }
+        ]
+      }
+    ]
+  }
+}

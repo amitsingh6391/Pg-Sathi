@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,20 +11,19 @@ import '../../presentation/core/screens/privacy_policy_screen.dart';
 import '../../presentation/core/screens/terms_of_service_screen.dart';
 import '../../presentation/core/widgets/version_check_wrapper.dart';
 import '../../presentation/core/widgets/web_content_constraint.dart';
-import '../../presentation/owner/screens/payment_reminder_screen.dart';
 import '../../presentation/owner/cubit/slot_management_cubit.dart';
 import '../../presentation/owner/screens/slot_management_screen.dart';
 import '../../presentation/student/screens/student_main_navigation_screen.dart';
 import '../../domain/entities/library.dart';
 import '../../domain/repositories/library_repository.dart';
 import '../../domain/repositories/membership_repository.dart';
-import '../../domain/usecases/get_owner_library.dart';
 import '../../core/di/injection_container.dart' as di;
 import '../di/injection_container.dart';
 import '../../presentation/auth/cubit/phone_auth_cubit.dart';
 import '../../presentation/student/screens/student_notices_screen.dart';
 import '../../presentation/student/screens/student_notice_details_screen.dart';
 import '../../presentation/student/cubit/student_notice_cubit.dart';
+import '../../presentation/student/screens/pg_invite_screen.dart';
 
 /// Route names for type-safe navigation.
 abstract class AppRoutes {
@@ -42,7 +41,7 @@ Future<List<String>> _getStudentLibraryIds(String studentId) async {
   try {
     final membershipRepository = di.sl<MembershipRepository>();
     final result = await membershipRepository.getMembershipsByUserId(studentId);
-    return result.fold((_) => [], (memberships) {
+    return await result.fold((_) => [], (memberships) {
       if (memberships.isEmpty) return [];
       // Get all unique library IDs from memberships
       return memberships.map((m) => m.libraryId).toSet().toList();
@@ -165,43 +164,6 @@ GoRouter createRouter() {
         },
       ),
 
-      // Send Notifications Screen
-      GoRoute(
-        path: '/owner/send-notification',
-        name: 'sendNotification',
-        builder: (context, state) {
-          final ownerId = state.uri.queryParameters['ownerId'] ?? '';
-          if (ownerId.isEmpty) {
-            return Scaffold(
-              appBar: AppBar(title: const Text('Error')),
-              body: const Center(child: Text('Owner ID is required')),
-            );
-          }
-
-          // Fetch library and show screen
-          return FutureBuilder(
-            future: _getLibraryForOwnerId(ownerId),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              final library = snapshot.data;
-              if (library == null) {
-                return Scaffold(
-                  appBar: AppBar(title: const Text('Error')),
-                  body: const Center(child: Text('PG profile not found')),
-                );
-              }
-
-              return PaymentReminderScreen(library: library);
-            },
-          );
-        },
-      ),
-
       // Privacy Policy
       GoRoute(
         path: '/privacy-policy',
@@ -295,6 +257,16 @@ GoRouter createRouter() {
         },
       ),
 
+      // PG registration QR (app link / web): PG details + bed request
+      GoRoute(
+        path: '/pg/:id',
+        name: 'pgInvite',
+        builder: (context, state) {
+          final screen = PgInviteScreen(pgId: state.pathParameters['id'] ?? '');
+          return kIsWeb ? WebContentConstraint(child: screen) : screen;
+        },
+      ),
+
       // Firebase Auth callback route
       GoRoute(
         path: AppRoutes.firebaseAuthLink,
@@ -363,12 +335,5 @@ extension AppNavigator on BuildContext {
 Future<Library?> _getLibraryById(String libraryId) async {
   final libraryRepository = di.sl<LibraryRepository>();
   final result = await libraryRepository.getLibraryById(libraryId);
-  return result.fold((_) => null, (library) => library);
-}
-
-/// Helper function to get library by owner ID for routing.
-Future<Library?> _getLibraryForOwnerId(String ownerId) async {
-  final getOwnerLibrary = di.sl<GetOwnerLibrary>();
-  final result = await getOwnerLibrary(GetOwnerLibraryParams(ownerId: ownerId));
   return result.fold((_) => null, (library) => library);
 }

@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/entities/subscription_plan.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 
 class UpiBottomSheet extends StatefulWidget {
   final double amount;
@@ -39,7 +40,8 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
       'iosScheme': 'tez://',
       'androidPackage': 'com.google.android.apps.nbu.paisa.user',
       'androidPackageFallback': 'com.google.android.apps.walletnfcrel',
-      'playStoreUrl': 'https://play.google.com/store/apps/details?id=com.google.android.apps.nbu.paisa.user',
+      'playStoreUrl':
+          'https://play.google.com/store/apps/details?id=com.google.android.apps.nbu.paisa.user',
       'color': const Color(0xFF4285F4),
       'icon': Icons.payment,
     },
@@ -52,25 +54,39 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
     },
   ];
 
+  bool _copied = false;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(top: BorderSide(color: AppUIConstants.border)),
       ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppUIConstants.border,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               _buildHeader(context),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               _buildUpiIdSection(context),
               const SizedBox(height: 20),
               _buildUpiAppsGrid(context),
@@ -91,25 +107,25 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Pay with UPI',
-                style: AppUIConstants.bodyMd.copyWith(
-                  color: AppUIConstants.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 4),
+              const Text('Pay with UPI', style: AppUIConstants.bodyMd),
+              const SizedBox(height: 2),
               Text(
                 '₹${widget.amount.toStringAsFixed(0)}',
                 style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  color: AppUIConstants.textPrimary,
+                  letterSpacing: -1,
                 ),
               ),
             ],
           ),
         ),
         IconButton(
+          style: IconButton.styleFrom(
+            backgroundColor: AppUIConstants.surfaceMuted,
+            foregroundColor: AppUIConstants.textSecondary,
+          ),
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
@@ -117,108 +133,134 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
     );
   }
 
+  Future<void> _copyUpiId() async {
+    HapticFeedback.mediumImpact();
+    await Clipboard.setData(ClipboardData(text: SubscriptionPlan.upiId));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    await Future<void>.delayed(const Duration(milliseconds: 1600));
+    if (mounted) setState(() => _copied = false);
+  }
+
   Widget _buildUpiIdSection(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        border: Border.all(color: AppUIConstants.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'UPI ID',
-                  style: AppUIConstants.bodySm.copyWith(
-                    color: AppUIConstants.textSecondary,
+    final color = _copied
+        ? AppUIConstants.success
+        : AppUIConstants.primaryLight;
+    return GestureDetector(
+      onTap: _copyUpiId,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppUIConstants.surfaceMuted,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+          border: Border.all(color: color.withValues(alpha: 0.6)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.alternate_email_rounded, size: 20, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('UPI ID', style: AppUIConstants.caption),
+                  const SizedBox(height: 2),
+                  Text(
+                    SubscriptionPlan.upiId,
+                    style: AppUIConstants.bodyLg,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  SubscriptionPlan.upiId,
-                  style: AppUIConstants.bodyMd.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: SubscriptionPlan.upiId));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('UPI ID copied'),
-                  duration: const Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppUIConstants.primary,
-                ),
-              );
-            },
-            icon: const Icon(Icons.copy_rounded, size: 18),
-            label: const Text('Copy'),
-          ),
-        ],
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Row(
+                key: ValueKey(_copied),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _copied ? Icons.check_circle_rounded : Icons.copy_rounded,
+                    size: 18,
+                    color: color,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _copied ? 'Copied' : 'Copy',
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildUpiAppsGrid(BuildContext context) {
+    final tileWidth = (MediaQuery.of(context).size.width - 40 - 24) / 3;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Select UPI App',
-          style: AppUIConstants.bodyMd.copyWith(fontWeight: FontWeight.w600),
-        ),
+        const Text('Open your UPI app', style: AppUIConstants.headingSm),
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: _upiApps.map((app) {
-            return InkWell(
-              onTap: () => _launchUpiApp(context, app),
+            return Material(
+              color: AppUIConstants.surfaceMuted,
               borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-              child: Container(
-                width: (MediaQuery.of(context).size.width - 84) / 3,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppUIConstants.surface,
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                  border: Border.all(color: AppUIConstants.border),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: (app['color'] as Color).withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        app['icon'] as IconData,
-                        color: app['color'] as Color,
-                        size: 24,
-                      ),
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  _launchUpiApp(context, app);
+                },
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+                child: Container(
+                  width: tileWidth,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusMd,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      app['name'] as String,
-                      style: AppUIConstants.bodySm.copyWith(
-                        fontWeight: FontWeight.w600,
+                    border: Border.all(color: AppUIConstants.border),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppUIConstants.surfaceMuted,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          app['icon'] as IconData,
+                          color: AppUIConstants.textSecondary,
+                          size: 24,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        app['name'] as String,
+                        style: AppUIConstants.bodySm.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppUIConstants.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -232,56 +274,32 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppUIConstants.surface,
+        color: AppUIConstants.background,
         borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
         border: Border.all(color: AppUIConstants.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.info_outline,
                 size: 18,
-                color: AppUIConstants.textSecondary,
+                color: AppUIConstants.primaryLight,
               ),
-              const SizedBox(width: 8),
-              Text(
-                'How it works',
-                style: AppUIConstants.bodyMd.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              SizedBox(width: 8),
+              Text('How it works', style: AppUIConstants.headingSm),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _buildStep('1', 'Copy UPI ID above'),
           _buildStep('2', 'Open your UPI app and pay'),
           _buildStep('3', 'Enter transaction ID', isLast: true),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppUIConstants.background,
-              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.schedule,
-                  size: 14,
-                  color: AppUIConstants.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Verification within 1 hour',
-                  style: AppUIConstants.bodySm.copyWith(
-                    color: AppUIConstants.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+          const PremiumStatusPill(
+            'Verification within 1 hour',
+            color: AppUIConstants.warning,
           ),
         ],
       ),
@@ -290,25 +308,28 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
 
   Widget _buildStep(String number, String text, {bool isLast = false}) {
     return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
       child: Row(
         children: [
-          Text(
-            '$number.',
-            style: AppUIConstants.bodyMd.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppUIConstants.primary,
+          Container(
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(
+              color: AppUIConstants.primarySoft,
+              shape: BoxShape.circle,
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
+            alignment: Alignment.center,
             child: Text(
-              text,
-              style: AppUIConstants.bodySm.copyWith(
-                color: AppUIConstants.textSecondary,
+              number,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppUIConstants.primaryLight,
               ),
             ),
           ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: AppUIConstants.bodyMd)),
         ],
       ),
     );
@@ -325,7 +346,7 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
       final androidPackage = app['androidPackage'] as String?;
       final androidPackageFallback = app['androidPackageFallback'] as String?;
       final playStoreUrl = app['playStoreUrl'] as String?;
-      
+
       // Try iOS URL scheme
       if (iosScheme != null) {
         final uri = Uri.parse(iosScheme);
@@ -335,27 +356,31 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
           return;
         }
       }
-      
+
       // Try primary Android package
       if (androidPackage != null) {
-        final intentUri = Uri.parse('intent://#Intent;scheme=upi;package=$androidPackage;end');
+        final intentUri = Uri.parse(
+          'intent://#Intent;scheme=upi;package=$androidPackage;end',
+        );
         if (await canLaunchUrl(intentUri)) {
           await launchUrl(intentUri, mode: LaunchMode.externalApplication);
           widget.onAppLaunched();
           return;
         }
       }
-      
+
       // Try fallback Android package (for GPay)
       if (androidPackageFallback != null) {
-        final intentUri = Uri.parse('intent://#Intent;scheme=upi;package=$androidPackageFallback;end');
+        final intentUri = Uri.parse(
+          'intent://#Intent;scheme=upi;package=$androidPackageFallback;end',
+        );
         if (await canLaunchUrl(intentUri)) {
           await launchUrl(intentUri, mode: LaunchMode.externalApplication);
           widget.onAppLaunched();
           return;
         }
       }
-      
+
       // Try Play Store as final fallback
       if (playStoreUrl != null) {
         final playStoreUri = Uri.parse(playStoreUrl);
@@ -364,7 +389,7 @@ class _UpiBottomSheetState extends State<UpiBottomSheet> {
           return;
         }
       }
-      
+
       // If nothing worked, show error
       widget.onError(
         '${app['name']} not available. Please install it from Play Store.',

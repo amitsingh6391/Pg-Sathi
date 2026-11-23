@@ -4,7 +4,7 @@ import '../entities/slot.dart';
 import '../../presentation/owner/models/import_row_data.dart';
 
 /// Validates import rows for business rules before bulk import.
-/// 
+///
 /// Business rules validated:
 /// - Required fields (name, phone, seat)
 /// - Phone number format

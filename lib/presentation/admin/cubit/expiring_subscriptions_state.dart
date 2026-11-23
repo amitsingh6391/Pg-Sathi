@@ -53,13 +53,13 @@ class ExpiringSubscriptionsState extends Equatable {
 
   @override
   List<Object?> get props => [
-        isLoading,
-        expiringSubscriptions,
-        expiringTrials,
-        activeTrials,
-        expiredTrials,
-        libraryCache,
-        ownerCache,
-        error,
-      ];
+    isLoading,
+    expiringSubscriptions,
+    expiringTrials,
+    activeTrials,
+    expiredTrials,
+    libraryCache,
+    ownerCache,
+    error,
+  ];
 }

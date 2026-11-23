@@ -60,7 +60,8 @@ class Invoice extends Equatable {
   final String membershipId;
   final String seatNumber;
   final Slot slot;
-  final String? slotName; // Custom slot name (e.g., "Morning Batch") or null for legacy
+  final String?
+  slotName; // Custom slot name (e.g., "Morning Batch") or null for legacy
   final String sessionTiming;
 
   /// Billing month in YYYY-MM format

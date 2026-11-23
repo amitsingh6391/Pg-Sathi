@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
@@ -29,7 +28,6 @@ class NoticeRepositoryImpl implements NoticeRepository {
   Future<Either<Failure, Notice>> createNotice({
     required String libraryId,
     required String ownerId,
-    required String title,
     required String description,
     required NoticeTargetAudience targetAudience,
     List<File> attachmentFiles = const [],
@@ -37,6 +35,7 @@ class NoticeRepositoryImpl implements NoticeRepository {
     DateTime? scheduledFor,
     DateTime? expiresAt,
     bool sendPushNotification = true,
+    bool sendWhatsApp = false,
     List<String> targetSlotIds = const [],
     List<String> targetSeatIds = const [],
   }) async {
@@ -45,15 +44,15 @@ class NoticeRepositoryImpl implements NoticeRepository {
       final now = DateTime.now();
 
       // Upload attachments to Firebase Storage
-      final attachments = <NoticeAttachment>[];
-      for (final file in attachmentFiles) {
-        final attachment = await _uploadAttachment(
-          file: file,
-          noticeId: noticeId,
-          libraryId: libraryId,
-        );
-        attachments.add(attachment);
-      }
+      final attachments = await Future.wait(
+        attachmentFiles.map(
+          (file) => _uploadAttachment(
+            file: file,
+            noticeId: noticeId,
+            libraryId: libraryId,
+          ),
+        ),
+      );
 
       // Determine initial status
       NoticeStatus status;
@@ -70,7 +69,6 @@ class NoticeRepositoryImpl implements NoticeRepository {
         id: noticeId,
         libraryId: libraryId,
         ownerId: ownerId,
-        title: title,
         description: description,
         targetAudience: targetAudience.name,
         status: status.name,
@@ -81,6 +79,7 @@ class NoticeRepositoryImpl implements NoticeRepository {
         publishedAt: publishedAt,
         createdAt: now,
         sendPushNotification: sendPushNotification,
+        sendWhatsApp: sendWhatsApp,
         targetSlotIds: targetSlotIds,
         targetSeatIds: targetSeatIds,
       );
@@ -106,7 +105,6 @@ class NoticeRepositoryImpl implements NoticeRepository {
   @override
   Future<Either<Failure, Notice>> updateNotice({
     required String noticeId,
-    String? title,
     String? description,
     NoticeTargetAudience? targetAudience,
     List<File>? newAttachmentFiles,
@@ -148,7 +146,6 @@ class NoticeRepositoryImpl implements NoticeRepository {
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       };
 
-      if (title != null) updateData['title'] = title;
       if (description != null) updateData['description'] = description;
       if (targetAudience != null) {
         updateData['targetAudience'] = targetAudience.name;
@@ -181,7 +178,6 @@ class NoticeRepositoryImpl implements NoticeRepository {
 
       // Build updated entity from in-memory data instead of re-reading.
       final updatedNotice = currentNotice.copyWith(
-        title: title ?? currentNotice.title,
         description: description ?? currentNotice.description,
         targetAudience: targetAudience ?? currentNotice.targetAudience,
         externalLinks: externalLinks ?? currentNotice.externalLinks,
@@ -266,12 +262,12 @@ class NoticeRepositoryImpl implements NoticeRepository {
 
       // Prepare notification payload
       final title = 'New Announcement';
-      final body = notice.title;
+      final text = notice.description.trim();
+      final body = text.length > 120 ? '${text.substring(0, 120)}…' : text;
       final data = {
         'type': 'notice',
         'notice_id': notice.id,
         'library_id': notice.libraryId,
-        'title': notice.title,
       };
 
       // Send notification
@@ -341,6 +337,7 @@ class NoticeRepositoryImpl implements NoticeRepository {
           .collection('notices')
           .where('libraryId', isEqualTo: libraryId)
           .orderBy('createdAt', descending: true)
+          .limit(100)
           .get();
 
       final notices = snapshot.docs
@@ -348,12 +345,7 @@ class NoticeRepositoryImpl implements NoticeRepository {
           .toList();
 
       return Right(notices);
-    } catch (e, stackTrace) {
-      _logNoticeQueryError(
-        operation: 'getNoticesByLibrary',
-        error: e,
-        stackTrace: stackTrace,
-      );
+    } catch (e) {
       return Left(ServerFailure(message: 'Failed to fetch notices: $e'));
     }
   }
@@ -372,6 +364,7 @@ class NoticeRepositoryImpl implements NoticeRepository {
           .where('libraryId', isEqualTo: libraryId)
           .where('status', isEqualTo: NoticeStatus.published.name)
           .orderBy('publishedAt', descending: true)
+          .limit(100)
           .get();
 
       // Pre-check if student has any active membership for this library.
@@ -402,38 +395,8 @@ class NoticeRepositoryImpl implements NoticeRepository {
       }
 
       return Right(notices);
-    } catch (e, stackTrace) {
-      _logNoticeQueryError(
-        operation: 'getActiveNoticesForStudent',
-        error: e,
-        stackTrace: stackTrace,
-      );
+    } catch (e) {
       return Left(ServerFailure(message: 'Failed to fetch active notices: $e'));
-    }
-  }
-
-  void _logNoticeQueryError({
-    required String operation,
-    required Object error,
-    required StackTrace stackTrace,
-  }) {
-    final message = error.toString();
-    final indexUrl = RegExp(
-      r'https://console\.firebase\.google\.com/\S+',
-    ).firstMatch(message)?.group(0);
-
-    developer.log(
-      'NoticeRepositoryImpl.$operation failed: $message',
-      name: 'NoticeRepositoryImpl',
-      error: error,
-      stackTrace: stackTrace,
-    );
-
-    if (indexUrl != null) {
-      developer.log(
-        'Create missing Firestore index here: $indexUrl',
-        name: 'NoticeRepositoryImpl',
-      );
     }
   }
 
@@ -479,6 +442,7 @@ class NoticeRepositoryImpl implements NoticeRepository {
           .collection('notice_read_status')
           .where('studentId', isEqualTo: studentId)
           .where('libraryId', isEqualTo: libraryId)
+          .limit(100)
           .get();
 
       final statusMap = <String, NoticeReadStatus>{};
@@ -612,33 +576,6 @@ class NoticeRepositoryImpl implements NoticeRepository {
     }
   }
 
-  @override
-  Future<Either<Failure, void>> updateExpiredNotices() async {
-    try {
-      final now = DateTime.now();
-      final snapshot = await firestore
-          .collection('notices')
-          .where('status', isEqualTo: NoticeStatus.published.name)
-          .where('expiresAt', isLessThan: Timestamp.fromDate(now))
-          .get();
-
-      final batch = firestore.batch();
-      for (final doc in snapshot.docs) {
-        batch.update(doc.reference, {
-          'status': NoticeStatus.expired.name,
-          'updatedAt': Timestamp.fromDate(now),
-        });
-      }
-
-      await batch.commit();
-      return const Right(null);
-    } catch (e) {
-      return Left(
-        ServerFailure(message: 'Failed to update expired notices: $e'),
-      );
-    }
-  }
-
   // Private helper methods
 
   Future<NoticeAttachment> _uploadAttachment({
@@ -655,7 +592,10 @@ class NoticeRepositoryImpl implements NoticeRepository {
 
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(fileExtension)) {
       fileType = AttachmentType.image;
-      contentType = 'image/$fileExtension';
+      // WhatsApp rejects the non-standard 'image/jpg'.
+      contentType = fileExtension == 'jpg'
+          ? 'image/jpeg'
+          : 'image/$fileExtension';
     } else if (fileExtension == 'pdf') {
       fileType = AttachmentType.pdf;
       contentType = 'application/pdf';

@@ -22,9 +22,8 @@ Uri buildMapsLaunchUri({
     'https://maps.apple.com/?ll=$latitude,$longitude&q=$queryParam',
   );
 
-  Uri googleMaps() => Uri.parse(
-    'https://www.google.com/maps/search/?api=1&query=$queryParam',
-  );
+  Uri googleMaps() =>
+      Uri.parse('https://www.google.com/maps/search/?api=1&query=$queryParam');
 
   if (web) {
     return googleMaps();

@@ -32,24 +32,30 @@ class GetAllLibraries implements UseCase<List<LibraryWithStats>, NoParams> {
         try {
           final ownersResult = await userRepository!
               .getUsersByIds(ownerIds)
-              .timeout(const Duration(seconds: 3), onTimeout: () {
-            // If timeout, return empty map (show all libraries)
-            return const Right(<String, User>{});
-          });
+              .timeout(
+                const Duration(seconds: 3),
+                onTimeout: () {
+                  // If timeout, return empty map (show all libraries)
+                  return const Right(<String, User>{});
+                },
+              );
 
-          return ownersResult.fold((failure) {
-            // On failure, show all libraries (fail open)
-            return Right(_convertToLibraryWithStats(libraries));
-          }, (ownersMap) {
-            // Filter libraries where owner's showMyLibraryInListing is false
-            final visibleLibraries = libraries.where((lib) {
-              final owner = ownersMap[lib.ownerId];
-              // If owner not found or setting is true, show library (default true)
-              return owner == null || owner.showMyLibraryInListing;
-            }).toList();
+          return await ownersResult.fold(
+            (failure) {
+              // On failure, show all libraries (fail open)
+              return Right(_convertToLibraryWithStats(libraries));
+            },
+            (ownersMap) {
+              // Filter libraries where owner's showMyLibraryInListing is false
+              final visibleLibraries = libraries.where((lib) {
+                final owner = ownersMap[lib.ownerId];
+                // If owner not found or setting is true, show library (default true)
+                return owner == null || owner.showMyLibraryInListing;
+              }).toList();
 
-            return Right(_convertToLibraryWithStats(visibleLibraries));
-          });
+              return Right(_convertToLibraryWithStats(visibleLibraries));
+            },
+          );
         } catch (e) {
           // On any error, show all libraries (fail open)
           return Right(_convertToLibraryWithStats(libraries));

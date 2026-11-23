@@ -1,58 +1,67 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/services/owner_branch_selection_service.dart';
 import '../../../domain/entities/library.dart';
 import '../../../domain/entities/library_stats.dart';
 import '../../../domain/usecases/create_library.dart';
 import '../../../domain/usecases/get_library_stats.dart';
-import '../../../domain/usecases/get_owner_library.dart';
+import '../../../domain/usecases/get_owner_libraries.dart';
 import '../../../domain/usecases/update_library.dart';
 import 'owner_library_event.dart';
 import 'owner_library_state.dart';
 
 /// BLoC for owner library management.
-/// Handles loading, creating, and updating the owner's library.
+/// Supports multi-branch: loads all libraries, tracks selected index.
 class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
   OwnerLibraryBloc({
-    required this.getOwnerLibrary,
+    required this.getOwnerLibraries,
     required this.getLibraryStats,
     required this.createLibrary,
     required this.updateLibrary,
+    required this.branchSelectionService,
   }) : super(const OwnerLibraryState()) {
     on<LoadOwnerLibrary>(_onLoadOwnerLibrary);
+    on<SelectLibrary>(_onSelectLibrary);
     on<CreateLibraryRequested>(_onCreateLibrary);
     on<UpdateLibraryRequested>(_onUpdateLibrary);
     on<RefreshLibraryStats>(_onRefreshStats);
   }
 
-  final GetOwnerLibrary getOwnerLibrary;
+  final GetOwnerLibraries getOwnerLibraries;
   final GetLibraryStats getLibraryStats;
   final CreateLibrary createLibrary;
   final UpdateLibrary updateLibrary;
+  final OwnerBranchSelectionService branchSelectionService;
 
   String? _ownerId;
+  List<String>? _managedLibraryIds;
+  String? _selectedLibraryId;
 
   Future<void> _onLoadOwnerLibrary(
     LoadOwnerLibrary event,
     Emitter<OwnerLibraryState> emit,
   ) async {
     _ownerId = event.ownerId;
+    _managedLibraryIds = event.managedLibraryIds;
     emit(
       state.copyWith(status: OwnerLibraryStatus.loading, clearFailure: true),
     );
 
-    final libraryResult = await getOwnerLibrary(
-      GetOwnerLibraryParams(ownerId: event.ownerId),
+    final librariesResult = await getOwnerLibraries(
+      GetOwnerLibrariesParams(
+        ownerId: event.ownerId,
+        onlyLibraryIds: event.managedLibraryIds,
+      ),
     );
 
-    await libraryResult.fold(
+    await librariesResult.fold(
       (failure) async {
         emit(
           state.copyWith(status: OwnerLibraryStatus.error, failure: failure),
         );
       },
-      (library) async {
-        if (library == null) {
-          // No library exists yet
+      (libraries) async {
+        if (libraries.isEmpty) {
           emit(
             state.copyWith(
               status: OwnerLibraryStatus.loaded,
@@ -61,21 +70,37 @@ class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
             ),
           );
         } else {
-          // Library exists, load stats (total seats calculated from active slots)
+          // Restore previously selected library if still in the list.
+          // Prefer the persisted selection (survives app restarts), then fall
+          // back to the in-memory selection, then the first branch.
+          var selectedIndex = 0;
+          final persistedId = branchSelectionService.getSelectedLibraryId(
+            event.ownerId,
+          );
+          final savedId = persistedId ?? _selectedLibraryId;
+          if (savedId != null) {
+            final savedIndex = libraries.indexWhere((l) => l.id == savedId);
+            if (savedIndex >= 0) {
+              selectedIndex = savedIndex;
+            }
+          }
+          _selectedLibraryId = libraries[selectedIndex].id;
+          final selected = libraries[selectedIndex];
+
           final statsResult = await getLibraryStats(
             GetLibraryStatsParams(
-              libraryId: library.id,
-              totalSeatCapacity: library.totalSeatCapacity,
+              libraryId: selected.id,
+              totalSeatCapacity: selected.totalSeatCapacity,
             ),
           );
 
           statsResult.fold(
             (failure) {
-              // Fallback stats: empty (no slots means no seats)
               emit(
                 state.copyWith(
                   status: OwnerLibraryStatus.loaded,
-                  library: library,
+                  libraries: libraries,
+                  selectedLibraryIndex: selectedIndex,
                   stats: const LibraryStats.empty(),
                 ),
               );
@@ -84,13 +109,65 @@ class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
               emit(
                 state.copyWith(
                   status: OwnerLibraryStatus.loaded,
-                  library: library,
+                  libraries: libraries,
+                  selectedLibraryIndex: selectedIndex,
                   stats: stats,
                 ),
               );
             },
           );
         }
+      },
+    );
+  }
+
+  Future<void> _onSelectLibrary(
+    SelectLibrary event,
+    Emitter<OwnerLibraryState> emit,
+  ) async {
+    if (event.index < 0 || event.index >= state.libraries.length) return;
+
+    _selectedLibraryId = state.libraries[event.index].id;
+
+    // Remember which branch the owner opened so the next app session resumes
+    // on the same branch instead of resetting to the first one.
+    if (_ownerId != null) {
+      await branchSelectionService.setSelectedLibraryId(
+        _ownerId!,
+        _selectedLibraryId!,
+      );
+    }
+
+    emit(
+      state.copyWith(status: OwnerLibraryStatus.loading, clearFailure: true),
+    );
+
+    final selected = state.libraries[event.index];
+    final statsResult = await getLibraryStats(
+      GetLibraryStatsParams(
+        libraryId: selected.id,
+        totalSeatCapacity: selected.totalSeatCapacity,
+      ),
+    );
+
+    statsResult.fold(
+      (failure) {
+        emit(
+          state.copyWith(
+            status: OwnerLibraryStatus.loaded,
+            selectedLibraryIndex: event.index,
+            stats: const LibraryStats.empty(),
+          ),
+        );
+      },
+      (stats) {
+        emit(
+          state.copyWith(
+            status: OwnerLibraryStatus.loaded,
+            selectedLibraryIndex: event.index,
+            stats: stats,
+          ),
+        );
       },
     );
   }
@@ -105,13 +182,12 @@ class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
 
     final libraryId = DateTime.now().millisecondsSinceEpoch.toString();
 
-    // Create library entity
     final libraryToCreate = Library(
       id: libraryId,
       ownerId: _ownerId!,
       name: event.name,
-      fullAddress: event.location, // Legacy: use location as full address
-      area: event.location, // Legacy: use location as area
+      fullAddress: event.location,
+      area: event.location,
       capacity: event.capacity,
     );
 
@@ -124,15 +200,13 @@ class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
         emit(state.copyWith(formStatus: FormStatus.failure, failure: failure));
       },
       (library) {
-        emit(
-          state.copyWith(
-            formStatus: FormStatus.success,
-            library: library,
-            stats:
-                const LibraryStats.empty(), // Will be updated when slots are created
+        // Reload libraries to include the new one
+        add(
+          LoadOwnerLibrary(
+            ownerId: _ownerId!,
+            managedLibraryIds: _managedLibraryIds,
           ),
         );
-        // Reset form status after success
         emit(state.copyWith(formStatus: FormStatus.idle));
       },
     );
@@ -146,7 +220,6 @@ class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
 
     emit(state.copyWith(formStatus: FormStatus.submitting, clearFailure: true));
 
-    // Update existing library with new values
     final libraryToUpdate = state.library!.copyWith(
       name: event.name,
       fullAddress: event.location,
@@ -163,10 +236,18 @@ class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
         emit(state.copyWith(formStatus: FormStatus.failure, failure: failure));
       },
       (library) {
-        // Refresh stats after library update (will recalculate from slots)
-        // Don't update stats here, let user refresh or it will update on next load
-        emit(state.copyWith(formStatus: FormStatus.success, library: library));
-        // Reset form status after success
+        // Update the library in the list
+        final updatedLibraries = List<Library>.from(state.libraries);
+        final idx = updatedLibraries.indexWhere((l) => l.id == library.id);
+        if (idx >= 0) {
+          updatedLibraries[idx] = library;
+        }
+        emit(
+          state.copyWith(
+            formStatus: FormStatus.success,
+            libraries: updatedLibraries,
+          ),
+        );
         emit(state.copyWith(formStatus: FormStatus.idle));
       },
     );
@@ -186,13 +267,8 @@ class OwnerLibraryBloc extends Bloc<OwnerLibraryEvent, OwnerLibraryState> {
       ),
     );
 
-    statsResult.fold(
-      (failure) {
-        // Keep existing stats on failure
-      },
-      (stats) {
-        emit(state.copyWith(stats: stats));
-      },
-    );
+    statsResult.fold((failure) {}, (stats) {
+      emit(state.copyWith(stats: stats));
+    });
   }
 }

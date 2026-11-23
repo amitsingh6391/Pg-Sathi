@@ -8,20 +8,30 @@ import '../../../domain/entities/library_stats.dart';
 final class OwnerLibraryState extends Equatable {
   const OwnerLibraryState({
     this.status = OwnerLibraryStatus.initial,
-    this.library,
+    this.libraries = const [],
+    this.selectedLibraryIndex = 0,
     this.stats = const LibraryStats.empty(),
     this.failure,
     this.formStatus = FormStatus.idle,
   });
 
   final OwnerLibraryStatus status;
-  final Library? library;
+  final List<Library> libraries;
+  final int selectedLibraryIndex;
   final LibraryStats stats;
   final Failure? failure;
   final FormStatus formStatus;
 
-  /// Whether owner has a library.
-  bool get hasLibrary => library != null;
+  /// Currently selected library (derived from list).
+  Library? get library => libraries.isEmpty
+      ? null
+      : libraries[selectedLibraryIndex.clamp(0, libraries.length - 1)];
+
+  /// Whether owner has at least one library.
+  bool get hasLibrary => libraries.isNotEmpty;
+
+  /// Whether owner has multiple branches.
+  bool get hasMultipleLibraries => libraries.length > 1;
 
   /// Whether data is loading.
   bool get isLoading => status == OwnerLibraryStatus.loading;
@@ -29,14 +39,15 @@ final class OwnerLibraryState extends Equatable {
   /// Whether form is submitting.
   bool get isSubmitting => formStatus == FormStatus.submitting;
 
-  /// Dashboard card values.
+  /// Dashboard card values (from selected library stats).
   int get totalSeats => stats.totalSeats;
   int get occupiedSeats => stats.occupiedSeats;
   int get availableSeats => stats.availableSeats;
 
   OwnerLibraryState copyWith({
     OwnerLibraryStatus? status,
-    Library? library,
+    List<Library>? libraries,
+    int? selectedLibraryIndex,
     LibraryStats? stats,
     Failure? failure,
     FormStatus? formStatus,
@@ -45,7 +56,8 @@ final class OwnerLibraryState extends Equatable {
   }) {
     return OwnerLibraryState(
       status: status ?? this.status,
-      library: clearLibrary ? null : (library ?? this.library),
+      libraries: clearLibrary ? [] : (libraries ?? this.libraries),
+      selectedLibraryIndex: selectedLibraryIndex ?? this.selectedLibraryIndex,
       stats: stats ?? this.stats,
       failure: clearFailure ? null : (failure ?? this.failure),
       formStatus: formStatus ?? this.formStatus,
@@ -53,7 +65,14 @@ final class OwnerLibraryState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [status, library, stats, failure, formStatus];
+  List<Object?> get props => [
+    status,
+    libraries,
+    selectedLibraryIndex,
+    stats,
+    failure,
+    formStatus,
+  ];
 }
 
 /// Status of the owner library screen.

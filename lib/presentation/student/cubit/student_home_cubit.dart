@@ -8,7 +8,6 @@ import '../../../domain/repositories/user_repository.dart';
 import '../../../domain/usecases/get_student_documents.dart';
 import '../../../domain/usecases/get_student_memberships.dart';
 import '../../../domain/usecases/sync_memberships_on_login.dart';
-import '../../../domain/usecases/validate_daily_presence.dart';
 import 'student_home_state.dart';
 
 /// Cubit for student home screen.
@@ -16,7 +15,6 @@ import 'student_home_state.dart';
 class StudentHomeCubit extends Cubit<StudentHomeState> {
   StudentHomeCubit({
     required this.getStudentMemberships,
-    required this.validateDailyPresence,
     required this.syncMembershipsOnLogin,
     required this.membershipRepository,
     required this.authRepository,
@@ -25,7 +23,6 @@ class StudentHomeCubit extends Cubit<StudentHomeState> {
   }) : super(const StudentHomeState());
 
   final GetStudentMemberships getStudentMemberships;
-  final ValidateDailyPresence validateDailyPresence;
   final SyncMembershipsOnLogin syncMembershipsOnLogin;
   final MembershipRepository membershipRepository;
   final AuthRepository authRepository;
@@ -203,36 +200,5 @@ class StudentHomeCubit extends Cubit<StudentHomeState> {
   /// Updates user in state after profile completion.
   void updateUser(User user) {
     emit(state.copyWith(user: user));
-  }
-
-  /// Records daily check-in.
-  Future<void> checkIn({
-    required String presenceId,
-    required String userId,
-    required String libraryId,
-  }) async {
-    emit(state.copyWith(status: StudentHomeStatus.loading));
-
-    final result = await validateDailyPresence(
-      ValidateDailyPresenceParams(
-        presenceId: presenceId,
-        userId: userId,
-        libraryId: libraryId,
-        checkInTime: DateTime.now(),
-      ),
-    );
-
-    result.fold(
-      (failure) => emit(
-        state.copyWith(status: StudentHomeStatus.failure, failure: failure),
-      ),
-      (presence) => emit(
-        state.copyWith(
-          status: StudentHomeStatus.success,
-          todayPresence: presence,
-          isCheckedIn: true,
-        ),
-      ),
-    );
   }
 }

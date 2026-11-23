@@ -67,7 +67,9 @@ class MarkUpiAsPaid implements UseCase<Payment, MarkUpiAsPaidParams> {
       );
 
       // Save updated payment
-      final updateResult = await paymentRepository.updatePayment(updatedPayment);
+      final updateResult = await paymentRepository.updatePayment(
+        updatedPayment,
+      );
 
       // Send notification to owner (fire-and-forget)
       if (updateResult.isRight() && notificationService != null) {
@@ -102,12 +104,9 @@ class MarkUpiAsPaid implements UseCase<Payment, MarkUpiAsPaidParams> {
       String studentName = 'Student';
       if (membership.userId != null) {
         final userResult = await userRepository.getUserById(membership.userId!);
-        userResult.fold(
-          (_) {},
-          (user) {
-            studentName = user.name;
-          },
-        );
+        userResult.fold((_) {}, (user) {
+          studentName = user.name;
+        });
       } else if (membership.studentName != null) {
         studentName = membership.studentName!;
       }

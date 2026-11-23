@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/di/injection_container.dart';
 import '../../../domain/entities/promo_offer.dart';
@@ -7,6 +7,9 @@ import '../../core/app_ui_constants.dart';
 import '../widgets/promo_analytics_dialog.dart';
 import '../widgets/promo_card.dart';
 import '../widgets/promo_form_dialog.dart';
+import '../widgets/promo_ticket.dart';
+
+enum _PromoFilter { all, live, paused, ended }
 
 /// Admin screen for managing promotional offers.
 class AdminPromoManagementScreen extends StatefulWidget {
@@ -22,6 +25,7 @@ class _AdminPromoManagementScreenState
   List<PromoOffer> _promos = [];
   bool _isLoading = true;
   String? _error;
+  _PromoFilter _filter = _PromoFilter.all;
 
   @override
   void initState() {
@@ -55,12 +59,14 @@ class _AdminPromoManagementScreenState
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        title: const Text('Promo Offers'),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
+        title: const Text('Promo offers'),
+        backgroundColor: AppUIConstants.surface,
+        foregroundColor: AppUIConstants.textPrimary,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadPromos,
           ),
@@ -71,15 +77,51 @@ class _AdminPromoManagementScreenState
         backgroundColor: AppUIConstants.accent,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('New Promo'),
+        label: const Text('New promo'),
       ),
-      body: _buildBody(),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: KeyedSubtree(
+          key: ValueKey(
+            _isLoading ? 'loading' : (_error != null ? 'error' : 'data'),
+          ),
+          child: _buildBody(),
+        ),
+      ),
     );
+  }
+
+  bool _matches(PromoOffer p) {
+    final now = DateTime.now();
+    switch (_filter) {
+      case _PromoFilter.all:
+        return true;
+      case _PromoFilter.live:
+        return p.isValidForDisplay;
+      case _PromoFilter.paused:
+        return !p.isActive;
+      case _PromoFilter.ended:
+        return p.endDate != null && now.isAfter(p.endDate!);
+    }
+  }
+
+  String _filterLabel(_PromoFilter f) {
+    switch (f) {
+      case _PromoFilter.all:
+        return 'All (${_promos.length})';
+      case _PromoFilter.live:
+        return 'Live (${_promos.where((p) => p.isValidForDisplay).length})';
+      case _PromoFilter.paused:
+        return 'Paused (${_promos.where((p) => !p.isActive).length})';
+      case _PromoFilter.ended:
+        final now = DateTime.now();
+        return 'Ended (${_promos.where((p) => p.endDate != null && now.isAfter(p.endDate!)).length})';
+    }
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonList();
     }
 
     if (_error != null) {
@@ -90,63 +132,98 @@ class _AdminPromoManagementScreenState
       return _buildEmptyState();
     }
 
+    final visible = _promos.where(_matches).toList();
+
     return RefreshIndicator(
+      color: AppUIConstants.primaryLight,
+      backgroundColor: AppUIConstants.surface,
       onRefresh: _loadPromos,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-        itemCount: _promos.length,
-        itemBuilder: (context, index) => PromoCard(
-          promo: _promos[index],
-          onEdit: () => _showPromoFormDialog(context, promo: _promos[index]),
-          onToggle: () => _togglePromoStatus(_promos[index]),
-          onDelete: () => _deletePromo(_promos[index]),
-          onViewAnalytics: () => _showAnalyticsDialog(_promos[index]),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppUIConstants.spacingLg,
+          AppUIConstants.spacingMd,
+          AppUIConstants.spacingLg,
+          96,
         ),
+        children: [
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final f in _PromoFilter.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(_filterLabel(f)),
+                      selected: _filter == f,
+                      onSelected: (_) => setState(() => _filter = f),
+                      showCheckmark: false,
+                      backgroundColor: AppUIConstants.surfaceMuted,
+                      selectedColor: AppUIConstants.primarySoft,
+                      side: BorderSide(
+                        color: _filter == f
+                            ? AppUIConstants.primaryLight
+                            : AppUIConstants.border,
+                      ),
+                      labelStyle: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: _filter == f
+                            ? AppUIConstants.textPrimary
+                            : AppUIConstants.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          if (visible.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 48),
+              child: AdminEmptyState(
+                icon: Icons.filter_alt_off_rounded,
+                title: 'Nothing here',
+                message: 'No promos match this filter.',
+              ),
+            )
+          else
+            for (final promo in visible)
+              PromoCard(
+                key: ValueKey(promo.id),
+                promo: promo,
+                onEdit: () => _showPromoFormDialog(context, promo: promo),
+                onToggle: () => _togglePromoStatus(promo),
+                onDelete: () => _deletePromo(promo),
+                onViewAnalytics: () => _showAnalyticsDialog(promo),
+              ),
+        ],
       ),
     );
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline_rounded,
-            color: AppUIConstants.error,
-            size: 48,
-          ),
-          const SizedBox(height: 16),
-          Text(_error!, style: AppUIConstants.bodyMd),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadPromos,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
+    return AdminEmptyState(
+      icon: Icons.cloud_off_rounded,
+      color: AppUIConstants.error,
+      title: 'Could not load promos',
+      message: _error!,
+      actionLabel: 'Retry',
+      actionIcon: Icons.refresh_rounded,
+      onAction: _loadPromos,
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.local_offer_outlined,
-            color: AppUIConstants.textTertiary,
-            size: 64,
-          ),
-          const SizedBox(height: AppUIConstants.spacingLg),
-          Text('No promos yet', style: AppUIConstants.headingSm),
-          const SizedBox(height: AppUIConstants.spacingSm),
-          Text(
-            'Create your first promo offer',
-            style: AppUIConstants.bodyMd,
-          ),
-        ],
-      ),
+    return AdminEmptyState(
+      icon: Icons.local_offer_outlined,
+      title: 'No promos yet',
+      message:
+          'Create a popup offer to reach owners right from their dashboard.',
+      actionLabel: 'Create first promo',
+      onAction: () => _showPromoFormDialog(context),
     );
   }
 
@@ -203,8 +280,11 @@ class _AdminPromoManagementScreenState
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
         ),
-        title: const Text('Delete Promo?'),
-        content: Text('This will permanently delete "${promo.title}".'),
+        title: const Text('Delete promo?', style: AppUIConstants.headingMd),
+        content: Text(
+          'This will permanently delete "${promo.title}".',
+          style: AppUIConstants.bodyMd,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -246,8 +326,10 @@ class _AdminPromoManagementScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? AppUIConstants.error : AppUIConstants.success,
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isError
+            ? AppUIConstants.error
+            : AppUIConstants.success,
       ),
     );
   }

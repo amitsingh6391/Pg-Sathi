@@ -60,10 +60,8 @@ void main() {
       // Assert
       expect(result, Right(testUsers));
       verify(
-        () => mockRepository.getHourlyActiveUsers(
-          date: testDate,
-          hour: testHour,
-        ),
+        () =>
+            mockRepository.getHourlyActiveUsers(date: testDate, hour: testHour),
       ).called(1);
       verifyNoMoreInteractions(mockRepository);
     });
@@ -87,10 +85,8 @@ void main() {
         (users) => expect(users, isEmpty),
       );
       verify(
-        () => mockRepository.getHourlyActiveUsers(
-          date: testDate,
-          hour: testHour,
-        ),
+        () =>
+            mockRepository.getHourlyActiveUsers(date: testDate, hour: testHour),
       ).called(1);
     });
 
@@ -110,10 +106,8 @@ void main() {
       // Assert
       expect(result, const Left(failure));
       verify(
-        () => mockRepository.getHourlyActiveUsers(
-          date: testDate,
-          hour: testHour,
-        ),
+        () =>
+            mockRepository.getHourlyActiveUsers(date: testDate, hour: testHour),
       ).called(1);
     });
 
@@ -123,38 +117,34 @@ void main() {
 
       // Assert
       expect(result.isLeft(), true);
-      result.fold(
-        (failure) {
+      result.fold((failure) {
+        expect(failure, isA<ValidationFailure>());
+        expect(
+          (failure as ValidationFailure).message,
+          'Hour must be between 0 and 23',
+        );
+      }, (_) => fail('Should return failure'));
+      verifyZeroInteractions(mockRepository);
+    });
+
+    test(
+      'should_return_validation_failure_when_hour_is_greater_than_23',
+      () async {
+        // Act
+        final result = await useCase(date: testDate, hour: 24);
+
+        // Assert
+        expect(result.isLeft(), true);
+        result.fold((failure) {
           expect(failure, isA<ValidationFailure>());
           expect(
             (failure as ValidationFailure).message,
             'Hour must be between 0 and 23',
           );
-        },
-        (_) => fail('Should return failure'),
-      );
-      verifyZeroInteractions(mockRepository);
-    });
-
-    test('should_return_validation_failure_when_hour_is_greater_than_23',
-        () async {
-      // Act
-      final result = await useCase(date: testDate, hour: 24);
-
-      // Assert
-      expect(result.isLeft(), true);
-      result.fold(
-        (failure) {
-          expect(failure, isA<ValidationFailure>());
-          expect(
-            (failure as ValidationFailure).message,
-            'Hour must be between 0 and 23',
-          );
-        },
-        (_) => fail('Should return failure'),
-      );
-      verifyZeroInteractions(mockRepository);
-    });
+        }, (_) => fail('Should return failure'));
+        verifyZeroInteractions(mockRepository);
+      },
+    );
 
     test('should_accept_hour_0_as_valid', () async {
       // Arrange
@@ -171,10 +161,7 @@ void main() {
       // Assert
       expect(result.isRight(), true);
       verify(
-        () => mockRepository.getHourlyActiveUsers(
-          date: testDate,
-          hour: 0,
-        ),
+        () => mockRepository.getHourlyActiveUsers(date: testDate, hour: 0),
       ).called(1);
     });
 
@@ -193,10 +180,7 @@ void main() {
       // Assert
       expect(result.isRight(), true);
       verify(
-        () => mockRepository.getHourlyActiveUsers(
-          date: testDate,
-          hour: 23,
-        ),
+        () => mockRepository.getHourlyActiveUsers(date: testDate, hour: 23),
       ).called(1);
     });
   });

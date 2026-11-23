@@ -23,8 +23,7 @@ class ReferralStats extends Equatable {
 
   /// Uses the Referral entity counters as primary source (always updated
   /// atomically during create/approve). Falls back to redemption list count.
-  int get totalReferred =>
-      referral?.totalRedemptions ?? redemptions.length;
+  int get totalReferred => referral?.totalRedemptions ?? redemptions.length;
   int get totalConverted =>
       referral?.successfulConversions ??
       redemptions.where((r) => r.isConverted).length;
@@ -67,25 +66,32 @@ class GetReferralStats
       referralRepository.getWithdrawalRequests(params.ownerId),
     ]);
 
-    final redemptions = (results[0] as Either<Failure, List<ReferralRedemption>>)
-        .fold((_) => <ReferralRedemption>[], (r) => r);
+    final redemptions =
+        (results[0] as Either<Failure, List<ReferralRedemption>>).fold(
+          (_) => <ReferralRedemption>[],
+          (r) => r,
+        );
 
     final unclaimed = (results[1] as Either<Failure, List<ReferralRedemption>>)
         .fold((_) => <ReferralRedemption>[], (r) => r);
 
-    final wallet = (results[2] as Either<Failure, ReferralWallet>)
-        .fold((_) => null, (w) => w);
+    final wallet = (results[2] as Either<Failure, ReferralWallet>).fold(
+      (_) => null,
+      (w) => w,
+    );
 
     final withdrawals = (results[3] as Either<Failure, List<WithdrawalRequest>>)
         .fold((_) => <WithdrawalRequest>[], (w) => w);
 
-    return Right(ReferralStats(
-      referral: referral,
-      wallet: wallet,
-      redemptions: redemptions,
-      unclaimedRewards: unclaimed,
-      withdrawalRequests: withdrawals,
-    ));
+    return Right(
+      ReferralStats(
+        referral: referral,
+        wallet: wallet,
+        redemptions: redemptions,
+        unclaimedRewards: unclaimed,
+        withdrawalRequests: withdrawals,
+      ),
+    );
   }
 }
 

@@ -8,7 +8,6 @@ class NoticeModel {
     required this.id,
     required this.libraryId,
     required this.ownerId,
-    required this.title,
     required this.description,
     required this.targetAudience,
     required this.status,
@@ -20,10 +19,9 @@ class NoticeModel {
     this.publishedAt,
     this.updatedAt,
     this.sendPushNotification = true,
+    this.sendWhatsApp = false,
     this.viewCount = 0,
     this.readCount = 0,
-    this.commentCount = 0,
-    this.lastCommentAt,
     this.targetSlotIds = const [],
     this.targetSeatIds = const [],
   });
@@ -31,7 +29,6 @@ class NoticeModel {
   final String id;
   final String libraryId;
   final String ownerId;
-  final String title;
   final String description;
   final String targetAudience;
   final String status;
@@ -43,10 +40,9 @@ class NoticeModel {
   final DateTime? updatedAt;
   final DateTime createdAt;
   final bool sendPushNotification;
+  final bool sendWhatsApp;
   final int viewCount;
   final int readCount;
-  final int commentCount;
-  final DateTime? lastCommentAt;
   final List<String> targetSlotIds;
   final List<String> targetSeatIds;
 
@@ -59,7 +55,6 @@ class NoticeModel {
       id: doc.id,
       libraryId: data['libraryId'] as String,
       ownerId: data['ownerId'] as String,
-      title: data['title'] as String,
       description: data['description'] as String,
       targetAudience: data['targetAudience'] as String,
       status: data['status'] as String,
@@ -79,10 +74,9 @@ class NoticeModel {
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       sendPushNotification: data['sendPushNotification'] as bool? ?? true,
+      sendWhatsApp: data['sendWhatsApp'] as bool? ?? false,
       viewCount: data['viewCount'] as int? ?? 0,
       readCount: data['readCount'] as int? ?? 0,
-      commentCount: data['commentCount'] as int? ?? 0,
-      lastCommentAt: (data['lastCommentAt'] as Timestamp?)?.toDate(),
       targetSlotIds:
           (data['targetSlotIds'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -101,7 +95,6 @@ class NoticeModel {
     return {
       'libraryId': libraryId,
       'ownerId': ownerId,
-      'title': title,
       'description': description,
       'targetAudience': targetAudience,
       'status': status,
@@ -117,12 +110,9 @@ class NoticeModel {
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
       'createdAt': Timestamp.fromDate(createdAt),
       'sendPushNotification': sendPushNotification,
+      'sendWhatsApp': sendWhatsApp,
       'viewCount': viewCount,
       'readCount': readCount,
-      'commentCount': commentCount,
-      'lastCommentAt': lastCommentAt != null
-          ? Timestamp.fromDate(lastCommentAt!)
-          : null,
       'targetSlotIds': targetSlotIds,
       'targetSeatIds': targetSeatIds,
     };
@@ -134,7 +124,6 @@ class NoticeModel {
       id: id,
       libraryId: libraryId,
       ownerId: ownerId,
-      title: title,
       description: description,
       targetAudience: NoticeTargetAudience.values.firstWhere(
         (e) => e.name == targetAudience,
@@ -152,10 +141,9 @@ class NoticeModel {
       updatedAt: updatedAt,
       createdAt: createdAt,
       sendPushNotification: sendPushNotification,
+      sendWhatsApp: sendWhatsApp,
       viewCount: viewCount,
       readCount: readCount,
-      commentCount: commentCount,
-      lastCommentAt: lastCommentAt,
       targetSlotIds: targetSlotIds,
       targetSeatIds: targetSeatIds,
     );
@@ -167,7 +155,6 @@ class NoticeModel {
       id: notice.id,
       libraryId: notice.libraryId,
       ownerId: notice.ownerId,
-      title: notice.title,
       description: notice.description,
       targetAudience: notice.targetAudience.name,
       status: notice.status.name,
@@ -179,10 +166,9 @@ class NoticeModel {
       updatedAt: notice.updatedAt,
       createdAt: notice.createdAt,
       sendPushNotification: notice.sendPushNotification,
+      sendWhatsApp: notice.sendWhatsApp,
       viewCount: notice.viewCount,
       readCount: notice.readCount,
-      commentCount: notice.commentCount,
-      lastCommentAt: notice.lastCommentAt,
       targetSlotIds: notice.targetSlotIds,
       targetSeatIds: notice.targetSeatIds,
     );

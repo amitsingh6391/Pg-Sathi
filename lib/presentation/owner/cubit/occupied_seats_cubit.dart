@@ -130,7 +130,7 @@ class OccupiedSeatsCubit extends Cubit<OccupiedSeatsState> {
         emit(
           state.copyWith(
             actionStatus: ActionStatus.success,
-            actionMessage: 'Membership updated successfully',
+            actionMessage: 'Stay updated successfully',
           ),
         );
         // Refresh list
@@ -165,7 +165,7 @@ class OccupiedSeatsCubit extends Cubit<OccupiedSeatsState> {
         emit(
           state.copyWith(
             actionStatus: ActionStatus.success,
-            actionMessage: 'Membership cancelled successfully',
+            actionMessage: 'Stay cancelled successfully',
           ),
         );
         // Refresh list
@@ -200,7 +200,7 @@ class OccupiedSeatsCubit extends Cubit<OccupiedSeatsState> {
         emit(
           state.copyWith(
             actionStatus: ActionStatus.success,
-            actionMessage: 'Membership deactivated successfully',
+            actionMessage: 'Stay deactivated successfully',
           ),
         );
         // Refresh list
@@ -247,7 +247,7 @@ class OccupiedSeatsCubit extends Cubit<OccupiedSeatsState> {
         emit(
           state.copyWith(
             actionStatus: ActionStatus.success,
-            actionMessage: 'Membership updated successfully',
+            actionMessage: 'Stay updated successfully',
           ),
         );
         // Refresh list
@@ -355,7 +355,7 @@ class OccupiedSeatsCubit extends Cubit<OccupiedSeatsState> {
         state.copyWith(
           isExporting: false,
           actionStatus: ActionStatus.success,
-          actionMessage: 'Member data exported successfully',
+          actionMessage: 'Tenant data exported successfully',
         ),
       );
     } catch (e) {

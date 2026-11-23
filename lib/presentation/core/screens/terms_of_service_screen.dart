@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../app_ui_constants.dart';
+import '../widgets/premium_kit.dart';
 
 /// Terms of Service screen for the app.
 /// Displays terms and conditions.
@@ -13,20 +16,48 @@ class TermsOfServiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppUIConstants.background,
       appBar: AppBar(title: const Text('Terms of Service')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Terms of Service',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Last updated: ${DateTime.now().year}',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            PremiumCard(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.surfaceMuted,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.gavel_rounded,
+                      color: AppUIConstants.primaryLight,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Terms of Service',
+                          style: AppUIConstants.headingLg,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Last updated: ${DateTime.now().year}',
+                          style: AppUIConstants.bodySm,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             _Section(
@@ -38,7 +69,7 @@ By using PG Sathi, you agree to be bound by these Terms of Service. If you do no
             _Section(
               title: '2. Service Description',
               content: '''
-PG Sathi is a platform for PG and hostel owners to manage tenants, rooms, beds, rent, deposits, attendance, notices, and payment records.
+PG Sathi is a platform for PG and hostel owners to manage tenants, rooms, beds, rent, deposits, notices, and payment records.
 ''',
             ),
             _Section(
@@ -49,16 +80,16 @@ Users agree to:
 • Maintain the security of their account
 • Use the service only for lawful purposes
 • Respect other users' rights
-• Comply with library rules and regulations
+• Comply with PG house rules and regulations
 ''',
             ),
             _Section(
               title: '4. Payment Terms',
               content: '''
 • Payments are processed securely through supported payment processors
-• Membership fees are non-refundable unless otherwise stated
+• Rent and fees are non-refundable unless otherwise stated
 • Owners are responsible for setting pricing and payment terms
-• Students must pay membership fees as agreed
+• Residents must pay rent and fees as agreed
 ''',
             ),
             _Section(
@@ -88,12 +119,12 @@ PG Sathi Pro subscriptions purchased through the App Store are auto-renewable su
               ),
             ),
             _Section(
-              title: '6. Membership Terms',
+              title: '6. Stay Terms',
               content: '''
-• Memberships are subject to library owner's terms
-• Seat assignments are at the discretion of library owners
-• Memberships may be cancelled by owner or student
-• Refunds are subject to library owner's policy
+• Stays are subject to the PG owner's terms
+• Bed assignments are at the discretion of PG owners
+• Stays may be ended by owner or resident
+• Refunds are subject to PG owner's policy
 ''',
             ),
             _Section(
@@ -102,7 +133,7 @@ PG Sathi Pro subscriptions purchased through the App Store are auto-renewable su
 PG Sathi is provided "as is" without warranties. We are not liable for:
 • Service interruptions or errors
 • Loss of data or information
-• Disputes between owners and students
+• Disputes between owners and residents
 • Third-party payment processor issues
 ''',
             ),
@@ -112,7 +143,7 @@ PG Sathi is provided "as is" without warranties. We are not liable for:
 For questions about these Terms, contact us at:
 Email: support@pgsathi.in
 Phone: 9548582776
-Website: https://pgsathi.in
+Website: https://pg-sathi.web.app
 ''',
             ),
             const SizedBox(height: 32),
@@ -132,24 +163,36 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            content,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.6,
-              color: Colors.grey.shade700,
+      padding: const EdgeInsets.only(bottom: 14),
+      child: PremiumCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppUIConstants.primaryLight,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Text(title, style: AppUIConstants.headingSm)),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              content.trim(),
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.6,
+                color: AppUIConstants.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

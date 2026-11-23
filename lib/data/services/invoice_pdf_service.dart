@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
@@ -12,6 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/utils/file_download_helper.dart';
+import '../../core/utils/whatsapp_clipboard.dart';
 import '../../core/utils/whatsapp_launcher.dart';
 import '../../domain/entities/invoice.dart';
 
@@ -123,34 +124,51 @@ class InvoicePdfService {
     } else {
       // Mobile: Use file path
       final path = await generatePdf(invoice);
-      await Share.shareXFiles(
-        [XFile(path)],
-        subject: 'Invoice - ${invoice.formattedBillingMonth}',
-        sharePositionOrigin: shareOrigin,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(path)],
+          subject: 'Invoice - ${invoice.formattedBillingMonth}',
+          sharePositionOrigin: shareOrigin,
+        ),
       );
     }
   }
 
-  /// Opens WhatsApp with a pre-filled payment confirmation message.
-  /// No PDF attachment — simple and reliable on both Android and iOS.
-  /// Users can download the PDF separately if needed.
-  Future<void> shareToWhatsApp(Invoice invoice, {Rect? shareOrigin}) async {
+  /// Opens the resident's WhatsApp chat with a receipt message. On mobile the
+  /// invoice is also copied as an image so the owner can paste it in the chat.
+  /// Returns true when the image was copied and still has to be pasted.
+  Future<bool> shareToWhatsApp(Invoice invoice, {Rect? shareOrigin}) async {
     final phone = invoice.studentPhone.replaceAll(RegExp(r'[^0-9]'), '');
-    final phoneWithCode =
-        phone.startsWith('91') ? phone : '91$phone';
+    final phoneWithCode = phone.startsWith('91') ? phone : '91$phone';
 
-    final message =
-        '🎉 Hello ${invoice.studentName}!\n\n'
-        'Your seat has been successfully booked. '
-        'You can now enjoy all library facilities. 📚\n\n'
-        '🧾 *Payment Details*\n'
-        '━━━━━━━━━━━━━━━━\n'
-        '📅 Month: ${invoice.formattedBillingMonth}\n'
-        '💰 Amount Paid: ₹${invoice.amountPaid}\n'
-        '🪑 Seat: ${invoice.seatNumber}\n'
-        '━━━━━━━━━━━━━━━━\n\n'
-        'Please keep this receipt for your records.\n'
-        'Feel free to contact us for any assistance. 🙏';
+    final message = <String>[
+      '🎉 Hello ${invoice.studentName}!',
+      '',
+      'Your rent payment has been received. '
+          'Your bed at ${invoice.libraryName} is confirmed. 🏠',
+      '',
+      '🧾 *Payment Details*',
+      '━━━━━━━━━━━━━━━━',
+      '📅 Month: ${invoice.formattedBillingMonth}',
+      '💰 Amount Paid: ₹${invoice.amountPaid}',
+      '🛏️ Bed: ${invoice.seatNumber}',
+      '📆 Valid Till: ${DateFormat('dd MMM yyyy').format(invoice.expiryDate)}',
+      '━━━━━━━━━━━━━━━━',
+      '',
+      'Please keep this receipt for your records.',
+      'Feel free to contact us for any assistance. 🙏',
+    ].join('\n');
+
+    var copied = false;
+    if (!kIsWeb) {
+      try {
+        copied = await copyPdfAsImageToClipboard(
+          await generatePdfBytes(invoice),
+        );
+      } catch (e) {
+        debugPrint('InvoicePdfService: PDF copy failed: $e');
+      }
+    }
 
     final launched = await WhatsAppLauncher.launch(
       phone: phoneWithCode,
@@ -160,6 +178,7 @@ class InvoicePdfService {
     if (!launched) {
       throw Exception('Could not open WhatsApp. Is it installed?');
     }
+    return copied;
   }
 
   pw.Widget _buildPage(Invoice invoice, pw.ImageProvider? logoImage) {
@@ -329,7 +348,9 @@ class InvoicePdfService {
                     pw.SizedBox(height: 8),
                     _buildLabelValue(
                       'Slot',
-                      _sanitizeForPdf(invoice.slotName ?? invoice.slot.displayName),
+                      _sanitizeForPdf(
+                        invoice.slotName ?? invoice.slot.displayName,
+                      ),
                     ),
                   ],
                 ),

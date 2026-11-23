@@ -94,7 +94,7 @@ void main() {
   group('GetOwnerLibraryParams', () {
     test('should_have_correct_props', () {
       const params = GetOwnerLibraryParams(ownerId: ownerId);
-      expect(params.props, [ownerId]);
+      expect(params.props, [ownerId, null]);
     });
   });
 }

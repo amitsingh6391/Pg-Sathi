@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'phone_auth_state.dart';
@@ -9,6 +9,7 @@ part of 'phone_auth_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -20,7 +21,7 @@ mixin _$PhoneAuthState {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthState);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthState);
 }
 
 
@@ -29,7 +30,7 @@ int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'PhoneAuthState()';
+    return 'PhoneAuthState()';
 }
 
 
@@ -238,16 +239,18 @@ $PhoneAuthInitialCopyWith<PhoneAuthInitial> get copyWith => _$PhoneAuthInitialCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthInitial&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthInitial&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedRole);
+int get hashCode {
+    return Object.hash(runtimeType,selectedRole);
+}
 
 @override
 String toString() {
-  return 'PhoneAuthState.initial(selectedRole: $selectedRole)';
+    return 'PhoneAuthState.initial(selectedRole: $selectedRole)';
 }
 
 
@@ -305,16 +308,18 @@ $PhoneAuthSendingOtpCopyWith<PhoneAuthSendingOtp> get copyWith => _$PhoneAuthSen
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthSendingOtp&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthSendingOtp&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,phoneNumber,selectedRole);
+int get hashCode {
+    return Object.hash(runtimeType,phoneNumber,selectedRole);
+}
 
 @override
 String toString() {
-  return 'PhoneAuthState.sendingOtp(phoneNumber: $phoneNumber, selectedRole: $selectedRole)';
+    return 'PhoneAuthState.sendingOtp(phoneNumber: $phoneNumber, selectedRole: $selectedRole)';
 }
 
 
@@ -374,16 +379,18 @@ $PhoneAuthOtpSentCopyWith<PhoneAuthOtpSent> get copyWith => _$PhoneAuthOtpSentCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthOtpSent&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.verificationId, verificationId) || other.verificationId == verificationId)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthOtpSent&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.verificationId, verificationId) || other.verificationId == verificationId)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,phoneNumber,verificationId,selectedRole);
+int get hashCode {
+    return Object.hash(runtimeType,phoneNumber,verificationId,selectedRole);
+}
 
 @override
 String toString() {
-  return 'PhoneAuthState.otpSent(phoneNumber: $phoneNumber, verificationId: $verificationId, selectedRole: $selectedRole)';
+    return 'PhoneAuthState.otpSent(phoneNumber: $phoneNumber, verificationId: $verificationId, selectedRole: $selectedRole)';
 }
 
 
@@ -444,16 +451,18 @@ $PhoneAuthVerifyingOtpCopyWith<PhoneAuthVerifyingOtp> get copyWith => _$PhoneAut
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthVerifyingOtp&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.verificationId, verificationId) || other.verificationId == verificationId)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthVerifyingOtp&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.verificationId, verificationId) || other.verificationId == verificationId)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,phoneNumber,verificationId,selectedRole);
+int get hashCode {
+    return Object.hash(runtimeType,phoneNumber,verificationId,selectedRole);
+}
 
 @override
 String toString() {
-  return 'PhoneAuthState.verifyingOtp(phoneNumber: $phoneNumber, verificationId: $verificationId, selectedRole: $selectedRole)';
+    return 'PhoneAuthState.verifyingOtp(phoneNumber: $phoneNumber, verificationId: $verificationId, selectedRole: $selectedRole)';
 }
 
 
@@ -507,7 +516,7 @@ class PhoneAuthCheckingAuth extends PhoneAuthState {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthCheckingAuth);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthCheckingAuth);
 }
 
 
@@ -516,7 +525,7 @@ int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'PhoneAuthState.checkingAuth()';
+    return 'PhoneAuthState.checkingAuth()';
 }
 
 
@@ -544,16 +553,18 @@ $PhoneAuthAuthenticatedCopyWith<PhoneAuthAuthenticated> get copyWith => _$PhoneA
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthAuthenticated&&(identical(other.user, user) || other.user == user));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthAuthenticated&&(identical(other.user, user) || other.user == user));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,user);
+int get hashCode {
+    return Object.hash(runtimeType,user);
+}
 
 @override
 String toString() {
-  return 'PhoneAuthState.authenticated(user: $user)';
+    return 'PhoneAuthState.authenticated(user: $user)';
 }
 
 
@@ -605,7 +616,7 @@ class PhoneAuthSigningOut extends PhoneAuthState {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthSigningOut);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthSigningOut);
 }
 
 
@@ -614,7 +625,7 @@ int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'PhoneAuthState.signingOut()';
+    return 'PhoneAuthState.signingOut()';
 }
 
 
@@ -637,7 +648,7 @@ class PhoneAuthSignedOut extends PhoneAuthState {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthSignedOut);
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthSignedOut);
 }
 
 
@@ -646,7 +657,7 @@ int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'PhoneAuthState.signedOut()';
+    return 'PhoneAuthState.signedOut()';
 }
 
 
@@ -677,16 +688,18 @@ $PhoneAuthErrorCopyWith<PhoneAuthError> get copyWith => _$PhoneAuthErrorCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthError&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.verificationId, verificationId) || other.verificationId == verificationId)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is PhoneAuthError&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.phoneNumber, phoneNumber) || other.phoneNumber == phoneNumber)&&(identical(other.verificationId, verificationId) || other.verificationId == verificationId)&&(identical(other.selectedRole, selectedRole) || other.selectedRole == selectedRole));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,failure,phoneNumber,verificationId,selectedRole);
+int get hashCode {
+    return Object.hash(runtimeType,failure,phoneNumber,verificationId,selectedRole);
+}
 
 @override
 String toString() {
-  return 'PhoneAuthState.error(failure: $failure, phoneNumber: $phoneNumber, verificationId: $verificationId, selectedRole: $selectedRole)';
+    return 'PhoneAuthState.error(failure: $failure, phoneNumber: $phoneNumber, verificationId: $verificationId, selectedRole: $selectedRole)';
 }
 
 

@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/indian_currency_format.dart';
 import '../../../domain/entities/subscription.dart';
 import '../../core/app_ui_constants.dart';
 
-/// Premium revenue card widget for admin dashboard.
-/// Displays total revenue, pending revenue, and subscription stats.
+/// Hero revenue block for the admin console. Designed to sit inside a
+/// PremiumHero: big collected total, pending chip and a status split bar.
 class AdminRevenueCard extends StatelessWidget {
   const AdminRevenueCard({
     super.key,
@@ -21,178 +21,192 @@ class AdminRevenueCard extends StatelessWidget {
     final totalRevenue = allSubscriptions
         .where((s) => s.status == SubscriptionStatus.active)
         .fold(0.0, (sum, s) => sum + s.finalAmount);
-
     final pendingRevenue = pendingSubscriptions.fold(
       0.0,
       (sum, s) => sum + s.finalAmount,
     );
-
     final activeCount = allSubscriptions
         .where((s) => s.status == SubscriptionStatus.active)
         .length;
-
     final expiredCount = allSubscriptions
         .where((s) => s.status == SubscriptionStatus.expired)
         .length;
+    final pendingCount = pendingSubscriptions.length;
+    final total = activeCount + expiredCount + pendingCount;
 
-    return Container(
-      padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppUIConstants.primary, AppUIConstants.primaryLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
-        boxShadow: [AppUIConstants.shadowLg],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: AppUIConstants.spacingLg),
-          _buildRevenueRow(totalRevenue, pendingRevenue),
-          const SizedBox(height: AppUIConstants.spacingMd),
-          _buildStatsRow(
-            activeCount,
-            pendingSubscriptions.length,
-            expiredCount,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(AppUIConstants.spacingSm),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
-          ),
-          child: const Icon(
-            Icons.account_balance_wallet_outlined,
-            color: Colors.white,
-            size: 20,
+        Row(
+          children: [
+            Text(
+              'PLATFORM REVENUE',
+              style: AppUIConstants.caption.copyWith(
+                color: AppUIConstants.textSecondary,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            if (pendingRevenue > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppUIConstants.surfaceMuted,
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusFull,
+                  ),
+                ),
+                child: Text(
+                  '+\u20B9${formatIndianRupeeInteger(pendingRevenue)} pending',
+                  style: const TextStyle(
+                    color: AppUIConstants.textPrimary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: totalRevenue),
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOutCubic,
+          builder: (_, v, _) => FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '\u20B9${formatIndianRupeeInteger(v)}',
+              style: const TextStyle(
+                fontSize: 40,
+                height: 1.1,
+                fontWeight: FontWeight.w800,
+                color: AppUIConstants.textPrimary,
+                letterSpacing: -1,
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: AppUIConstants.spacingMd),
+        const SizedBox(height: 2),
         Text(
-          'Platform Revenue',
-          style: AppUIConstants.headingSm.copyWith(color: Colors.white),
+          'collected from active PG plans',
+          style: AppUIConstants.bodySm.copyWith(
+            color: AppUIConstants.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AppUIConstants.spacingLg),
+        _SplitBar(
+          active: activeCount,
+          pending: pendingCount,
+          expired: expiredCount,
+          total: total,
+        ),
+        const SizedBox(height: AppUIConstants.spacingMd),
+        Row(
+          children: [
+            _Legend(
+              color: AppUIConstants.success,
+              label: 'Active',
+              value: activeCount,
+            ),
+            _Legend(
+              color: AppUIConstants.warning,
+              label: 'Pending',
+              value: pendingCount,
+            ),
+            _Legend(
+              color: AppUIConstants.error,
+              label: 'Expired',
+              value: expiredCount,
+            ),
+          ],
         ),
       ],
     );
   }
+}
 
-  Widget _buildRevenueRow(double totalRevenue, double pendingRevenue) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Total Collected',
-                style: AppUIConstants.caption.copyWith(
-                  color: Colors.white.withValues(alpha: 0.7),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '₹${formatIndianRupeeInteger(totalRevenue)}',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          width: 1,
-          height: 50,
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
-        const SizedBox(width: AppUIConstants.spacingLg),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pending',
-                style: AppUIConstants.caption.copyWith(
-                  color: Colors.white.withValues(alpha: 0.7),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '₹${formatIndianRupeeInteger(pendingRevenue)}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+class _SplitBar extends StatelessWidget {
+  const _SplitBar({
+    required this.active,
+    required this.pending,
+    required this.expired,
+    required this.total,
+  });
+
+  final int active;
+  final int pending;
+  final int expired;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget seg(int v, Color c) => Expanded(
+      flex: v,
+      child: Container(margin: const EdgeInsets.only(right: 2), color: c),
     );
-  }
-
-  Widget _buildStatsRow(int active, int pending, int expired) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppUIConstants.spacingMd,
-        vertical: AppUIConstants.spacingSm,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _MiniStat(value: '$active', label: 'Active'),
-          _MiniStat(value: '$pending', label: 'Pending'),
-          _MiniStat(value: '$expired', label: 'Expired'),
-        ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+      child: SizedBox(
+        height: 8,
+        child: total == 0
+            ? Container(color: AppUIConstants.surfaceMuted)
+            : Row(
+                children: [
+                  if (active > 0) seg(active, AppUIConstants.success),
+                  if (pending > 0) seg(pending, AppUIConstants.warning),
+                  if (expired > 0) seg(expired, AppUIConstants.error),
+                ],
+              ),
       ),
     );
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.value, required this.label});
+class _Legend extends StatelessWidget {
+  const _Legend({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
 
-  final String value;
+  final Color color;
   final String label;
+  final int value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.white.withValues(alpha: 0.7),
+          const SizedBox(width: 6),
+          Text(
+            '$value',
+            style: const TextStyle(
+              color: AppUIConstants.textPrimary,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppUIConstants.textSecondary,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

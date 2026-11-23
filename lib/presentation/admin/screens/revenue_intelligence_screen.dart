@@ -1,87 +1,89 @@
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/revenue_stats.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/admin_intelligence_cubit.dart';
 
-/// Simple, clean Revenue Analytics Screen with meaningful insights.
-class RevenueIntelligenceScreen extends StatelessWidget {
+enum _Period { today, week, month, lifetime }
+
+/// Dark premium revenue console: hero figure, period selector, KPI grid,
+/// charts and ranked plan list.
+class RevenueIntelligenceScreen extends StatefulWidget {
   const RevenueIntelligenceScreen({super.key});
+
+  @override
+  State<RevenueIntelligenceScreen> createState() =>
+      _RevenueIntelligenceScreenState();
+}
+
+class _RevenueIntelligenceScreenState extends State<RevenueIntelligenceScreen> {
+  _Period _period = _Period.lifetime;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        title: const Text('Revenue Analytics'),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
+        title: const Text('Revenue Analytics', style: AppUIConstants.headingSm),
+        backgroundColor: AppUIConstants.background,
+        foregroundColor: AppUIConstants.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => context.read<AdminIntelligenceCubit>().loadDashboard(),
+            onPressed: () =>
+                context.read<AdminIntelligenceCubit>().loadDashboard(),
           ),
         ],
       ),
       body: BlocBuilder<AdminIntelligenceCubit, AdminIntelligenceState>(
         builder: (context, state) {
           if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const _RevenueSkeleton();
           }
 
           final stats = state.revenueStats;
 
-          // Calculate total payments from all plans
           final totalPayments = stats.planWiseBreakdown.fold<int>(
             0,
             (sum, plan) => sum + plan.subscriptionCount,
           );
-
-          // Calculate average payment amount
           final avgPayment = totalPayments > 0
               ? stats.lifetimeRevenue / totalPayments
               : 0.0;
 
           return RefreshIndicator(
-            onRefresh: () => context.read<AdminIntelligenceCubit>().loadDashboard(),
+            color: AppUIConstants.primaryLight,
+            backgroundColor: AppUIConstants.surface,
+            onRefresh: () =>
+                context.read<AdminIntelligenceCubit>().loadDashboard(),
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
-                // Total Revenue Hero
-                _buildTotalRevenueCard(stats),
-                const SizedBox(height: 16),
-
-                // Revenue Breakdown Row
-                _buildRevenueRow(stats),
-                const SizedBox(height: 16),
-
-                // Key Insights Row
-                _buildInsightsRow(stats, avgPayment),
-                const SizedBox(height: 16),
-
-                // Monthly Revenue Chart
+                _buildHero(stats),
+                const SizedBox(height: 12),
+                _buildKpiGrid(stats, avgPayment),
+                const PremiumSectionHeader('Revenue trends'),
                 _buildMonthlyChart(stats.monthlyData),
-                const SizedBox(height: 16),
-
-                // Library Growth Chart (unique libraries per month)
-                _buildLibraryGrowthChart(stats),
-                const SizedBox(height: 16),
-
-                // Day-wise Revenue (Last 7 Days)
+                const SizedBox(height: 12),
                 _buildDayWiseChart(stats),
-                const SizedBox(height: 16),
-
-                // Library & Payment Stats
-                _buildStatsCards(stats, totalPayments, avgPayment),
-                const SizedBox(height: 16),
-
-                // Summary Insight Card (at bottom)
+                const PremiumSectionHeader('PG growth'),
+                _buildLibraryGrowthChart(stats),
+                const PremiumSectionHeader('Subscriptions'),
+                _buildStatsCards(stats),
+                if (stats.planWiseBreakdown.isNotEmpty) ...[
+                  const PremiumSectionHeader('Top plans by revenue'),
+                  _buildPlanRanking(stats.planWiseBreakdown),
+                ],
+                const PremiumSectionHeader('Summary'),
                 _buildSummaryInsightCard(stats, totalPayments),
-                const SizedBox(height: 32),
               ],
             ),
           );
@@ -90,8 +92,35 @@ class RevenueIntelligenceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTotalRevenueCard(RevenueStats stats) {
-    // Calculate growth
+  // ---------------------------------------------------------------- hero
+
+  double _periodValue(RevenueStats s) {
+    switch (_period) {
+      case _Period.today:
+        return s.todayRevenue;
+      case _Period.week:
+        return s.weekRevenue;
+      case _Period.month:
+        return s.monthRevenue;
+      case _Period.lifetime:
+        return s.lifetimeRevenue;
+    }
+  }
+
+  String _periodCaption() {
+    switch (_period) {
+      case _Period.today:
+        return 'Collected today';
+      case _Period.week:
+        return 'Collected this week';
+      case _Period.month:
+        return 'Collected this month';
+      case _Period.lifetime:
+        return 'Lifetime earnings';
+    }
+  }
+
+  Widget _buildHero(RevenueStats stats) {
     double growth = 0;
     if (stats.monthlyData.length >= 2) {
       final current = stats.monthlyData.last.revenue;
@@ -103,228 +132,187 @@ class RevenueIntelligenceScreen extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(20),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppUIConstants.primary, AppUIConstants.primaryLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: AppUIConstants.surface,
+        border: Border.all(color: AppUIConstants.border),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Total Revenue',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+              const Expanded(
+                child: Text(
+                  'TOTAL REVENUE',
+                  style: TextStyle(
+                    color: AppUIConstants.textSecondary,
+                    fontSize: 11.5,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               if (growth != 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: (growth >= 0 ? Colors.green : Colors.red).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        growth >= 0 ? Icons.trending_up : Icons.trending_down,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${growth.abs().toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
+                PremiumStatusPill(
+                  '${growth >= 0 ? '+' : '-'}${growth.abs().toStringAsFixed(1)}% MoM',
+                  color: growth >= 0
+                      ? AppUIConstants.success
+                      : AppUIConstants.error,
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '₹${_formatAmount(stats.lifetimeRevenue)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
+          const SizedBox(height: 10),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Text(
+              '₹${_formatAmount(_periodValue(stats))}',
+              key: ValueKey(_period),
+              style: const TextStyle(
+                color: AppUIConstants.textPrimary,
+                fontSize: 40,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
-            'Lifetime earnings',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+            _periodCaption(),
+            style: const TextStyle(
+              color: AppUIConstants.textSecondary,
+              fontSize: 12.5,
+            ),
+          ),
+          const SizedBox(height: 18),
+          _PeriodSelector(
+            value: _period,
+            onChanged: (p) => setState(() => _period = p),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRevenueRow(RevenueStats stats) {
-    return Row(
-      children: [
-        Expanded(child: _buildRevenueCard('Today', stats.todayRevenue, AppUIConstants.success)),
-        const SizedBox(width: 10),
-        Expanded(child: _buildRevenueCard('This Week', stats.weekRevenue, AppUIConstants.accent)),
-        const SizedBox(width: 10),
-        Expanded(child: _buildRevenueCard('This Month', stats.monthRevenue, AppUIConstants.primary)),
-      ],
+  // ------------------------------------------------------------ KPI grid
+
+  Widget _buildKpiGrid(RevenueStats stats, double avgPayment) {
+    final tiles = <Widget>[
+      PremiumStatTile(
+        icon: Icons.autorenew_rounded,
+        value: '₹${_formatCompact(stats.mrr)}',
+        label: 'Net MRR · billed today',
+        color: AppUIConstants.primaryLight,
+      ),
+      PremiumStatTile(
+        icon: Icons.trending_up_rounded,
+        value: '₹${_formatCompact(stats.listPriceMrr)}',
+        label: 'List MRR · renewal price',
+        color: AppUIConstants.primaryLight,
+      ),
+      PremiumStatTile(
+        icon: Icons.payments_rounded,
+        value: '₹${_formatCompact(avgPayment)}',
+        label: 'Avg payment',
+        color: AppUIConstants.primaryLight,
+      ),
+      PremiumStatTile(
+        icon: Icons.calendar_month_rounded,
+        value: '₹${_formatCompact(stats.monthRevenue)}',
+        label: 'This month',
+        color: AppUIConstants.primaryLight,
+      ),
+    ];
+    return PremiumTwoColumnGrid(children: tiles);
+  }
+
+  // -------------------------------------------------------------- charts
+
+  Widget _emptyCard(String message) {
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.bar_chart_rounded,
+              size: 32,
+              color: AppUIConstants.textTertiary,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(color: AppUIConstants.textSecondary),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildRevenueCard(String label, double amount, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
+  Widget _chartTitle(String title, {String? trailing, String? subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: AppUIConstants.textSecondary),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '₹${_formatCompact(amount)}',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightsRow(RevenueStats stats, double avgPayment) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Insights',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: _buildInsightItem(
-                  'Net MRR',
-                  '₹${_formatCompact(stats.mrr)}',
-                  'Billed today',
-                  Icons.autorenew_rounded,
-                  AppUIConstants.accent,
+              Expanded(child: Text(title, style: AppUIConstants.bodyLg)),
+              if (trailing != null)
+                Text(
+                  trailing,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppUIConstants.primaryLight,
+                  ),
                 ),
-              ),
-              _verticalDivider(),
-              Expanded(
-                child: _buildInsightItem(
-                  'List MRR',
-                  '₹${_formatCompact(stats.listPriceMrr)}',
-                  'At renewal price',
-                  Icons.trending_up_rounded,
-                  AppUIConstants.primary,
-                ),
-              ),
-              _verticalDivider(),
-              Expanded(
-                child: _buildInsightItem(
-                  'Avg Payment',
-                  '₹${_formatCompact(avgPayment)}',
-                  'Per transaction',
-                  Icons.payments_rounded,
-                  AppUIConstants.success,
-                ),
-              ),
             ],
           ),
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(subtitle, style: AppUIConstants.caption),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildInsightItem(String title, String value, String subtitle, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, size: 20, color: color),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          title,
-          style: TextStyle(fontSize: 10, color: AppUIConstants.textSecondary),
-        ),
-        Text(
-          subtitle,
-          style: TextStyle(fontSize: 9, color: AppUIConstants.textTertiary),
-        ),
-      ],
+  BarTouchTooltipData _tooltip(
+    BarTooltipItem? Function(BarChartGroupData) build,
+  ) {
+    return BarTouchTooltipData(
+      getTooltipColor: (_) => AppUIConstants.chartTooltip,
+      getTooltipItem: (group, gIdx, rod, rIdx) => build(group),
     );
   }
 
-  Widget _verticalDivider() {
-    return Container(
-      width: 1,
-      height: 50,
-      color: AppUIConstants.divider,
-    );
-  }
+  static const _tooltipStyle = TextStyle(
+    color: AppUIConstants.textPrimary,
+    fontWeight: FontWeight.w600,
+    fontSize: 12,
+  );
 
   Widget _buildMonthlyChart(List<MonthlyRevenuePoint> data) {
-    if (data.length < 2) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppUIConstants.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppUIConstants.border),
-        ),
-        child: Center(
-          child: Text(
-            'Not enough data',
-            style: TextStyle(color: AppUIConstants.textSecondary),
-          ),
-        ),
-      );
-    }
+    if (data.length < 2) return _emptyCard('Not enough data');
 
-    final maxY = data.fold<double>(0, (max, d) => d.revenue > max ? d.revenue : max);
+    final maxY = data.fold<double>(
+      0,
+      (max, d) => d.revenue > max ? d.revenue : max,
+    );
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
+    return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Monthly Revenue',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          _chartTitle(
+            'Monthly revenue',
+            trailing: '₹${_formatCompact(data.last.revenue)} this month',
           ),
-          const SizedBox(height: 20),
           SizedBox(
             height: 200,
             child: BarChart(
@@ -335,20 +323,21 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: maxY > 0 ? maxY / 4 : 1,
-                  getDrawingHorizontalLine: (value) =>
-                      FlLine(color: AppUIConstants.border, strokeWidth: 1),
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: AppUIConstants.chartGrid,
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                  ),
                 ),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 50,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          '₹${_formatCompact(value)}',
-                          style: TextStyle(fontSize: 9, color: AppUIConstants.textSecondary),
-                        );
-                      },
+                      reservedSize: 48,
+                      getTitlesWidget: (value, meta) => Text(
+                        '₹${_formatCompact(value)}',
+                        style: AppUIConstants.caption.copyWith(fontSize: 9),
+                      ),
                     ),
                   ),
                   bottomTitles: AxisTitles(
@@ -365,16 +354,24 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                             DateFormat('MMM').format(data[i].date),
                             style: TextStyle(
                               fontSize: 9,
-                              fontWeight: isCurrent ? FontWeight.w700 : FontWeight.normal,
-                              color: isCurrent ? AppUIConstants.primary : AppUIConstants.textSecondary,
+                              fontWeight: isCurrent
+                                  ? FontWeight.w700
+                                  : FontWeight.normal,
+                              color: isCurrent
+                                  ? AppUIConstants.chartPrimary
+                                  : AppUIConstants.textSecondary,
                             ),
                           ),
                         );
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: data.asMap().entries.map((entry) {
@@ -385,26 +382,28 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                       BarChartRodData(
                         toY: entry.value.revenue,
                         width: 18,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(6),
+                        ),
                         color: isCurrent
-                            ? AppUIConstants.primary
-                            : AppUIConstants.primary.withValues(alpha: 0.4),
+                            ? AppUIConstants.chartPrimary
+                            : AppUIConstants.chartPrimary.withValues(
+                                alpha: 0.35,
+                              ),
                       ),
                     ],
                   );
                 }).toList(),
                 barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipItem: (group, gIdx, rod, rIdx) {
-                      final i = group.x;
-                      if (i < 0 || i >= data.length) return null;
-                      final d = data[i];
-                      return BarTooltipItem(
-                        '${DateFormat('MMM yy').format(d.date)}\n₹${NumberFormat('#,##,###').format(d.revenue)}',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
-                      );
-                    },
-                  ),
+                  touchTooltipData: _tooltip((group) {
+                    final i = group.x;
+                    if (i < 0 || i >= data.length) return null;
+                    final d = data[i];
+                    return BarTooltipItem(
+                      '${DateFormat('MMM yy').format(d.date)}\n₹${NumberFormat('#,##,###').format(d.revenue)}',
+                      _tooltipStyle,
+                    );
+                  }),
                 ),
               ),
             ),
@@ -415,65 +414,43 @@ class RevenueIntelligenceScreen extends StatelessWidget {
   }
 
   Widget _buildDayWiseChart(RevenueStats stats) {
-    // Days with no payments must render as \u20B90 \u2014 never fabricate values.
+    // Days with no payments must render as ₹0 — never fabricate values.
     final days = stats.dailyRevenueData
         .map((p) => _DayData(date: p.date, revenue: p.revenue))
         .toList(growable: false);
     final dailyTotal = days.fold<double>(0, (sum, d) => sum + d.revenue);
 
-    final maxY = days.fold<double>(0, (max, d) => d.revenue > max ? d.revenue : max);
+    final maxY = days.fold<double>(
+      0,
+      (max, d) => d.revenue > max ? d.revenue : max,
+    );
     if (days.isEmpty || maxY == 0) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppUIConstants.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppUIConstants.border),
-        ),
-        child: Center(
-          child: Text(
-            days.isEmpty
-                ? 'No daily data available'
-                : 'No payments in the last 7 days',
-            style: TextStyle(color: AppUIConstants.textSecondary),
-          ),
-        ),
+      return _emptyCard(
+        days.isEmpty
+            ? 'No daily data available'
+            : 'No payments in the last 7 days',
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
+    return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Last 7 Days',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              Text(
-                '₹${_formatCompact(dailyTotal)} total',
-                style: TextStyle(fontSize: 12, color: AppUIConstants.textSecondary),
-              ),
-            ],
+          _chartTitle(
+            'Last 7 days',
+            trailing: '₹${_formatCompact(dailyTotal)} total',
           ),
-          const SizedBox(height: 20),
           SizedBox(
             height: 150,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: maxY > 0 ? maxY * 1.2 : 100,
+                maxY: maxY * 1.2,
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -485,19 +462,29 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            isToday ? 'Today' : DateFormat('EEE').format(days[i].date),
+                            isToday
+                                ? 'Today'
+                                : DateFormat('EEE').format(days[i].date),
                             style: TextStyle(
                               fontSize: 9,
-                              fontWeight: isToday ? FontWeight.w700 : FontWeight.normal,
-                              color: isToday ? AppUIConstants.success : AppUIConstants.textSecondary,
+                              fontWeight: isToday
+                                  ? FontWeight.w700
+                                  : FontWeight.normal,
+                              color: isToday
+                                  ? AppUIConstants.secondary
+                                  : AppUIConstants.textSecondary,
                             ),
                           ),
                         );
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: days.asMap().entries.map((entry) {
@@ -508,128 +495,30 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                       BarChartRodData(
                         toY: entry.value.revenue,
                         width: 24,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(8),
+                        ),
                         color: isToday
-                            ? AppUIConstants.success
-                            : AppUIConstants.success.withValues(alpha: 0.4),
+                            ? AppUIConstants.chartPrimary
+                            : AppUIConstants.chartPrimary.withValues(
+                                alpha: 0.35,
+                              ),
                       ),
                     ],
                   );
                 }).toList(),
                 barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipItem: (group, gIdx, rod, rIdx) {
-                      final i = group.x;
-                      if (i < 0 || i >= days.length) return null;
-                      final d = days[i];
-                      return BarTooltipItem(
-                        '${DateFormat('EEE, MMM d').format(d.date)}\n₹${NumberFormat('#,##,###').format(d.revenue)}',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
-                      );
-                    },
-                  ),
+                  touchTooltipData: _tooltip((group) {
+                    final i = group.x;
+                    if (i < 0 || i >= days.length) return null;
+                    final d = days[i];
+                    return BarTooltipItem(
+                      '${DateFormat('EEE, MMM d').format(d.date)}\n₹${NumberFormat('#,##,###').format(d.revenue)}',
+                      _tooltipStyle,
+                    );
+                  }),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsCards(RevenueStats stats, int totalPayments, double avgPayment) {
-    final growth = stats.subscriptionGrowthPercent;
-    final isPositiveGrowth = growth >= 0;
-    
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Active Now',
-                '${stats.activeSubscriptions}',
-                'Subscription valid today',
-                Icons.verified_rounded,
-                AppUIConstants.success,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                'Churned',
-                '${stats.churnedLibraries}',
-                'Expired / cancelled',
-                Icons.cancel_rounded,
-                AppUIConstants.error,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'This Month',
-                '${stats.thisMonthSubscriptions}',
-                'New libraries joined',
-                Icons.calendar_month_rounded,
-                AppUIConstants.primary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                'Growth',
-                '${isPositiveGrowth ? '+' : ''}${growth.toStringAsFixed(0)}%',
-                'vs last month (${stats.lastMonthSubscriptions} new)',
-                isPositiveGrowth ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                isPositiveGrowth ? AppUIConstants.success : AppUIConstants.error,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, String subtitle, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 12, color: AppUIConstants.textSecondary),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 10, color: AppUIConstants.textTertiary),
-                ),
-              ],
             ),
           ),
         ],
@@ -639,56 +528,20 @@ class RevenueIntelligenceScreen extends StatelessWidget {
 
   Widget _buildLibraryGrowthChart(RevenueStats stats) {
     final data = stats.monthlySubscriptionData;
-    if (data.length < 2) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppUIConstants.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppUIConstants.border),
-        ),
-        child: Center(
-          child: Text(
-            'Not enough data',
-            style: TextStyle(color: AppUIConstants.textSecondary),
-          ),
-        ),
-      );
-    }
+    if (data.length < 2) return _emptyCard('Not enough data');
 
     final maxY = data.fold<int>(0, (max, d) => d.count > max ? d.count : max);
-    // Use paidLibraries as the total (unique libraries that ever paid)
     final totalLibraries = stats.paidLibraries;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
+    return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Library Growth',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              Text(
-                '$totalLibraries total libraries',
-                style: TextStyle(fontSize: 12, color: AppUIConstants.textSecondary),
-              ),
-            ],
+          _chartTitle(
+            'New PGs per month',
+            trailing: '$totalLibraries total PGs',
+            subtitle: 'PGs joining each month',
           ),
-          const SizedBox(height: 4),
-          Text(
-            'New libraries joining each month',
-            style: TextStyle(fontSize: 10, color: AppUIConstants.textTertiary),
-          ),
-          const SizedBox(height: 16),
           SizedBox(
             height: 180,
             child: BarChart(
@@ -699,20 +552,21 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: maxY > 4 ? (maxY / 4).toDouble() : 1,
-                  getDrawingHorizontalLine: (value) =>
-                      FlLine(color: AppUIConstants.border, strokeWidth: 1),
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: AppUIConstants.chartGrid,
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                  ),
                 ),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 30,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: TextStyle(fontSize: 9, color: AppUIConstants.textSecondary),
-                        );
-                      },
+                      reservedSize: 28,
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toInt().toString(),
+                        style: AppUIConstants.caption.copyWith(fontSize: 9),
+                      ),
                     ),
                   ),
                   bottomTitles: AxisTitles(
@@ -729,16 +583,24 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                             DateFormat('MMM').format(data[i].date),
                             style: TextStyle(
                               fontSize: 9,
-                              fontWeight: isCurrent ? FontWeight.w700 : FontWeight.normal,
-                              color: isCurrent ? AppUIConstants.accent : AppUIConstants.textSecondary,
+                              fontWeight: isCurrent
+                                  ? FontWeight.w700
+                                  : FontWeight.normal,
+                              color: isCurrent
+                                  ? AppUIConstants.secondary
+                                  : AppUIConstants.textSecondary,
                             ),
                           ),
                         );
                       },
                     ),
                   ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: data.asMap().entries.map((entry) {
@@ -749,26 +611,26 @@ class RevenueIntelligenceScreen extends StatelessWidget {
                       BarChartRodData(
                         toY: entry.value.count.toDouble(),
                         width: 18,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(6),
+                        ),
                         color: isCurrent
-                            ? AppUIConstants.accent
-                            : AppUIConstants.accent.withValues(alpha: 0.4),
+                            ? AppUIConstants.secondary
+                            : AppUIConstants.secondary.withValues(alpha: 0.35),
                       ),
                     ],
                   );
                 }).toList(),
                 barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipItem: (group, gIdx, rod, rIdx) {
-                      final i = group.x;
-                      if (i < 0 || i >= data.length) return null;
-                      final d = data[i];
-                      return BarTooltipItem(
-                        '${DateFormat('MMM yy').format(d.date)}\n${d.count} new libraries',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
-                      );
-                    },
-                  ),
+                  touchTooltipData: _tooltip((group) {
+                    final i = group.x;
+                    if (i < 0 || i >= data.length) return null;
+                    final d = data[i];
+                    return BarTooltipItem(
+                      '${DateFormat('MMM yy').format(d.date)}\n${d.count} new PGs',
+                      _tooltipStyle,
+                    );
+                  }),
                 ),
               ),
             ),
@@ -778,10 +640,74 @@ class RevenueIntelligenceScreen extends StatelessWidget {
     );
   }
 
+  // ------------------------------------------------------ subscriptions
+
+  Widget _buildStatsCards(RevenueStats stats) {
+    final growth = stats.subscriptionGrowthPercent;
+    final isPositiveGrowth = growth >= 0;
+    return PremiumTwoColumnGrid(
+      children: [
+        PremiumStatTile(
+          icon: Icons.verified_rounded,
+          value: '${stats.activeSubscriptions}',
+          label: 'Active now',
+          color: AppUIConstants.success,
+        ),
+        PremiumStatTile(
+          icon: Icons.cancel_rounded,
+          value: '${stats.churnedLibraries}',
+          label: 'Churned · expired / cancelled',
+          color: AppUIConstants.error,
+        ),
+        PremiumStatTile(
+          icon: Icons.add_home_work_rounded,
+          value: '${stats.thisMonthSubscriptions}',
+          label: 'New PGs this month',
+          color: AppUIConstants.primaryLight,
+        ),
+        PremiumStatTile(
+          icon: isPositiveGrowth
+              ? Icons.trending_up_rounded
+              : Icons.trending_down_rounded,
+          value: '${isPositiveGrowth ? '+' : ''}${growth.toStringAsFixed(0)}%',
+          label: 'vs last month (${stats.lastMonthSubscriptions} new)',
+          color: isPositiveGrowth
+              ? AppUIConstants.success
+              : AppUIConstants.error,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlanRanking(List<PlanRevenueBreakdown> plans) {
+    final sorted = [...plans]..sort((a, b) => b.revenue.compareTo(a.revenue));
+    final top = sorted.first.revenue;
+    final total = sorted.fold<double>(0, (s, p) => s + p.revenue);
+    return PremiumCard(
+      child: Column(
+        children: [
+          for (var i = 0; i < sorted.length; i++) ...[
+            if (i > 0) const SizedBox(height: 16),
+            _RankedRow(
+              rank: i + 1,
+              title: sorted[i].planName,
+              subtitle:
+                  '${sorted[i].subscriptionCount} payments · ${total > 0 ? (sorted[i].revenue / total * 100).toStringAsFixed(0) : 0}% share',
+              value: '₹${_formatCompact(sorted[i].revenue)}',
+              progress: top > 0 ? sorted[i].revenue / top : 0,
+              color: i == 0
+                  ? AppUIConstants.secondary
+                  : AppUIConstants.chartPrimary,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryInsightCard(RevenueStats stats, int totalPayments) {
-    // Calculate key insights
-    final avgRevenuePerLibrary = stats.paidLibraries > 0 
-        ? stats.lifetimeRevenue / stats.paidLibraries 
+    final avgRevenuePerLibrary = stats.paidLibraries > 0
+        ? stats.lifetimeRevenue / stats.paidLibraries
         : 0.0;
     final retentionRate = stats.paidLibraries > 0
         ? (stats.activeSubscriptions / stats.paidLibraries) * 100
@@ -793,55 +719,36 @@ class RevenueIntelligenceScreen extends StatelessWidget {
           )
         : 0.0;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppUIConstants.primary.withValues(alpha: 0.05),
-            AppUIConstants.accent.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
+    return PremiumCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.insights_rounded, size: 18, color: AppUIConstants.primary),
-              const SizedBox(width: 8),
-              const Text(
-                'Summary Insights',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
           _buildInsightRow(
-            'Avg Revenue / Library',
+            Icons.home_work_rounded,
+            'Avg revenue / PG',
             '₹${_formatCompact(avgRevenuePerLibrary)}',
-            'Lifetime value per paying library',
+            'Lifetime value per paying PG',
           ),
-          const Divider(height: 20),
+          const Divider(height: 24, color: AppUIConstants.divider),
           _buildInsightRow(
-            'Retention Rate',
+            Icons.shield_rounded,
+            'Retention rate',
             '${retentionRate.toStringAsFixed(0)}%',
             '${stats.activeSubscriptions} of ${stats.paidLibraries} still active',
           ),
-          const Divider(height: 20),
+          const Divider(height: 24, color: AppUIConstants.divider),
           _buildInsightRow(
-            'Revenue Growth',
+            Icons.show_chart_rounded,
+            'Revenue growth',
             '${revenueGrowth >= 0 ? '+' : ''}${revenueGrowth.toStringAsFixed(1)}%',
             'This month vs last month',
-            valueColor: revenueGrowth >= 0 ? AppUIConstants.success : AppUIConstants.error,
+            valueColor: revenueGrowth >= 0
+                ? AppUIConstants.success
+                : AppUIConstants.error,
           ),
-          const Divider(height: 20),
+          const Divider(height: 24, color: AppUIConstants.divider),
           _buildInsightRow(
-            'Total Transactions',
+            Icons.receipt_long_rounded,
+            'Total transactions',
             '$totalPayments',
             'All time payment records',
           ),
@@ -850,22 +757,30 @@ class RevenueIntelligenceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInsightRow(String label, String value, String description, {Color? valueColor}) {
+  Widget _buildInsightRow(
+    IconData icon,
+    String label,
+    String value,
+    String description, {
+    Color? valueColor,
+  }) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppUIConstants.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+          ),
+          child: Icon(icon, size: 16, color: AppUIConstants.primaryLight),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-              Text(
-                description,
-                style: TextStyle(fontSize: 10, color: AppUIConstants.textTertiary),
-              ),
+              Text(label, style: AppUIConstants.bodyMd),
+              Text(description, style: AppUIConstants.caption),
             ],
           ),
         ),
@@ -873,7 +788,7 @@ class RevenueIntelligenceScreen extends StatelessWidget {
           value,
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
             color: valueColor ?? AppUIConstants.textPrimary,
           ),
         ),
@@ -901,4 +816,212 @@ class _DayData {
   final DateTime date;
   final double revenue;
   _DayData({required this.date, required this.revenue});
+}
+
+/// Segmented pill selector living on the hero gradient.
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({required this.value, required this.onChanged});
+
+  final _Period value;
+  final ValueChanged<_Period> onChanged;
+
+  static const _labels = {
+    _Period.today: 'Today',
+    _Period.week: 'Week',
+    _Period.month: 'Month',
+    _Period.lifetime: 'All time',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+      ),
+      child: Row(
+        children: [
+          for (final p in _Period.values)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onChanged(p),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: p == value
+                        ? AppUIConstants.surface
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusFull,
+                    ),
+                  ),
+                  child: Text(
+                    _labels[p]!,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: p == value
+                          ? AppUIConstants.primaryLight
+                          : AppUIConstants.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two-column grid of equal-height tiles without fixed aspect ratio.
+class _RankedRow extends StatelessWidget {
+  const _RankedRow({
+    required this.rank,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.progress,
+    required this.color,
+  });
+
+  final int rank;
+  final String title;
+  final String subtitle;
+  final String value;
+  final double progress;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppUIConstants.surfaceMuted,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$rank',
+                style: const TextStyle(
+                  color: AppUIConstants.primaryLight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppUIConstants.bodyMd,
+                  ),
+                  Text(subtitle, style: AppUIConstants.caption),
+                ],
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppUIConstants.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            builder: (_, v, _) => LinearProgressIndicator(
+              value: v,
+              minHeight: 6,
+              backgroundColor: AppUIConstants.surfaceMuted,
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RevenueSkeleton extends StatefulWidget {
+  const _RevenueSkeleton();
+
+  @override
+  State<_RevenueSkeleton> createState() => _RevenueSkeletonState();
+}
+
+class _RevenueSkeletonState extends State<_RevenueSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _bone(double h) => Container(
+    height: h,
+    decoration: BoxDecoration(
+      color: AppUIConstants.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1).animate(_c),
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        children: [
+          _bone(190),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _bone(96)),
+              const SizedBox(width: 12),
+              Expanded(child: _bone(96)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _bone(96)),
+              const SizedBox(width: 12),
+              Expanded(child: _bone(96)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _bone(260),
+        ],
+      ),
+    );
+  }
 }

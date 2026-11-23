@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../domain/entities/payment.dart';
 import '../../../../domain/usecases/get_occupied_seats.dart';
+import 'package:pg_manager/presentation/core/app_ui_constants.dart';
 
 /// Bottom sheet for marking pending tenant rent as received.
 /// Supports full rent, partial rent, and discount.
@@ -151,7 +152,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
       constraints: BoxConstraints(maxHeight: maxH),
       child: Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppUIConstants.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Padding(
@@ -181,7 +182,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
       width: 40,
       height: 4,
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: AppUIConstants.border,
         borderRadius: BorderRadius.circular(2),
       ),
     );
@@ -195,12 +196,12 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.green.shade100,
+              color: AppUIConstants.success.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               Icons.payment_rounded,
-              color: Colors.green.shade700,
+              color: AppUIConstants.success,
               size: 24,
             ),
           ),
@@ -216,7 +217,10 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
                 const SizedBox(height: 4),
                 Text(
                   widget.seatInfo.displayName,
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppUIConstants.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -224,7 +228,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
           IconButton(
             icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.of(context).pop(),
-            color: Colors.grey.shade600,
+            color: AppUIConstants.textSecondary,
           ),
         ],
       ),
@@ -266,15 +270,17 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: AppUIConstants.primaryLight.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(
+          color: AppUIConstants.primaryLight.withValues(alpha: 0.4),
+        ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.account_balance_wallet_rounded,
-            color: Colors.blue.shade700,
+            color: AppUIConstants.primaryLight,
             size: 24,
           ),
           const SizedBox(width: 12),
@@ -284,7 +290,10 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
               children: [
                 Text(
                   'Total Rent',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppUIConstants.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Column(
@@ -296,7 +305,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
                         style: TextStyle(
                           fontSize: 14,
                           decoration: TextDecoration.lineThrough,
-                          color: Colors.grey.shade500,
+                          color: AppUIConstants.textTertiary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -305,7 +314,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
+                          color: AppUIConstants.primaryLight,
                         ),
                       ),
                     ] else
@@ -314,7 +323,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
+                          color: AppUIConstants.primaryLight,
                         ),
                       ),
                   ],
@@ -336,7 +345,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade700,
+            color: AppUIConstants.textSecondary,
           ),
         ),
         const SizedBox(height: 8),
@@ -348,7 +357,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
             suffixText: '₹',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Colors.grey.shade50,
+            fillColor: AppUIConstants.surfaceMuted,
           ),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
@@ -372,15 +381,17 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: AppUIConstants.primaryLight.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade200),
+        border: Border.all(
+          color: AppUIConstants.primaryLight.withValues(alpha: 0.4),
+        ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.info_outline_rounded,
-            color: Colors.orange.shade700,
+            color: AppUIConstants.primaryLight,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -393,13 +404,16 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
+                    color: AppUIConstants.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Already paid: ₹${widget.existingPaid.toStringAsFixed(0)} • Remaining: ₹${widget.existingRemaining.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppUIConstants.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -418,7 +432,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Colors.grey.shade700,
+            color: AppUIConstants.textSecondary,
           ),
         ),
         const SizedBox(width: 10),
@@ -462,7 +476,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade700,
+            color: AppUIConstants.textSecondary,
           ),
         ),
         const SizedBox(height: 8),
@@ -477,7 +491,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
             suffixText: '₹',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Colors.grey.shade50,
+            fillColor: AppUIConstants.surfaceMuted,
           ),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
@@ -511,9 +525,9 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppUIConstants.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppUIConstants.border),
       ),
       child: Column(
         children: [
@@ -527,7 +541,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
             _buildSummaryRow(
               'Discount',
               '-₹${_discount.toStringAsFixed(0)}',
-              valueColor: Colors.green.shade700,
+              valueColor: AppUIConstants.success,
               isBold: true,
             ),
             const SizedBox(height: 8),
@@ -605,7 +619,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-            color: Colors.grey.shade700,
+            color: AppUIConstants.textSecondary,
           ),
         ),
         Text(
@@ -615,7 +629,9 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
             color:
                 valueColor ??
-                (strikeThrough ? Colors.grey.shade500 : Colors.grey.shade900),
+                (strikeThrough
+                    ? AppUIConstants.textTertiary
+                    : AppUIConstants.textPrimary),
             decoration: strikeThrough ? TextDecoration.lineThrough : null,
           ),
         ),
@@ -627,17 +643,17 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppUIConstants.surfaceMuted,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Colors.grey.shade700),
+          Icon(icon, size: 16, color: AppUIConstants.textSecondary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+              style: TextStyle(fontSize: 11, color: AppUIConstants.textPrimary),
             ),
           ),
         ],
@@ -654,7 +670,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade700,
+            color: AppUIConstants.textSecondary,
           ),
         ),
         const SizedBox(height: 8),
@@ -666,7 +682,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
             prefixIcon: const Icon(Icons.note_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
-            fillColor: Colors.grey.shade50,
+            fillColor: AppUIConstants.surfaceMuted,
           ),
           textCapitalization: TextCapitalization.sentences,
         ),
@@ -678,8 +694,8 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: AppUIConstants.surfaceMuted,
+        border: Border(top: BorderSide(color: AppUIConstants.border)),
       ),
       child: SafeArea(
         child: Row(
@@ -692,7 +708,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  side: BorderSide(color: Colors.grey.shade300),
+                  side: BorderSide(color: AppUIConstants.border),
                 ),
                 child: const Text('Cancel'),
               ),
@@ -702,7 +718,7 @@ class _ConvertPaymentBottomSheetState extends State<ConvertPaymentBottomSheet> {
               flex: 2,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade900,
+                  backgroundColor: AppUIConstants.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(

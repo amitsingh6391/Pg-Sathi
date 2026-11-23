@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
@@ -203,9 +203,14 @@ void sendOccupiedSeatsReminder(
     reminderType = ReminderType.partialPayment;
     amount = remaining;
   } else {
-    notificationTitle = 'Stay Renewal Reminder';
-    notificationBody =
-        'Your stay is expiring soon. Please renew at your convenience to continue your bed.';
+    final isExpired = seatInfo.isExpired;
+    final endDate = seatInfo.membership.endDate;
+    final formattedDate = '${endDate.day}/${endDate.month}/${endDate.year}';
+
+    notificationTitle = isExpired ? 'Stay Expired' : 'Stay Renewal Reminder';
+    notificationBody = isExpired
+        ? 'Your stay expired on $formattedDate. Please renew to continue your bed.'
+        : 'Your stay is expiring soon. Please renew at your convenience to continue your bed.';
     reminderType = ReminderType.expiry;
     amount = null;
   }
@@ -289,11 +294,16 @@ Future<void> executeSendReminder(
     }
     return;
   } else {
-    notificationTitle = 'Stay Renewal Reminder';
-    notificationBody =
-        'Your stay is expiring soon. Please renew at your convenience to continue your bed.';
+    final isExpired = seatInfo.isExpired;
+    final endDate = seatInfo.membership.endDate;
+    final formattedDate = '${endDate.day}/${endDate.month}/${endDate.year}';
+
+    notificationTitle = isExpired ? 'Stay Expired' : 'Stay Renewal Reminder';
+    notificationBody = isExpired
+        ? 'Your stay expired on $formattedDate. Please renew to continue your bed.'
+        : 'Your stay is expiring soon. Please renew at your convenience to continue your bed.';
     notificationData = {
-      'type': 'membership_expiry_reminder',
+      'type': isExpired ? 'membership_expired' : 'membership_expiry_reminder',
       'libraryId': seatInfo.membership.libraryId,
       'membershipId': seatInfo.membership.id,
     };

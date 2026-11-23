@@ -88,9 +88,10 @@ void main() {
 
         expect(result.isRight(), isTrue);
         final captured =
-            verify(() => paymentRepo.createPayment(captureAny()))
-                .captured
-                .single as Payment;
+            verify(
+                  () => paymentRepo.createPayment(captureAny()),
+                ).captured.single
+                as Payment;
         expect(captured.mode, PaymentMode.upi);
         expect(captured.status, PaymentStatus.success);
       },
@@ -124,9 +125,10 @@ void main() {
 
         expect(result.isRight(), isTrue);
         final captured =
-            verify(() => paymentRepo.createPayment(captureAny()))
-                .captured
-                .single as Payment;
+            verify(
+                  () => paymentRepo.createPayment(captureAny()),
+                ).captured.single
+                as Payment;
         expect(captured.mode, PaymentMode.cash);
         expect(captured.status, PaymentStatus.success);
       },
@@ -175,9 +177,10 @@ void main() {
 
         expect(result.isRight(), isTrue);
         final saved =
-            verify(() => membershipRepo.updateMembership(captureAny()))
-                .captured
-                .single as Membership;
+            verify(
+                  () => membershipRepo.updateMembership(captureAny()),
+                ).captured.single
+                as Membership;
         expect(saved.status, MembershipStatus.active);
         expect(saved.paymentStatus, MembershipPaymentStatus.pending);
       },
@@ -213,9 +216,9 @@ void main() {
         when(
           () => membershipRepo.getMembershipById('m1'),
         ).thenAnswer((_) async => Right(membership));
-        when(() => paymentRepo.getPaymentsByMembershipId('m1')).thenAnswer(
-          (_) async => Right(<Payment>[priorPayment]),
-        );
+        when(
+          () => paymentRepo.getPaymentsByMembershipId('m1'),
+        ).thenAnswer((_) async => Right(<Payment>[priorPayment]));
         when(() => membershipRepo.updateMembership(any())).thenAnswer((
           inv,
         ) async {
@@ -235,9 +238,10 @@ void main() {
         expect(result.isRight(), isTrue);
         verify(() => paymentRepo.createPayment(captureAny())).called(1);
         final saved =
-            verify(() => membershipRepo.updateMembership(captureAny()))
-                .captured
-                .single as Membership;
+            verify(
+                  () => membershipRepo.updateMembership(captureAny()),
+                ).captured.single
+                as Membership;
         expect(saved.paymentStatus, MembershipPaymentStatus.markedPaid);
       },
     );

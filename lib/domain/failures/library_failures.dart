@@ -40,3 +40,13 @@ class LibraryPhotoDeleteFailure extends Failure {
   const LibraryPhotoDeleteFailure({String? message})
     : super(message: message ?? 'Failed to delete photo');
 }
+
+class LibraryUpiQrUploadFailure extends Failure {
+  const LibraryUpiQrUploadFailure({String? message})
+    : super(message: message ?? 'Failed to upload UPI QR code');
+}
+
+class LibraryUpiQrDeleteFailure extends Failure {
+  const LibraryUpiQrDeleteFailure({String? message})
+    : super(message: message ?? 'Failed to remove UPI QR code');
+}

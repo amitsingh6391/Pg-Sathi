@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/app_ui_constants.dart';
 
-/// Premium bed statistics card for owner dashboard.
+/// Bed statistics card for the owner dashboard.
 /// Shows available, pending, and occupied beds with visual progress.
 class SeatStatsCard extends StatelessWidget {
   const SeatStatsCard({
@@ -10,17 +10,31 @@ class SeatStatsCard extends StatelessWidget {
     required this.availableSeats,
     required this.pendingSeats,
     required this.occupiedSeats,
+    this.flexibleStudents = 0,
     this.onTap,
+    this.onAvailableTap,
     this.isLocked = false,
     this.onLockedTap,
+    this.footer,
   });
 
   final int availableSeats;
   final int pendingSeats;
   final int occupiedSeats;
+
+  /// Students sitting in flexible (non-fixed) slots. Shown as an extra
+  /// stat tile only when greater than zero — they don't consume seats.
+  final int flexibleStudents;
   final VoidCallback? onTap;
+
+  /// Tapping the "Available" stat tile specifically (e.g. to start assigning a
+  /// member). Falls back to [onTap] when null.
+  final VoidCallback? onAvailableTap;
   final bool isLocked;
   final VoidCallback? onLockedTap;
+
+  /// Shown below the stats row; hidden while locked.
+  final Widget? footer;
 
   int get totalSeats => availableSeats + pendingSeats + occupiedSeats;
 
@@ -54,7 +68,7 @@ class SeatStatsCard extends StatelessWidget {
                 children: [
                   // Header section
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -79,7 +93,7 @@ class SeatStatsCard extends StatelessWidget {
                                   Text(
                                     '$totalSeats',
                                     style: TextStyle(
-                                      fontSize: 28,
+                                      fontSize: 22,
                                       fontWeight: FontWeight.w700,
                                       color: isLocked
                                           ? AppUIConstants.disabled
@@ -132,7 +146,7 @@ class SeatStatsCard extends StatelessWidget {
                   // Progress bar
                   if (totalSeats > 0)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(3),
                         child: SizedBox(
@@ -179,11 +193,11 @@ class SeatStatsCard extends StatelessWidget {
                       ),
                     ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
 
                   // Stats row
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                     child: Row(
                       children: [
                         Expanded(
@@ -210,11 +224,28 @@ class SeatStatsCard extends StatelessWidget {
                             label: 'Available',
                             color: AppUIConstants.success,
                             isLocked: isLocked,
+                            onTap: isLocked ? null : (onAvailableTap ?? onTap),
                           ),
                         ),
+                        // Flexible-slot students sit without a fixed seat —
+                        // surfaced separately so owners can see them at a
+                        // glance. Hidden entirely when there are none.
+                        if (flexibleStudents > 0) ...[
+                          _VerticalDivider(isLocked: isLocked),
+                          Expanded(
+                            child: _StatTile(
+                              value: flexibleStudents,
+                              label: 'Flexible',
+                              color: const Color(0xFFB45309),
+                              icon: Icons.weekend_rounded,
+                              isLocked: isLocked,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
+                  if (footer != null && !isLocked) footer!,
                 ],
               ),
             ),
@@ -305,59 +336,81 @@ class _StatTile extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.icon,
     this.isLocked = false,
+    this.onTap,
   });
 
   final int value;
   final String label;
   final Color color;
+  final IconData? icon;
   final bool isLocked;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final effectiveColor = isLocked ? AppUIConstants.disabled : color;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+    final tile = Container(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             value.toString(),
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
               color: effectiveColor,
               height: 1.1,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: effectiveColor,
-                  borderRadius: BorderRadius.circular(2),
+              if (icon != null) ...[
+                Icon(icon, size: 10, color: effectiveColor),
+                const SizedBox(width: 4),
+              ] else ...[
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: effectiveColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: isLocked
-                      ? AppUIConstants.disabled
-                      : AppUIConstants.textSecondary,
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isLocked
+                        ? AppUIConstants.disabled
+                        : AppUIConstants.textSecondary,
+                  ),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return tile;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: tile,
       ),
     );
   }
@@ -372,7 +425,7 @@ class _VerticalDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 48,
+      height: 36,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,

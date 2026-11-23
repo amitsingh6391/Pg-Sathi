@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../domain/entities/library.dart';
@@ -61,7 +61,7 @@ class LibrarySubscriptionCard extends StatelessWidget {
     Clipboard.setData(ClipboardData(text: libraryId));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Library ID copied to clipboard'),
+        content: const Text('PG ID copied to clipboard'),
         backgroundColor: AppUIConstants.success,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
@@ -82,7 +82,8 @@ class LibrarySubscriptionCard extends StatelessWidget {
       return;
     }
 
-    final message = 'Hello ${ownerName ?? 'there'}! I wanted to discuss about the subscriptions for *$libraryName*.';
+    final message =
+        'Hello ${ownerName ?? 'there'}! I wanted to discuss about the subscriptions for *$libraryName*.';
     final success = await AdminContactHelper.sendWhatsApp(
       phone: ownerPhone!,
       message: message,
@@ -100,230 +101,98 @@ class LibrarySubscriptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasPhone = ownerPhone != null && ownerPhone!.isNotEmpty;
+    final pendingCount = subscriptions
+        .where(
+          (s) =>
+              s.status == SubscriptionStatus.pending ||
+              s.status == SubscriptionStatus.pendingVerification,
+        )
+        .length;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppUIConstants.divider.withValues(alpha: 0.1),
-        ),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+        border: Border.all(color: AppUIConstants.border),
+        boxShadow: [AppUIConstants.shadowSm],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Library Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppUIConstants.primary.withValues(alpha: 0.05),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 6, 10),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppUIConstants.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.local_library_rounded,
-                        color: AppUIConstants.primary,
-                        size: 18,
-                      ),
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppUIConstants.primarySoft,
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusMd,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            libraryName,
-                            style: AppUIConstants.bodyLg.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (ownerName != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              ownerName!,
-                              style: AppUIConstants.bodySm.copyWith(
-                                color: AppUIConstants.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    // Subscription count badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppUIConstants.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppUIConstants.accent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.receipt_long,
-                            size: 14,
-                            color: AppUIConstants.accent,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${subscriptions.length}',
-                            style: AppUIConstants.bodySm.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppUIConstants.accent,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
+                  child: const Icon(
+                    Icons.apartment_rounded,
+                    color: AppUIConstants.primaryLight,
+                    size: 22,
+                  ),
                 ),
-                // Action icons row
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    // WhatsApp button
-                    if (ownerPhone != null && ownerPhone!.isNotEmpty)
-                      Expanded(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _sendWhatsAppToOwner(context),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF25D366).withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFF25D366).withValues(
-                                    alpha: 0.3,
-                                  ),
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.chat,
-                                color: Color(0xFF25D366),
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (ownerPhone != null && ownerPhone!.isNotEmpty)
-                      const SizedBox(width: 8),
-                    // Call button
-                    if (ownerPhone != null && ownerPhone!.isNotEmpty)
-                      Expanded(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _callOwner(context),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: AppUIConstants.primary.withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: AppUIConstants.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.phone_rounded,
-                                color: AppUIConstants.primary,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (ownerPhone != null && ownerPhone!.isNotEmpty)
-                      const SizedBox(width: 8),
-                    // Copy ID button
-                    Expanded(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _copyLibraryId(context),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppUIConstants.accent.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AppUIConstants.accent.withValues(
-                                  alpha: 0.3,
-                                ),
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.content_copy_rounded,
-                              color: AppUIConstants.accent,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // Library ID
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.tag,
-                      size: 14,
-                      color: AppUIConstants.textSecondary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'ID: $libraryId',
-                        style: AppUIConstants.bodySm.copyWith(
-                          color: AppUIConstants.textSecondary,
-                          fontFamily: 'monospace',
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        libraryName,
+                        style: AppUIConstants.bodyLg.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                      if (ownerName != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          ownerName!,
+                          style: AppUIConstants.bodySm,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          _CountPill(
+                            '${subscriptions.length} plan${subscriptions.length == 1 ? '' : 's'}',
+                            AppUIConstants.primaryLight,
+                          ),
+                          if (pendingCount > 0)
+                            _CountPill(
+                              '$pendingCount pending',
+                              AppUIConstants.warning,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: AppUIConstants.textSecondary,
+                  ),
+                  tooltip: 'Actions',
+                  onPressed: () => _openActions(context, hasPhone),
                 ),
               ],
             ),
           ),
-          // Subscription Items
           ...subscriptions.map(
             (sub) => SubscriptionTile(
               subscription: sub,
@@ -333,6 +202,124 @@ class LibrarySubscriptionCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openActions(BuildContext context, bool hasPhone) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppUIConstants.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppUIConstants.radiusXl),
+        ),
+      ),
+      builder: (ctx) {
+        Widget tile(IconData icon, String label, Color color, VoidCallback f) {
+          return ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            title: Text(
+              label,
+              style: AppUIConstants.bodyMd.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              f();
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.border,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(libraryName, style: AppUIConstants.headingSm),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                  child: Text(
+                    'ID: $libraryId',
+                    style: AppUIConstants.caption.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+                if (hasPhone)
+                  tile(
+                    Icons.chat_rounded,
+                    'WhatsApp owner',
+                    AppUIConstants.success,
+                    () => _sendWhatsAppToOwner(context),
+                  ),
+                if (hasPhone)
+                  tile(
+                    Icons.phone_rounded,
+                    'Call owner',
+                    AppUIConstants.primaryLight,
+                    () => _callOwner(context),
+                  ),
+                tile(
+                  Icons.content_copy_rounded,
+                  'Copy PG ID',
+                  AppUIConstants.primaryLight,
+                  () => _copyLibraryId(context),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  const _CountPill(this.label, this.color);
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

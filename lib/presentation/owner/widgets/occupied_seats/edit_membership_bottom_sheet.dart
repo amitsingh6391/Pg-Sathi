@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/di/injection_container.dart';
@@ -7,6 +7,7 @@ import '../../../../domain/entities/library.dart';
 import '../../../../domain/entities/membership.dart';
 import '../../../../domain/repositories/user_repository.dart';
 import '../../../../domain/usecases/get_occupied_seats.dart';
+import 'package:pg_manager/presentation/core/app_ui_constants.dart';
 
 /// Bottom sheet for editing tenant stay details (bed, dates, etc.).
 class EditMembershipBottomSheet extends StatefulWidget {
@@ -120,11 +121,11 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Colors.grey.shade800,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.grey.shade900,
+            colorScheme: ColorScheme.dark(
+              primary: AppUIConstants.primaryLight,
+              onPrimary: AppUIConstants.background,
+              surface: AppUIConstants.surface,
+              onSurface: AppUIConstants.textPrimary,
             ),
           ),
           child: child!,
@@ -149,8 +150,8 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Tenant name cannot be empty'),
-          backgroundColor: Colors.red,
+          content: Text('Resident name cannot be empty'),
+          backgroundColor: AppUIConstants.error,
         ),
       );
       return;
@@ -177,7 +178,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Stay updated successfully'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppUIConstants.success,
           ),
         );
       }
@@ -186,7 +187,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppUIConstants.error,
           ),
         );
       }
@@ -233,7 +234,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppUIConstants.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -252,7 +253,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade900,
+                            color: AppUIConstants.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -260,7 +261,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                           widget.seatInfo.displayName,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade600,
+                            color: AppUIConstants.textSecondary,
                           ),
                         ),
                       ],
@@ -271,7 +272,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                     constraints: const BoxConstraints(),
                     icon: Icon(
                       Icons.close_rounded,
-                      color: Colors.grey.shade600,
+                      color: AppUIConstants.textSecondary,
                       size: 22,
                     ),
                     onPressed: () => Navigator.of(context).pop(),
@@ -300,32 +301,32 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                           child: TextField(
                             controller: _nameController,
                             decoration: InputDecoration(
-                              labelText: 'Tenant Name',
+                              labelText: 'Resident Name',
                               labelStyle: TextStyle(
-                                color: Colors.grey.shade600,
+                                color: AppUIConstants.textSecondary,
                                 fontSize: 13,
                               ),
-                              hintText: 'Enter tenant name',
+                              hintText: 'Enter resident name',
                               hintStyle: TextStyle(
-                                color: Colors.grey.shade400,
+                                color: AppUIConstants.textTertiary,
                                 fontSize: 14,
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: BorderSide(
-                                  color: Colors.grey.shade300,
+                                  color: AppUIConstants.border,
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: BorderSide(
-                                  color: Colors.grey.shade300,
+                                  color: AppUIConstants.border,
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 borderSide: BorderSide(
-                                  color: Colors.grey.shade900,
+                                  color: AppUIConstants.textPrimary,
                                   width: 1.5,
                                 ),
                               ),
@@ -334,12 +335,12 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                                 vertical: 12,
                               ),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: AppUIConstants.surfaceMuted,
                             ),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade900,
+                              color: AppUIConstants.textPrimary,
                             ),
                             textInputAction: TextInputAction.done,
                             onChanged: (_) => setState(() {}),
@@ -354,7 +355,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.grey.shade600,
+                                  AppUIConstants.textSecondary,
                                 ),
                               ),
                             ),
@@ -391,7 +392,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.grey.shade200,
+                                          color: AppUIConstants.border,
                                           borderRadius: BorderRadius.circular(
                                             4,
                                           ),
@@ -401,7 +402,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
-                                            color: Colors.grey.shade700,
+                                            color: AppUIConstants.textSecondary,
                                           ),
                                         ),
                                       ),
@@ -417,7 +418,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                                         : 'Based on ${widget.seatInfo.membership.plan.displayLabel} stay',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade600,
+                                      color: AppUIConstants.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -448,7 +449,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
             Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppUIConstants.surface,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
@@ -467,7 +468,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                             : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(color: Colors.grey.shade300),
+                          side: BorderSide(color: AppUIConstants.border),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -475,7 +476,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                         child: Text(
                           'Cancel',
                           style: TextStyle(
-                            color: Colors.grey.shade700,
+                            color: AppUIConstants.textSecondary,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
@@ -491,9 +492,9 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                             : _handleUpdate,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: Colors.grey.shade900,
+                          backgroundColor: AppUIConstants.primary,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.grey.shade300,
+                          disabledBackgroundColor: AppUIConstants.border,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -532,9 +533,9 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppUIConstants.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppUIConstants.border),
       ),
       child: Row(
         children: [
@@ -545,7 +546,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
               value: widget.seatInfo.seatId,
             ),
           ),
-          Container(width: 1, height: 30, color: Colors.grey.shade300),
+          Container(width: 1, height: 30, color: AppUIConstants.border),
           Expanded(
             child: _buildCompactInfoItem(
               icon: Icons.meeting_room_rounded,
@@ -553,7 +554,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
               value: slotName,
             ),
           ),
-          Container(width: 1, height: 30, color: Colors.grey.shade300),
+          Container(width: 1, height: 30, color: AppUIConstants.border),
           Expanded(
             child: _buildCompactInfoItem(
               icon: Icons.calendar_today_rounded,
@@ -573,21 +574,21 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
   }) {
     return Column(
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade600),
+        Icon(icon, size: 16, color: AppUIConstants.textSecondary),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade900,
+            color: AppUIConstants.textPrimary,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 11, color: AppUIConstants.textSecondary),
         ),
       ],
     );
@@ -605,16 +606,16 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade900,
+            color: AppUIConstants.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: AppUIConstants.surfaceMuted,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: AppUIConstants.border),
           ),
           child: Column(children: children),
         ),
@@ -628,7 +629,7 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
       style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: Colors.grey.shade900,
+        color: AppUIConstants.textPrimary,
       ),
     );
   }
@@ -638,19 +639,26 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: AppUIConstants.surfaceMuted,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: AppUIConstants.border),
         ),
         child: Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.bed_outlined, color: Colors.grey.shade400, size: 20),
+              Icon(
+                Icons.bed_outlined,
+                color: AppUIConstants.textTertiary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'No available beds',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                style: TextStyle(
+                  color: AppUIConstants.textSecondary,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -679,12 +687,16 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
           borderRadius: BorderRadius.circular(8),
           child: Container(
             decoration: BoxDecoration(
-              color: isSelected ? Colors.grey.shade900 : Colors.white,
+              color: isSelected
+                  ? AppUIConstants.primary
+                  : AppUIConstants.surfaceMuted,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isSelected
-                    ? Colors.grey.shade900
-                    : (isCurrent ? Colors.grey.shade400 : Colors.grey.shade300),
+                    ? AppUIConstants.primaryLight
+                    : (isCurrent
+                          ? AppUIConstants.textTertiary
+                          : AppUIConstants.border),
                 width: isCurrent ? 1.5 : 1,
               ),
             ),
@@ -697,7 +709,9 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                     Icon(
                       Icons.check_circle_rounded,
                       size: 12,
-                      color: isSelected ? Colors.white : Colors.grey.shade600,
+                      color: isSelected
+                          ? Colors.white
+                          : AppUIConstants.textSecondary,
                     ),
                   if (isCurrent) const SizedBox(height: 2),
                   Text(
@@ -705,7 +719,9 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : Colors.grey.shade900,
+                      color: isSelected
+                          ? Colors.white
+                          : AppUIConstants.textPrimary,
                     ),
                   ),
                 ],
@@ -727,10 +743,12 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isEditable ? Colors.grey.shade50 : Colors.grey.shade100,
+          color: isEditable
+              ? AppUIConstants.surfaceMuted
+              : AppUIConstants.surfaceMuted,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isEditable ? Colors.grey.shade200 : Colors.grey.shade300,
+            color: isEditable ? AppUIConstants.border : AppUIConstants.border,
           ),
         ),
         child: Row(
@@ -738,7 +756,9 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
             Icon(
               Icons.calendar_today_rounded,
               size: 18,
-              color: isEditable ? Colors.grey.shade600 : Colors.grey.shade500,
+              color: isEditable
+                  ? AppUIConstants.textSecondary
+                  : AppUIConstants.textTertiary,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -748,8 +768,8 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: isEditable
-                      ? Colors.grey.shade900
-                      : Colors.grey.shade700,
+                      ? AppUIConstants.textPrimary
+                      : AppUIConstants.textSecondary,
                 ),
               ),
             ),
@@ -757,13 +777,13 @@ class _EditMembershipBottomSheetState extends State<EditMembershipBottomSheet> {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
-                color: Colors.grey.shade400,
+                color: AppUIConstants.textTertiary,
               )
             else
               Icon(
                 Icons.lock_outline_rounded,
                 size: 16,
-                color: Colors.grey.shade400,
+                color: AppUIConstants.textTertiary,
               ),
           ],
         ),

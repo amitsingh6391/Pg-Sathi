@@ -24,6 +24,8 @@ class User extends Equatable {
     this.autoWhatsAppInvoicesEnabled = true,
     this.autoWhatsAppFeeRemindersEnabled = true,
     this.createdAt,
+    this.managedByOwnerId,
+    this.managedLibraryIds = const [],
   });
 
   final String id;
@@ -72,6 +74,17 @@ class User extends Equatable {
   final bool autoWhatsAppFeeRemindersEnabled;
 
   final DateTime? createdAt;
+
+  /// Set for a manager: the owner account they work for.
+  final String? managedByOwnerId;
+
+  /// Set for a manager: the PGs (libraries) they can see.
+  final List<String> managedLibraryIds;
+
+  bool get isManager => managedByOwnerId != null;
+
+  /// Owner account whose PG this user works with (self for owners).
+  String get ownerAccountId => managedByOwnerId ?? id;
 
   /// Returns display name for UI.
   /// If profile is incomplete, generates a random username like "Reader_4821".
@@ -126,6 +139,8 @@ class User extends Equatable {
     autoWhatsAppInvoicesEnabled,
     autoWhatsAppFeeRemindersEnabled,
     createdAt,
+    managedByOwnerId,
+    managedLibraryIds,
   ];
 
   User copyWith({
@@ -147,6 +162,9 @@ class User extends Equatable {
     bool? autoWhatsAppInvoicesEnabled,
     bool? autoWhatsAppFeeRemindersEnabled,
     DateTime? createdAt,
+    String? managedByOwnerId,
+    List<String>? managedLibraryIds,
+    bool clearManagedAccess = false,
   }) {
     return User(
       id: id ?? this.id,
@@ -171,6 +189,12 @@ class User extends Equatable {
           autoWhatsAppFeeRemindersEnabled ??
           this.autoWhatsAppFeeRemindersEnabled,
       createdAt: createdAt ?? this.createdAt,
+      managedByOwnerId: clearManagedAccess
+          ? null
+          : (managedByOwnerId ?? this.managedByOwnerId),
+      managedLibraryIds: clearManagedAccess
+          ? const []
+          : (managedLibraryIds ?? this.managedLibraryIds),
     );
   }
 

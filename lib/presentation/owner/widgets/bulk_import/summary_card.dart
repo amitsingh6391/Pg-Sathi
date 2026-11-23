@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
-/// Summary stat card widget.
+import '../../../core/app_ui_constants.dart';
+
+/// Summary stat tile widget (used in a Row).
 class SummaryCard extends StatelessWidget {
   const SummaryCard({
     required this.icon,
@@ -19,24 +21,27 @@ class SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: AppUIConstants.surface,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+          border: Border.all(color: AppUIConstants.border),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppUIConstants.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
               ),
+              child: Icon(icon, color: AppUIConstants.textSecondary, size: 18),
             ),
-            Text(label, style: TextStyle(fontSize: 12, color: color)),
+            const SizedBox(height: 10),
+            Text(value, style: AppUIConstants.statValue),
+            const SizedBox(height: 2),
+            Text(label, style: AppUIConstants.bodySm),
           ],
         ),
       ),

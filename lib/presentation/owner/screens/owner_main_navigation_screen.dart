@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/di/injection_container.dart';
-import '../../core/app_ui_constants.dart';
 import '../../auth/cubit/phone_auth_cubit.dart';
 import '../bloc/owner_library_bloc.dart';
 import '../bloc/owner_library_event.dart';
@@ -10,6 +9,10 @@ import '../bloc/owner_library_state.dart';
 import 'owner_dashboard_screen.dart';
 import 'owner_profile_wrapper.dart';
 import 'owner_notices_screen.dart';
+import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_bottom_nav.dart';
+import '../../student/cubit/explore_libraries_cubit.dart';
+import '../../student/screens/explore_libraries_screen.dart';
 
 /// Main navigation screen with bottom navigation bar for owners.
 class OwnerMainNavigationScreen extends StatefulWidget {
@@ -23,18 +26,29 @@ class OwnerMainNavigationScreen extends StatefulWidget {
 class _OwnerMainNavigationScreenState extends State<OwnerMainNavigationScreen> {
   int _currentIndex = 0;
   late final OwnerLibraryBloc _libraryBloc;
+  late final ExploreLibrariesCubit _exploreCubit;
+  bool _marketplaceLoaded = false;
 
   @override
   void initState() {
     super.initState();
     final user = context.read<PhoneAuthCubit>().state.currentUser;
     _libraryBloc = sl<OwnerLibraryBloc>()
-      ..add(LoadOwnerLibrary(ownerId: user?.id ?? ''));
+      ..add(
+        LoadOwnerLibrary(
+          ownerId: user?.ownerAccountId ?? '',
+          managedLibraryIds: (user?.isManager ?? false)
+              ? user!.managedLibraryIds
+              : null,
+        ),
+      );
+    _exploreCubit = sl<ExploreLibrariesCubit>();
   }
 
   @override
   void dispose() {
     _libraryBloc.close();
+    _exploreCubit.close();
     super.dispose();
   }
 
@@ -45,14 +59,79 @@ class _OwnerMainNavigationScreenState extends State<OwnerMainNavigationScreen> {
         child: const OwnerDashboardScreen(),
       ),
       _buildNoticeBoardScreen(ownerId, libraryId),
+      _buildMarketplaceScreen(ownerId),
       const OwnerProfileWrapper(),
     ];
   }
 
+  /// PG marketplace — the same explore list residents see. Loads lazily on
+  /// first build.
+  Widget _buildMarketplaceScreen(String ownerId) {
+    if (!_marketplaceLoaded) {
+      _exploreCubit.loadLibraries();
+      _marketplaceLoaded = true;
+    }
+    return BlocProvider.value(
+      value: _exploreCubit,
+      child: ExploreLibrariesScreen(userId: ownerId),
+    );
+  }
+
   Widget _buildNoticeBoardScreen(String ownerId, String libraryId) {
     if (libraryId.isEmpty) {
-      return const Scaffold(
-        body: Center(child: Text('Please create your PG profile first')),
+      return Scaffold(
+        backgroundColor: AppUIConstants.background,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.primarySoft,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppUIConstants.primaryLight.withValues(
+                          alpha: 0.35,
+                        ),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.campaign_rounded,
+                      size: 32,
+                      color: AppUIConstants.primaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Notices need a PG first',
+                    style: AppUIConstants.headingMd,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Create your PG profile from Home, then post notices for '
+                    'all your tenants here.',
+                    style: AppUIConstants.bodyMd,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => setState(() => _currentIndex = 0),
+                    icon: const Icon(Icons.home_work_rounded, size: 18),
+                    label: const Text('Go to Home'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppUIConstants.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
 
@@ -62,7 +141,7 @@ class _OwnerMainNavigationScreenState extends State<OwnerMainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.read<PhoneAuthCubit>().state.currentUser;
-    final ownerId = user?.id ?? '';
+    final ownerId = user?.ownerAccountId ?? '';
 
     return BlocBuilder<OwnerLibraryBloc, OwnerLibraryState>(
       bloc: _libraryBloc,
@@ -81,6 +160,7 @@ class _OwnerMainNavigationScreenState extends State<OwnerMainNavigationScreen> {
             }
           },
           child: Scaffold(
+            backgroundColor: AppUIConstants.background,
             body: IndexedStack(index: _currentIndex, children: screens),
             bottomNavigationBar: _buildBottomNavigationBar(),
           ),
@@ -90,84 +170,15 @@ class _OwnerMainNavigationScreenState extends State<OwnerMainNavigationScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
-    final items = [
-      _NavItemData(Icons.dashboard_rounded, 'Home', 0),
-      _NavItemData(Icons.campaign_rounded, 'Notices', 1),
-      _NavItemData(Icons.person_rounded, 'Profile', 2),
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(
-          top: 8.0,
-          bottom: 8.0,
-          left: 4.0,
-          right: 4.0,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: items
-              .map(
-                (item) => _buildNavItem(
-                  icon: item.icon,
-                  label: item.label,
-                  index: item.index,
-                ),
-              )
-              .toList(),
-        ),
-      ),
+    return PremiumBottomNav(
+      destinations: const [
+        PremiumNavDestination(Icons.space_dashboard_rounded, 'Home'),
+        PremiumNavDestination(Icons.campaign_rounded, 'Notices'),
+        PremiumNavDestination(Icons.storefront_rounded, 'Marketplace'),
+        PremiumNavDestination(Icons.person_rounded, 'Profile'),
+      ],
+      selectedIndex: _currentIndex,
+      onSelected: (i) => setState(() => _currentIndex = i),
     );
   }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-  }) {
-    final isSelected = _currentIndex == index;
-    final color = isSelected ? AppUIConstants.primary : Colors.grey[600];
-
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _currentIndex = index),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 26, color: color),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItemData {
-  const _NavItemData(this.icon, this.label, this.index);
-  final IconData icon;
-  final String label;
-  final int index;
 }

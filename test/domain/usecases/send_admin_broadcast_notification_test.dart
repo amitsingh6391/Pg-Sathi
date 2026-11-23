@@ -267,13 +267,31 @@ void main() {
     test('should_have_all_expected_values', () {
       expect(BroadcastAudience.values, hasLength(8));
       expect(BroadcastAudience.values, contains(BroadcastAudience.allOwners));
-      expect(BroadcastAudience.values, contains(BroadcastAudience.ownersWithLibrary));
-      expect(BroadcastAudience.values, contains(BroadcastAudience.ownersWithoutLibrary));
+      expect(
+        BroadcastAudience.values,
+        contains(BroadcastAudience.ownersWithLibrary),
+      );
+      expect(
+        BroadcastAudience.values,
+        contains(BroadcastAudience.ownersWithoutLibrary),
+      );
       expect(BroadcastAudience.values, contains(BroadcastAudience.allStudents));
-      expect(BroadcastAudience.values, contains(BroadcastAudience.studentsWithActiveMembership));
-      expect(BroadcastAudience.values, contains(BroadcastAudience.activeStudents));
-      expect(BroadcastAudience.values, contains(BroadcastAudience.selectedLibraries));
-      expect(BroadcastAudience.values, contains(BroadcastAudience.selectedLibraryStudents));
+      expect(
+        BroadcastAudience.values,
+        contains(BroadcastAudience.studentsWithActiveMembership),
+      );
+      expect(
+        BroadcastAudience.values,
+        contains(BroadcastAudience.activeStudents),
+      );
+      expect(
+        BroadcastAudience.values,
+        contains(BroadcastAudience.selectedLibraries),
+      );
+      expect(
+        BroadcastAudience.values,
+        contains(BroadcastAudience.selectedLibraryStudents),
+      );
     });
   });
 }

@@ -71,7 +71,8 @@ class InitiateCashPayment
       if (membershipResult.isLeft()) return;
 
       final membership = membershipResult.getOrElse(() => throw Error());
-      final isUpcomingPlan = membership.status == MembershipStatus.pendingPayment &&
+      final isUpcomingPlan =
+          membership.status == MembershipStatus.pendingPayment &&
           membership.startDate.isAfter(DateTime.now());
 
       // Get library to find owner
@@ -87,12 +88,9 @@ class InitiateCashPayment
       String studentName = 'Student';
       if (payment.userId.isNotEmpty) {
         final userResult = await userRepository.getUserById(payment.userId);
-        userResult.fold(
-          (_) {},
-          (user) {
-            studentName = user.name;
-          },
-        );
+        userResult.fold((_) {}, (user) {
+          studentName = user.name;
+        });
       } else if (membership.studentName != null) {
         studentName = membership.studentName!;
       }

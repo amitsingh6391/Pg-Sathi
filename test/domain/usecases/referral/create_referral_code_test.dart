@@ -42,8 +42,9 @@ void main() {
   );
 
   test('should_fail_when_owner_has_no_active_subscription', () async {
-    when(mockSubscriptionRepo.getActiveSubscription('owner_1'))
-        .thenAnswer((_) async => const Right(null));
+    when(
+      mockSubscriptionRepo.getActiveSubscription('owner_1'),
+    ).thenAnswer((_) async => const Right(null));
 
     final result = await useCase(
       const CreateReferralCodeParams(ownerId: 'owner_1'),
@@ -57,8 +58,9 @@ void main() {
   });
 
   test('should_return_existing_referral_when_already_exists', () async {
-    when(mockSubscriptionRepo.getActiveSubscription('owner_1'))
-        .thenAnswer((_) async => Right(activeSubscription));
+    when(
+      mockSubscriptionRepo.getActiveSubscription('owner_1'),
+    ).thenAnswer((_) async => Right(activeSubscription));
 
     const existingReferral = Referral(
       id: 'owner_1_referral',
@@ -67,8 +69,9 @@ void main() {
       isActive: true,
     );
 
-    when(mockReferralRepo.getReferralByOwnerId('owner_1'))
-        .thenAnswer((_) async => const Right(existingReferral));
+    when(
+      mockReferralRepo.getReferralByOwnerId('owner_1'),
+    ).thenAnswer((_) async => const Right(existingReferral));
 
     final result = await useCase(
       const CreateReferralCodeParams(ownerId: 'owner_1'),
@@ -82,34 +85,32 @@ void main() {
     verifyNever(mockReferralRepo.createReferral(any));
   });
 
-  test('should_create_referral_code_when_owner_has_active_subscription',
-      () async {
-    when(mockSubscriptionRepo.getActiveSubscription('owner_1'))
-        .thenAnswer((_) async => Right(activeSubscription));
+  test(
+    'should_create_referral_code_when_owner_has_active_subscription',
+    () async {
+      when(
+        mockSubscriptionRepo.getActiveSubscription('owner_1'),
+      ).thenAnswer((_) async => Right(activeSubscription));
 
-    when(mockReferralRepo.getReferralByOwnerId('owner_1'))
-        .thenAnswer((_) async => const Right(null));
+      when(
+        mockReferralRepo.getReferralByOwnerId('owner_1'),
+      ).thenAnswer((_) async => const Right(null));
 
-    when(mockReferralRepo.createReferral(any)).thenAnswer(
-      (inv) async => Right(inv.positionalArguments[0] as Referral),
-    );
+      when(mockReferralRepo.createReferral(any)).thenAnswer(
+        (inv) async => Right(inv.positionalArguments[0] as Referral),
+      );
 
-    final result = await useCase(
-      const CreateReferralCodeParams(
-        ownerId: 'owner_1',
-        ownerName: 'Amit',
-      ),
-    );
+      final result = await useCase(
+        const CreateReferralCodeParams(ownerId: 'owner_1', ownerName: 'Amit'),
+      );
 
-    expect(result.isRight(), isTrue);
-    result.fold(
-      (_) => fail('Expected success'),
-      (r) {
+      expect(result.isRight(), isTrue);
+      result.fold((_) => fail('Expected success'), (r) {
         expect(r.code, startsWith('LT-AMI-'));
         expect(r.ownerId, 'owner_1');
         expect(r.isActive, isTrue);
-      },
-    );
-    verify(mockReferralRepo.createReferral(any)).called(1);
-  });
+      });
+      verify(mockReferralRepo.createReferral(any)).called(1);
+    },
+  );
 }

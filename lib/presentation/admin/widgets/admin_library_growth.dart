@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/admin_dashboard_stats.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 
-/// Library growth section for admin dashboard.
+/// PG growth: new PGs onboarded today / 7 days / 30 days, as proportional bars.
 class AdminLibraryGrowth extends StatelessWidget {
   const AdminLibraryGrowth({super.key, required this.stats});
 
@@ -11,44 +12,50 @@ class AdminLibraryGrowth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final maxV = [
+      stats.librariesToday,
+      stats.librariesLast7Days,
+      stats.librariesLast30Days,
+      1,
+    ].reduce((a, b) => a > b ? a : b);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text('Library Growth', style: AppUIConstants.headingSm),
-            const Spacer(),
-            if (stats.libraryGrowthPercent > 0) _buildGrowthBadge(),
-          ],
-        ),
-        const SizedBox(height: AppUIConstants.spacingMd),
-        Container(
-          padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-          decoration: AppUIConstants.cardDecoration,
-          child: Row(
+        PremiumSectionHeader('PG onboarding'),
+        PremiumCard(
+          child: Column(
             children: [
-              Expanded(
-                child: _GrowthMetric(
-                  value: stats.librariesToday,
-                  label: 'Today',
-                  color: AppUIConstants.success,
+              if (stats.libraryGrowthPercent > 0)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: PremiumStatusPill(
+                      '\u2191 ${stats.libraryGrowthPercent.toStringAsFixed(0)}% growth',
+                      color: AppUIConstants.primaryLight,
+                    ),
+                  ),
                 ),
+              _Row(
+                'Today',
+                stats.librariesToday,
+                maxV,
+                AppUIConstants.primaryLight,
               ),
-              Container(width: 1, height: 40, color: AppUIConstants.divider),
-              Expanded(
-                child: _GrowthMetric(
-                  value: stats.librariesLast7Days,
-                  label: '7 Days',
-                  color: AppUIConstants.accent,
-                ),
+              const SizedBox(height: 12),
+              _Row(
+                'Last 7 days',
+                stats.librariesLast7Days,
+                maxV,
+                AppUIConstants.textSecondary,
               ),
-              Container(width: 1, height: 40, color: AppUIConstants.divider),
-              Expanded(
-                child: _GrowthMetric(
-                  value: stats.librariesLast30Days,
-                  label: '30 Days',
-                  color: AppUIConstants.primary,
-                ),
+              const SizedBox(height: 12),
+              _Row(
+                'Last 30 days',
+                stats.librariesLast30Days,
+                maxV,
+                AppUIConstants.textTertiary,
               ),
             ],
           ),
@@ -56,59 +63,48 @@ class AdminLibraryGrowth extends StatelessWidget {
       ],
     );
   }
-
-  Widget _buildGrowthBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppUIConstants.spacingSm,
-        vertical: 2,
-      ),
-      decoration: BoxDecoration(
-        color: AppUIConstants.success.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.trending_up, size: 12, color: AppUIConstants.success),
-          const SizedBox(width: 2),
-          Text(
-            '${stats.libraryGrowthPercent.toStringAsFixed(0)}%',
-            style: AppUIConstants.caption.copyWith(
-              color: AppUIConstants.success,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-class _GrowthMetric extends StatelessWidget {
-  const _GrowthMetric({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
+class _Row extends StatelessWidget {
+  const _Row(this.label, this.value, this.max, this.color);
 
-  final int value;
   final String label;
+  final int value;
+  final int max;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       children: [
-        Text(
-          '$value',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: color,
+        SizedBox(width: 84, child: Text(label, style: AppUIConstants.bodySm)),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: value / max),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => LinearProgressIndicator(
+                value: v,
+                minHeight: 8,
+                backgroundColor: AppUIConstants.surfaceMuted,
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
           ),
         ),
-        Text(label, style: AppUIConstants.caption),
+        SizedBox(
+          width: 36,
+          child: Text(
+            '$value',
+            textAlign: TextAlign.right,
+            style: AppUIConstants.bodyLg.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
       ],
     );
   }

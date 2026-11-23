@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/entities/library_summary.dart';
 import '../../../core/app_ui_constants.dart';
+import '../../../core/widgets/premium_kit.dart';
 
 /// Library selector widget with search and multi-select functionality.
 class LibrarySelector extends StatefulWidget {
@@ -40,8 +41,10 @@ class _LibrarySelectorState extends State<LibrarySelector> {
     final filtered = _filteredLibraries;
     if (filtered.isEmpty) return;
 
-    final allSelected = filtered.every((lib) => widget.selectedLibraryIds.contains(lib.libraryId));
-    
+    final allSelected = filtered.every(
+      (lib) => widget.selectedLibraryIds.contains(lib.libraryId),
+    );
+
     final newSelection = Set<String>.from(widget.selectedLibraryIds);
     if (allSelected) {
       // Deselect all filtered
@@ -60,251 +63,186 @@ class _LibrarySelectorState extends State<LibrarySelector> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredLibraries;
-    final allSelected = filtered.isNotEmpty && 
-        filtered.every((lib) => widget.selectedLibraryIds.contains(lib.libraryId));
+    final allSelected =
+        filtered.isNotEmpty &&
+        filtered.every(
+          (lib) => widget.selectedLibraryIds.contains(lib.libraryId),
+        );
+    final selectedCount = widget.selectedLibraryIds.length;
 
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppUIConstants.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with search and select all
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppUIConstants.primary.withValues(alpha: 0.08),
-                  AppUIConstants.primary.withValues(alpha: 0.03),
-                ],
-              ),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-            ),
-            child: Column(
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: PremiumCard(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppUIConstants.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.filter_list_rounded,
-                        size: 18,
-                        color: AppUIConstants.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Select Libraries',
-                            style: AppUIConstants.bodyMd.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            'Sending to ${widget.targetType}',
-                            style: AppUIConstants.caption.copyWith(
-                              color: AppUIConstants.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (widget.selectedLibraryIds.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppUIConstants.primary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${widget.selectedLibraryIds.length} selected',
-                          style: AppUIConstants.caption.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Search bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppUIConstants.background,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppUIConstants.border.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: TextField(
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    decoration: InputDecoration(
-                      hintText: 'Search libraries or owners...',
-                      hintStyle: TextStyle(
-                        color: AppUIConstants.textSecondary.withValues(alpha: 0.6),
-                        fontSize: 13,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search_rounded,
-                        size: 18,
-                        color: AppUIConstants.textSecondary,
-                      ),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(
-                                Icons.clear_rounded,
-                                size: 18,
-                                color: AppUIConstants.textSecondary,
-                              ),
-                              onPressed: () => setState(() => _searchQuery = ''),
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
+                const Expanded(child: PremiumSectionHeader('Choose PGs')),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: PremiumStatusPill(
+                    selectedCount == 0
+                        ? 'None selected'
+                        : '$selectedCount selected',
+                    key: ValueKey(selectedCount),
+                    color: selectedCount == 0
+                        ? AppUIConstants.textTertiary
+                        : AppUIConstants.primaryLight,
                   ),
                 ),
-                if (filtered.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: _toggleSelectAll,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: allSelected
-                            ? AppUIConstants.primary.withValues(alpha: 0.1)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppUIConstants.primary.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            allSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                            size: 18,
-                            color: AppUIConstants.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            allSelected ? 'Deselect All' : 'Select All',
-                            style: AppUIConstants.bodySm.copyWith(
-                              color: AppUIConstants.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
-          ),
-
-          // Library list
-          if (widget.libraries.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.library_books_outlined,
-                      size: 48,
-                      color: AppUIConstants.textSecondary.withValues(alpha: 0.5),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No libraries available',
-                      style: AppUIConstants.bodyMd.copyWith(
-                        color: AppUIConstants.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+            Text(
+              'Sending to ${widget.targetType}',
+              style: AppUIConstants.bodySm,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              style: AppUIConstants.bodyMd.copyWith(
+                color: AppUIConstants.textPrimary,
               ),
-            )
-          else if (filtered.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.search_off_rounded,
-                      size: 48,
-                      color: AppUIConstants.textSecondary.withValues(alpha: 0.5),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No libraries match your search',
-                      style: AppUIConstants.bodyMd.copyWith(
-                        color: AppUIConstants.textSecondary,
-                      ),
-                    ),
-                  ],
+              decoration: InputDecoration(
+                hintText: 'Search PGs or owners...',
+                hintStyle: const TextStyle(
+                  color: AppUIConstants.textTertiary,
+                  fontSize: 13,
                 ),
-              ),
-            )
-          else
-            Container(
-              constraints: const BoxConstraints(maxHeight: 280),
-              child: ListView.separated(
-                padding: const EdgeInsets.all(8),
-                shrinkWrap: true,
-                itemCount: filtered.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 4),
-                itemBuilder: (context, index) {
-                  final library = filtered[index];
-                  final isSelected = widget.selectedLibraryIds.contains(library.libraryId);
-                  
-                  return _LibraryTile(
-                    library: library,
-                    isSelected: isSelected,
-                    onToggle: () {
-                      final newSelection = Set<String>.from(widget.selectedLibraryIds);
-                      if (isSelected) {
-                        newSelection.remove(library.libraryId);
-                      } else {
-                        newSelection.add(library.libraryId);
-                      }
-                      widget.onSelectionChanged(newSelection);
-                    },
-                  );
-                },
+                filled: true,
+                fillColor: AppUIConstants.surfaceMuted,
+                isDense: true,
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  size: 18,
+                  color: AppUIConstants.textSecondary,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.clear_rounded,
+                          size: 18,
+                          color: AppUIConstants.textSecondary,
+                        ),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusSm + 2,
+                  ),
+                  borderSide: const BorderSide(color: AppUIConstants.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusSm + 2,
+                  ),
+                  borderSide: const BorderSide(color: AppUIConstants.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusSm + 2,
+                  ),
+                  borderSide: const BorderSide(
+                    color: AppUIConstants.primaryLight,
+                    width: 1.5,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
-        ],
+            if (filtered.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text('${filtered.length} PGs', style: AppUIConstants.caption),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: _toggleSelectAll,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppUIConstants.primaryLight,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: Icon(
+                      allSelected
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      size: 18,
+                    ),
+                    label: Text(allSelected ? 'Deselect all' : 'Select all'),
+                  ),
+                ],
+              ),
+            ],
+            if (widget.libraries.isEmpty)
+              const _EmptyNote(
+                icon: Icons.apartment_rounded,
+                text: 'No PGs available',
+              )
+            else if (filtered.isEmpty)
+              const _EmptyNote(
+                icon: Icons.search_off_rounded,
+                text: 'No PGs match your search',
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final library = filtered[index];
+                    final isSelected = widget.selectedLibraryIds.contains(
+                      library.libraryId,
+                    );
+                    return _LibraryTile(
+                      library: library,
+                      isSelected: isSelected,
+                      onToggle: () {
+                        final newSelection = Set<String>.from(
+                          widget.selectedLibraryIds,
+                        );
+                        if (isSelected) {
+                          newSelection.remove(library.libraryId);
+                        } else {
+                          newSelection.add(library.libraryId);
+                        }
+                        widget.onSelectionChanged(newSelection);
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyNote extends StatelessWidget {
+  const _EmptyNote({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(icon, size: 40, color: AppUIConstants.textTertiary),
+            const SizedBox(height: 10),
+            Text(text, style: AppUIConstants.bodyMd),
+          ],
+        ),
       ),
     );
   }
@@ -323,86 +261,99 @@ class _LibraryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onToggle,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppUIConstants.primary.withValues(alpha: 0.08)
-                : AppUIConstants.background.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected
-                  ? AppUIConstants.primary.withValues(alpha: 0.4)
-                  : AppUIConstants.border.withValues(alpha: 0.2),
-              width: isSelected ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppUIConstants.primary.withValues(alpha: 0.15)
-                      : AppUIConstants.surface,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  isSelected ? Icons.check_circle : Icons.local_library_rounded,
-                  size: 18,
-                  color: isSelected ? AppUIConstants.primary : AppUIConstants.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      library.libraryName,
-                      style: AppUIConstants.bodySm.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: isSelected
-                            ? AppUIConstants.primary
-                            : AppUIConstants.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+    final initial = library.libraryName.trim().isEmpty
+        ? '?'
+        : library.libraryName.trim()[0].toUpperCase();
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppUIConstants.primarySoft
+            : AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm + 2),
+        border: Border.all(
+          color: isSelected
+              ? AppUIConstants.primaryLight
+              : AppUIConstants.border,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusSm + 2),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppUIConstants.surface,
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusSm,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      library.ownerName,
-                      style: AppUIConstants.caption.copyWith(
-                        color: AppUIConstants.textSecondary,
-                        fontSize: 10,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: isSelected ? AppUIConstants.primary : Colors.transparent,
-                  border: Border.all(
-                    color: isSelected ? AppUIConstants.primary : AppUIConstants.border,
-                    width: 2,
                   ),
-                  borderRadius: BorderRadius.circular(4),
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: AppUIConstants.primaryLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                child: isSelected
-                    ? const Icon(Icons.check, size: 14, color: Colors.white)
-                    : null,
-              ),
-            ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        library.libraryName,
+                        style: AppUIConstants.bodyMd.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppUIConstants.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${library.ownerName} · ${library.activeMemberships} residents',
+                        style: AppUIConstants.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppUIConstants.primaryLight
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected
+                          ? AppUIConstants.primaryLight
+                          : AppUIConstants.disabled,
+                      width: 2,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: isSelected
+                      ? const Icon(
+                          Icons.check,
+                          size: 14,
+                          color: AppUIConstants.background,
+                        )
+                      : null,
+                ),
+              ],
+            ),
           ),
         ),
       ),

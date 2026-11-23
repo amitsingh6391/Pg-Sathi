@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,10 +7,11 @@ import '../../../core/di/injection_container.dart';
 import '../../../domain/entities/library_summary.dart';
 import '../../../domain/usecases/send_admin_broadcast_notification.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/admin_analytics_cubit.dart';
 import '../cubit/admin_library_management_cubit.dart';
 
-/// Admin screen for viewing detailed library analytics.
+/// Admin screen for viewing detailed PG analytics.
 class AdminLibraryAnalyticsScreen extends StatefulWidget {
   const AdminLibraryAnalyticsScreen({super.key});
 
@@ -24,6 +25,15 @@ class _AdminLibraryAnalyticsScreenState
   final _searchController = TextEditingController();
   String _sortBy = 'newest';
 
+  static const _sortLabels = {
+    'newest': 'Newest first',
+    'oldest': 'Oldest first',
+    'occupancy_high': 'Highest occupancy',
+    'occupancy_low': 'Lowest occupancy',
+    'seats_high': 'Most beds',
+    'name': 'Name (A-Z)',
+  };
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -35,14 +45,17 @@ class _AdminLibraryAnalyticsScreenState
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        title: const Text('Library Analytics'),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
+        title: const Text('PG Analytics', style: AppUIConstants.headingSm),
+        backgroundColor: AppUIConstants.background,
+        foregroundColor: AppUIConstants.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.sort),
+            icon: const Icon(Icons.sort_rounded),
             tooltip: 'Sort',
+            color: AppUIConstants.surfaceMuted,
+            initialValue: _sortBy,
             onSelected: (value) {
               setState(() => _sortBy = value);
             },
@@ -59,7 +72,7 @@ class _AdminLibraryAnalyticsScreenState
               ),
               const PopupMenuItem(
                 value: 'seats_high',
-                child: Text('Most Seats'),
+                child: Text('Most Beds'),
               ),
               const PopupMenuItem(value: 'name', child: Text('Name (A-Z)')),
             ],
@@ -69,145 +82,100 @@ class _AdminLibraryAnalyticsScreenState
       body: BlocBuilder<AdminAnalyticsCubit, AdminAnalyticsState>(
         builder: (context, state) {
           if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const _ListSkeleton();
           }
 
-          return Column(
+          final all = state.librarySummaries;
+          final expiringSoon = all
+              .where(
+                (l) =>
+                    !l.isSubscriptionExpired &&
+                    l.daysRemaining != null &&
+                    l.daysRemaining! <= 7,
+              )
+              .length;
+          final expired = all.where((l) => l.isSubscriptionExpired).length;
+          final filtered = _sortLibraries(state.filteredLibraries);
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppUIConstants.spacingLg,
+              4,
+              AppUIConstants.spacingLg,
+              32,
+            ),
             children: [
-              // Search Bar
-              Container(
-                padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-                color: AppUIConstants.surface,
-                child: Column(
+              _buildHero(all.length, _avgOccupancy(all)),
+              const SizedBox(height: AppUIConstants.spacingMd),
+              Row(
+                children: [
+                  Expanded(
+                    child: PremiumStatTile(
+                      icon: Icons.bed_rounded,
+                      value: '${_totalSeats(all)}',
+                      label: 'Total beds',
+                      color: AppUIConstants.primaryLight,
+                    ),
+                  ),
+                  const SizedBox(width: AppUIConstants.spacingMd),
+                  Expanded(
+                    child: PremiumStatTile(
+                      icon: Icons.hourglass_bottom_rounded,
+                      value: '$expiringSoon',
+                      label: 'Expiring in 7d',
+                      color: AppUIConstants.warning,
+                    ),
+                  ),
+                  const SizedBox(width: AppUIConstants.spacingMd),
+                  Expanded(
+                    child: PremiumStatTile(
+                      icon: Icons.event_busy_rounded,
+                      value: '$expired',
+                      label: 'Expired',
+                      color: AppUIConstants.error,
+                    ),
+                  ),
+                ],
+              ),
+              const PremiumSectionHeader('Find a PG'),
+              _buildSearchField(context),
+              const SizedBox(height: AppUIConstants.spacingMd),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by name, owner, or area...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  context
-                                      .read<AdminAnalyticsCubit>()
-                                      .clearLibraryFilter();
-                                  setState(() {});
-                                },
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppUIConstants.radiusMd,
-                          ),
-                          borderSide: BorderSide(color: AppUIConstants.border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppUIConstants.radiusMd,
-                          ),
-                          borderSide: BorderSide(color: AppUIConstants.border),
-                        ),
+                    for (final f in const [
+                      (null, 'All'),
+                      (7, '≤ 7 days'),
+                      (15, '≤ 15 days'),
+                      (30, '≤ 30 days'),
+                      (-1, 'Expired'),
+                    ]) ...[
+                      _FilterChip(
+                        label: f.$2,
+                        isSelected: state.expirationDaysFilter == f.$1,
+                        onTap: () => context
+                            .read<AdminAnalyticsCubit>()
+                            .filterByExpirationDays(f.$1),
                       ),
-                      onChanged: (value) {
-                        context.read<AdminAnalyticsCubit>().filterLibraries(
-                          value,
-                        );
-                        setState(() {});
-                      },
-                    ),
-                    const SizedBox(height: AppUIConstants.spacingMd),
-                    // Summary Row
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _StatChip(
-                            label: 'Total',
-                            value: '${state.librarySummaries.length}',
-                          ),
-                          const SizedBox(width: AppUIConstants.spacingMd),
-                          _StatChip(
-                            label: 'Total Seats',
-                            value: '${_totalSeats(state.librarySummaries)}',
-                          ),
-                          const SizedBox(width: AppUIConstants.spacingMd),
-                          _StatChip(
-                            label: 'Avg Occupancy',
-                            value: '${_avgOccupancy(state.librarySummaries)}%',
-                            color: AppUIConstants.accent,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppUIConstants.spacingMd),
-                    // Expiration Days Filter
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          Text(
-                            'Filter by Expiration:',
-                            style: AppUIConstants.bodySm.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: AppUIConstants.spacingSm),
-                          _FilterChip(
-                            label: 'All',
-                            isSelected: state.expirationDaysFilter == null,
-                            onTap: () => context
-                                .read<AdminAnalyticsCubit>()
-                                .filterByExpirationDays(null),
-                          ),
-                          const SizedBox(width: AppUIConstants.spacingXs),
-                          _FilterChip(
-                            label: '≤ 7 days',
-                            isSelected: state.expirationDaysFilter == 7,
-                            onTap: () => context
-                                .read<AdminAnalyticsCubit>()
-                                .filterByExpirationDays(7),
-                          ),
-                          const SizedBox(width: AppUIConstants.spacingXs),
-                          _FilterChip(
-                            label: '≤ 15 days',
-                            isSelected: state.expirationDaysFilter == 15,
-                            onTap: () => context
-                                .read<AdminAnalyticsCubit>()
-                                .filterByExpirationDays(15),
-                          ),
-                          const SizedBox(width: AppUIConstants.spacingXs),
-                          _FilterChip(
-                            label: '≤ 30 days',
-                            isSelected: state.expirationDaysFilter == 30,
-                            onTap: () => context
-                                .read<AdminAnalyticsCubit>()
-                                .filterByExpirationDays(30),
-                          ),
-                          const SizedBox(width: AppUIConstants.spacingXs),
-                          _FilterChip(
-                            label: 'Expired',
-                            isSelected: state.expirationDaysFilter == -1,
-                            onTap: () => context
-                                .read<AdminAnalyticsCubit>()
-                                .filterByExpirationDays(-1),
-                          ),
-                        ],
-                      ),
-                    ),
+                      const SizedBox(width: AppUIConstants.spacingSm),
+                    ],
                   ],
                 ),
               ),
-
-              // Library List
-              Expanded(
-                child: state.filteredLibraries.isEmpty
-                    ? _buildEmptyState()
-                    : _buildLibraryList(
-                        _sortLibraries(state.filteredLibraries),
-                      ),
+              PremiumSectionHeader(
+                '${filtered.length} ${filtered.length == 1 ? 'PG' : 'PGs'} · ${_sortLabels[_sortBy]}',
               ),
+              if (filtered.isEmpty)
+                _buildEmptyState()
+              else
+                for (final library in filtered)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: AppUIConstants.spacingMd,
+                    ),
+                    child: _LibraryDetailCard(library: library),
+                  ),
             ],
           );
         },
@@ -215,31 +183,159 @@ class _AdminLibraryAnalyticsScreenState
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildHero(int total, int avgOccupancy) {
+    return Container(
+      padding: const EdgeInsets.all(AppUIConstants.spacingXl),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border.all(color: AppUIConstants.border),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+      ),
+      child: Row(
         children: [
-          Icon(
-            Icons.business_outlined,
-            size: 64,
-            color: AppUIConstants.textTertiary,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'PGS ON PLATFORM',
+                  style: TextStyle(
+                    color: AppUIConstants.textSecondary,
+                    fontSize: 11.5,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '$total',
+                  style: const TextStyle(
+                    color: AppUIConstants.textPrimary,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'Average occupancy $avgOccupancy%',
+                  style: const TextStyle(
+                    color: AppUIConstants.textSecondary,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppUIConstants.spacingMd),
-          Text('No libraries found', style: AppUIConstants.bodyMd),
+          SizedBox(
+            width: 76,
+            height: 76,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: avgOccupancy / 100),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, v, _) => CircularProgressIndicator(
+                    value: v.clamp(0.0, 1.0),
+                    strokeWidth: 7,
+                    strokeCap: StrokeCap.round,
+                    backgroundColor: AppUIConstants.surfaceMuted,
+                    valueColor: const AlwaysStoppedAnimation(
+                      AppUIConstants.primary,
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    '$avgOccupancy%',
+                    style: const TextStyle(
+                      color: AppUIConstants.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLibraryList(List<LibrarySummary> libraries) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-      itemCount: libraries.length,
-      itemBuilder: (context, index) {
-        final library = libraries[index];
-        return _LibraryDetailCard(library: library);
+  Widget _buildSearchField(BuildContext context) {
+    OutlineInputBorder border(Color c) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+      borderSide: BorderSide(color: c),
+    );
+    return TextField(
+      controller: _searchController,
+      style: AppUIConstants.bodyMd,
+      cursorColor: AppUIConstants.primaryLight,
+      decoration: InputDecoration(
+        hintText: 'Search by name, owner, or area...',
+        hintStyle: AppUIConstants.bodyMd.copyWith(
+          color: AppUIConstants.textTertiary,
+        ),
+        filled: true,
+        fillColor: AppUIConstants.surface,
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: AppUIConstants.textTertiary,
+        ),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: AppUIConstants.textSecondary,
+                ),
+                onPressed: () {
+                  _searchController.clear();
+                  context.read<AdminAnalyticsCubit>().clearLibraryFilter();
+                  setState(() {});
+                },
+              )
+            : null,
+        border: border(AppUIConstants.border),
+        enabledBorder: border(AppUIConstants.border),
+        focusedBorder: border(AppUIConstants.primaryLight),
+      ),
+      onChanged: (value) {
+        context.read<AdminAnalyticsCubit>().filterLibraries(value);
+        setState(() {});
       },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                color: AppUIConstants.surfaceMuted,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                size: 34,
+                color: AppUIConstants.textTertiary,
+              ),
+            ),
+            const SizedBox(height: AppUIConstants.spacingMd),
+            Text('No PGs found', style: AppUIConstants.bodyLg),
+            const SizedBox(height: 4),
+            Text(
+              'Try a different search or filter',
+              style: AppUIConstants.bodySm,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -284,41 +380,59 @@ class _AdminLibraryAnalyticsScreenState
 // Supporting Widgets
 // ============================================================================
 
-class _StatChip extends StatelessWidget {
-  const _StatChip({required this.label, required this.value, this.color});
+class _ListSkeleton extends StatefulWidget {
+  const _ListSkeleton();
 
-  final String label;
-  final String value;
-  final Color? color;
+  @override
+  State<_ListSkeleton> createState() => _ListSkeletonState();
+}
+
+class _ListSkeletonState extends State<_ListSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _bone(double h) => Container(
+    height: h,
+    decoration: BoxDecoration(
+      color: AppUIConstants.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppUIConstants.spacingMd,
-        vertical: AppUIConstants.spacingSm,
-      ),
-      decoration: BoxDecoration(
-        color: (color ?? AppUIConstants.primary).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1).animate(_c),
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
         children: [
-          Text(
-            value,
-            style: AppUIConstants.bodyLg.copyWith(
-              color: color ?? AppUIConstants.primary,
-              fontWeight: FontWeight.bold,
-            ),
+          _bone(130),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          Row(
+            children: [
+              Expanded(child: _bone(96)),
+              const SizedBox(width: AppUIConstants.spacingMd),
+              Expanded(child: _bone(96)),
+              const SizedBox(width: AppUIConstants.spacingMd),
+              Expanded(child: _bone(96)),
+            ],
           ),
-          const SizedBox(width: AppUIConstants.spacingXs),
-          Text(
-            label,
-            style: AppUIConstants.caption.copyWith(
-              color: color ?? AppUIConstants.primary,
-            ),
-          ),
+          const SizedBox(height: AppUIConstants.spacingXl),
+          _bone(52),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          _bone(200),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          _bone(200),
         ],
       ),
     );
@@ -332,70 +446,108 @@ class _LibraryDetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppUIConstants.spacingMd),
-      decoration: AppUIConstants.cardDecoration,
+    final occColor = _getOccupancyColor(library.occupancyPercent);
+    return PremiumCard(
+      padding: EdgeInsets.zero,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-            decoration: BoxDecoration(
-              color: AppUIConstants.primary.withValues(alpha: 0.05),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppUIConstants.radiusMd),
-              ),
-            ),
-            child: Row(
+          Padding(
+            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppUIConstants.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(
-                      AppUIConstants.radiusSm,
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppUIConstants.primarySoft,
+                        borderRadius: BorderRadius.circular(
+                          AppUIConstants.radiusSm,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.apartment_rounded,
+                        color: AppUIConstants.primaryLight,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: AppUIConstants.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            library.libraryName,
+                            style: AppUIConstants.headingSm,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (library.area != null)
+                            Text(
+                              library.area!,
+                              style: AppUIConstants.bodySm,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (library.subscriptionStatus != null)
+                      PremiumStatusPill(
+                        _formatStatus(library.subscriptionStatus!),
+                        color: _getStatusColor(library.subscriptionStatus!),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppUIConstants.spacingLg),
+                Row(
+                  children: [
+                    Text(
+                      library.formattedOccupancy,
+                      style: AppUIConstants.statValue.copyWith(color: occColor),
+                    ),
+                    const SizedBox(width: AppUIConstants.spacingSm),
+                    Text('occupancy', style: AppUIConstants.caption),
+                    const Spacer(),
+                    Text(
+                      '${library.activeMemberships}/${library.totalSeats} beds active',
+                      style: AppUIConstants.bodySm,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppUIConstants.spacingSm),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusFull,
+                  ),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(
+                      begin: 0,
+                      end: (library.occupancyPercent / 100).clamp(0.0, 1.0),
+                    ),
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, _) => LinearProgressIndicator(
+                      value: v,
+                      minHeight: 6,
+                      backgroundColor: AppUIConstants.surfaceMuted,
+                      valueColor: AlwaysStoppedAnimation(occColor),
                     ),
                   ),
-                  child: Icon(
-                    Icons.business,
-                    color: AppUIConstants.primary,
-                    size: 24,
-                  ),
                 ),
-                const SizedBox(width: AppUIConstants.spacingMd),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        library.libraryName,
-                        style: AppUIConstants.headingSm,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (library.area != null)
-                        Text(
-                          library.area!,
-                          style: AppUIConstants.bodySm.copyWith(
-                            color: AppUIConstants.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                _buildOccupancyBadge(),
               ],
             ),
           ),
-
-          // Owner Details
+          const Divider(height: 1, color: AppUIConstants.divider),
           Padding(
-            padding: const EdgeInsets.all(AppUIConstants.spacingMd),
+            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
             child: Column(
               children: [
                 _DetailRow(
-                  icon: Icons.person_outline,
+                  icon: Icons.person_outline_rounded,
                   label: 'Owner',
                   value: library.ownerName,
                 ),
@@ -407,30 +559,14 @@ class _LibraryDetailCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppUIConstants.spacingSm),
                 _DetailRow(
-                  icon: Icons.event_seat,
-                  label: 'Seats',
-                  value:
-                      '${library.activeMemberships}/${library.totalSeats} active',
-                ),
-                const SizedBox(height: AppUIConstants.spacingSm),
-                _DetailRow(
-                  icon: Icons.calendar_today,
+                  icon: Icons.calendar_today_rounded,
                   label: 'Joined',
                   value: DateFormat('MMM d, yyyy').format(library.createdAt),
                 ),
-                if (library.subscriptionStatus != null) ...[
-                  const SizedBox(height: AppUIConstants.spacingSm),
-                  _DetailRow(
-                    icon: Icons.subscriptions,
-                    label: 'Subscription',
-                    value: _formatStatus(library.subscriptionStatus!),
-                    valueColor: _getStatusColor(library.subscriptionStatus!),
-                  ),
-                ],
                 if (library.subscriptionEndDate != null) ...[
                   const SizedBox(height: AppUIConstants.spacingSm),
                   _DetailRow(
-                    icon: Icons.calendar_today,
+                    icon: Icons.timelapse_rounded,
                     label: 'Expires',
                     value: _formatExpiration(library),
                     valueColor: _getExpirationColor(library),
@@ -439,65 +575,39 @@ class _LibraryDetailCard extends StatelessWidget {
               ],
             ),
           ),
-
-          // Actions
           Container(
-            padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppUIConstants.divider)),
+            padding: const EdgeInsets.fromLTRB(
+              AppUIConstants.spacingMd,
+              AppUIConstants.spacingSm,
+              AppUIConstants.spacingMd,
+              AppUIConstants.spacingMd,
             ),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openWhatsApp(context),
-                        icon: Icon(
-                          Icons.message,
-                          size: 18,
-                          color: AppUIConstants.success,
-                        ),
-                        label: const Text('WhatsApp'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppUIConstants.success,
-                          side: BorderSide(color: AppUIConstants.success),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppUIConstants.spacingMd),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _sendNotification(context),
-                        icon: Icon(
-                          Icons.notifications_active,
-                          size: 18,
-                          color: AppUIConstants.primary,
-                        ),
-                        label: const Text('Notify'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppUIConstants.primary,
-                          side: BorderSide(color: AppUIConstants.primary),
-                        ),
-                      ),
-                    ),
-                  ],
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.chat_rounded,
+                    label: 'WhatsApp',
+                    color: AppUIConstants.primaryLight,
+                    onTap: () => _openWhatsApp(context),
+                  ),
                 ),
-                const SizedBox(height: AppUIConstants.spacingSm),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _deleteLibraryData(context),
-                    icon: Icon(
-                      Icons.delete_sweep,
-                      size: 18,
-                      color: AppUIConstants.error,
-                    ),
-                    label: const Text('Delete All Library Data'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppUIConstants.error,
-                      side: BorderSide(color: AppUIConstants.error),
-                    ),
+                const SizedBox(width: AppUIConstants.spacingSm),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.notifications_active_rounded,
+                    label: 'Notify',
+                    color: AppUIConstants.primaryLight,
+                    onTap: () => _sendNotification(context),
+                  ),
+                ),
+                const SizedBox(width: AppUIConstants.spacingSm),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.delete_sweep_rounded,
+                    label: 'Delete data',
+                    color: AppUIConstants.error,
+                    onTap: () => _deleteLibraryData(context),
                   ),
                 ),
               ],
@@ -508,39 +618,8 @@ class _LibraryDetailCard extends StatelessWidget {
     );
   }
 
-  Widget _buildOccupancyBadge() {
-    final color = _getOccupancyColor(library.occupancyPercent);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppUIConstants.spacingMd,
-        vertical: AppUIConstants.spacingSm,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
-      ),
-      child: Column(
-        children: [
-          Text(
-            library.formattedOccupancy,
-            style: AppUIConstants.headingSm.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            'Occupancy',
-            style: AppUIConstants.caption.copyWith(color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
   Color _getOccupancyColor(double percent) {
-    if (percent >= 80) return AppUIConstants.success;
-    if (percent >= 50) return AppUIConstants.accent;
-    if (percent >= 25) return AppUIConstants.warning;
+    if (percent >= 25) return AppUIConstants.primaryLight;
     return AppUIConstants.textTertiary;
   }
 
@@ -596,10 +675,7 @@ class _LibraryDetailCard extends StatelessWidget {
     if (daysRemaining <= 15) {
       return AppUIConstants.warning;
     }
-    if (daysRemaining <= 30) {
-      return AppUIConstants.accent;
-    }
-    return AppUIConstants.success;
+    return AppUIConstants.textSecondary;
   }
 
   Future<void> _openWhatsApp(BuildContext context) async {
@@ -678,7 +754,7 @@ class _LibraryDetailCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete All Library Data'),
+        title: const Text('Delete All PG Data'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,11 +797,11 @@ class _LibraryDetailCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: AppUIConstants.spacingSm),
-                  const Text('• All memberships'),
+                  const Text('• All stays'),
                   const Text('• All payments'),
                   const Text('• All invoices'),
                   const Text(
-                    '• Student accounts (only if they have no other library memberships)',
+                    '• Tenant accounts (only if they have no other PG stays)',
                   ),
                   const SizedBox(height: AppUIConstants.spacingSm),
                   const Divider(),
@@ -734,7 +810,7 @@ class _LibraryDetailCard extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: Colors.blue.shade700,
+                        color: AppUIConstants.primaryLight,
                         size: 18,
                       ),
                       const SizedBox(width: AppUIConstants.spacingSm),
@@ -742,15 +818,15 @@ class _LibraryDetailCard extends StatelessWidget {
                         'Will be preserved:',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: AppUIConstants.primaryLight,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: AppUIConstants.spacingSm),
                   const Text(
-                    '• Students with memberships in other libraries',
-                    style: TextStyle(color: Colors.blue),
+                    '• Tenants with stays in other PGs',
+                    style: TextStyle(color: AppUIConstants.primaryLight),
                   ),
                 ],
               ),
@@ -759,12 +835,12 @@ class _LibraryDetailCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppUIConstants.spacingSm),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: AppUIConstants.error.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.red.shade700),
+                  Icon(Icons.error, color: AppUIConstants.error),
                   const SizedBox(width: AppUIConstants.spacingSm),
                   const Expanded(
                     child: Text(
@@ -812,7 +888,7 @@ class _LibraryDetailCard extends StatelessWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(width: AppUIConstants.spacingLg),
-            Text('Deleting library data...'),
+            Text('Deleting PG data...'),
           ],
         ),
       ),
@@ -830,7 +906,7 @@ class _LibraryDetailCard extends StatelessWidget {
     if (state.isSuccess) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(state.successMessage ?? 'Library data deleted'),
+          content: Text(state.successMessage ?? 'PG data deleted'),
           backgroundColor: AppUIConstants.success,
           duration: const Duration(seconds: 2),
         ),
@@ -850,6 +926,52 @@ class _LibraryDetailCard extends StatelessWidget {
   }
 }
 
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppUIConstants.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.label,
@@ -863,26 +985,32 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppUIConstants.spacingMd,
+          horizontal: AppUIConstants.spacingMd + 2,
           vertical: AppUIConstants.spacingSm,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppUIConstants.primary : AppUIConstants.surface,
+          color: isSelected
+              ? AppUIConstants.primarySoft
+              : AppUIConstants.surface,
           borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
           border: Border.all(
-            color: isSelected ? AppUIConstants.primary : AppUIConstants.border,
+            color: isSelected
+                ? AppUIConstants.primaryLight
+                : AppUIConstants.border,
           ),
         ),
         child: Text(
           label,
           style: AppUIConstants.bodySm.copyWith(
-            color: isSelected ? Colors.white : AppUIConstants.textPrimary,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected
+                ? AppUIConstants.primaryLight
+                : AppUIConstants.textSecondary,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -909,13 +1037,14 @@ class _DetailRow extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: AppUIConstants.textTertiary),
         const SizedBox(width: AppUIConstants.spacingSm),
-        SizedBox(width: 80, child: Text(label, style: AppUIConstants.caption)),
+        SizedBox(width: 64, child: Text(label, style: AppUIConstants.caption)),
         Expanded(
           child: Text(
             value,
+            textAlign: TextAlign.end,
             style: AppUIConstants.bodyMd.copyWith(
               color: valueColor,
-              fontWeight: valueColor != null ? FontWeight.w500 : null,
+              fontWeight: valueColor != null ? FontWeight.w600 : null,
             ),
           ),
         ),

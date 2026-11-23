@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/entities/subscription_plan.dart';
 import '../../../core/app_ui_constants.dart';
@@ -110,13 +110,6 @@ class _EditCustomPricingSheetState extends State<EditCustomPricingSheet> {
       decoration: BoxDecoration(
         color: AppUIConstants.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, -2),
-          ),
-        ],
       ),
       child: SafeArea(
         child: SingleChildScrollView(
@@ -210,13 +203,15 @@ class _EditCustomPricingSheetState extends State<EditCustomPricingSheet> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: AppUIConstants.success.withValues(alpha: 0.12),
+                              color: AppUIConstants.primaryLight.withValues(
+                                alpha: 0.12,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               _defaultPlanName,
                               style: AppUIConstants.caption.copyWith(
-                                color: AppUIConstants.success,
+                                color: AppUIConstants.primaryLight,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -267,7 +262,7 @@ class _EditCustomPricingSheetState extends State<EditCustomPricingSheet> {
                               Text(
                                 'Will use $_defaultPlanName plan (₹$_defaultPrice/month)',
                                 style: AppUIConstants.caption.copyWith(
-                                  color: AppUIConstants.success,
+                                  color: AppUIConstants.primaryLight,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -303,8 +298,8 @@ class _EditCustomPricingSheetState extends State<EditCustomPricingSheet> {
                       Expanded(
                         child: Text(
                           _clearPrice
-                              ? 'Default tier pricing is based on library capacity (${widget.libraryCapacity} seats → $_defaultPlanName plan).'
-                              : 'Custom pricing overrides the default tier pricing for this library.',
+                              ? 'Default tier pricing is based on PG capacity (${widget.libraryCapacity} beds → $_defaultPlanName plan).'
+                              : 'Custom pricing overrides the default tier pricing for this PG.',
                           style: AppUIConstants.bodySm.copyWith(
                             color: AppUIConstants.textSecondary,
                           ),

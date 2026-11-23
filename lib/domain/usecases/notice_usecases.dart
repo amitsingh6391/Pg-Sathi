@@ -15,7 +15,6 @@ class CreateNotice {
   Future<Either<Failure, Notice>> call({
     required String libraryId,
     required String ownerId,
-    required String title,
     required String description,
     required NoticeTargetAudience targetAudience,
     List<File> attachmentFiles = const [],
@@ -23,13 +22,13 @@ class CreateNotice {
     DateTime? scheduledFor,
     DateTime? expiresAt,
     bool sendPushNotification = true,
+    bool sendWhatsApp = false,
     List<String> targetSlotIds = const [],
     List<String> targetSeatIds = const [],
   }) {
     return repository.createNotice(
       libraryId: libraryId,
       ownerId: ownerId,
-      title: title,
       description: description,
       targetAudience: targetAudience,
       attachmentFiles: attachmentFiles,
@@ -37,6 +36,7 @@ class CreateNotice {
       scheduledFor: scheduledFor,
       expiresAt: expiresAt,
       sendPushNotification: sendPushNotification,
+      sendWhatsApp: sendWhatsApp,
       targetSlotIds: targetSlotIds,
       targetSeatIds: targetSeatIds,
     );
@@ -51,7 +51,6 @@ class UpdateNotice {
 
   Future<Either<Failure, Notice>> call({
     required String noticeId,
-    String? title,
     String? description,
     NoticeTargetAudience? targetAudience,
     List<File>? newAttachmentFiles,
@@ -65,7 +64,6 @@ class UpdateNotice {
   }) {
     return repository.updateNotice(
       noticeId: noticeId,
-      title: title,
       description: description,
       targetAudience: targetAudience,
       newAttachmentFiles: newAttachmentFiles,
@@ -187,10 +185,7 @@ class IncrementNoticeViewCount {
     required String noticeId,
     required String userId,
   }) {
-    return repository.incrementViewCount(
-      noticeId: noticeId,
-      userId: userId,
-    );
+    return repository.incrementViewCount(noticeId: noticeId, userId: userId);
   }
 }
 

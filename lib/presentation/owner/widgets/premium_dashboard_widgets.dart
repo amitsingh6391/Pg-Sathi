@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/app_ui_constants.dart';
 
@@ -188,7 +188,7 @@ class _QuickActionTile extends StatelessWidget {
 // LIBRARY PHOTOS SECTION - BOTTOM (Personal Touch)
 // =============================================================================
 
-/// PG photos section at bottom - personal branding touch.
+/// Library photos section at bottom - personal branding touch.
 class LibraryPhotosSection extends StatelessWidget {
   const LibraryPhotosSection({
     super.key,
@@ -223,7 +223,7 @@ class LibraryPhotosSection extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             const Text(
-              'Your PG',
+              'Your PG/Hostel',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -468,7 +468,7 @@ class _EmptyPhotosCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             const Text(
-              'Your PG',
+              'Your PG/Hostel',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -511,7 +511,7 @@ class _EmptyPhotosCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add PG Photos',
+                        'Add Library Photos',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -520,7 +520,7 @@ class _EmptyPhotosCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Make your PG stand out to tenants',
+                        'Make your pg/hostel stand out to students',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppUIConstants.textSecondary,

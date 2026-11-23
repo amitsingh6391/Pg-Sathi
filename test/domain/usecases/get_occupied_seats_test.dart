@@ -118,12 +118,9 @@ void main() {
           mockMembershipRepo.getActiveAndReservedMembershipsForLibrary(any),
         ).thenAnswer((_) async => Right(memberships));
         // Using batch fetch now - getUsersByIds instead of individual getUserById
-        when(
-          mockUserRepo.getUsersByIds(any),
-        ).thenAnswer((_) async => Right({
-              'user-1': testUser1,
-              'user-2': testUser2,
-            }));
+        when(mockUserRepo.getUsersByIds(any)).thenAnswer(
+          (_) async => Right({'user-1': testUser1, 'user-2': testUser2}),
+        );
 
         // Act
         final result = await useCase(params);

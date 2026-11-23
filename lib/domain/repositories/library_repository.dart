@@ -4,7 +4,6 @@ import '../core/failure.dart';
 import '../entities/library.dart';
 
 /// Repository interface for Library aggregate.
-/// V1: One library per owner.
 abstract class LibraryRepository {
   /// Creates a new library.
   Future<Either<Failure, Library>> createLibrary(Library library);
@@ -18,6 +17,9 @@ abstract class LibraryRepository {
   /// Gets the library owned by the given owner.
   /// Returns null if owner has no library.
   Future<Either<Failure, Library?>> getLibraryByOwnerId(String ownerId);
+
+  /// Gets all libraries owned by the given owner (multi-branch support).
+  Future<Either<Failure, List<Library>>> getLibrariesByOwnerId(String ownerId);
 
   /// Checks if owner already has a library.
   Future<Either<Failure, bool>> ownerHasLibrary(String ownerId);

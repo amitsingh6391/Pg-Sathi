@@ -1,11 +1,12 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/utils/file_download_helper.dart';
 
 import '../../../core/app_ui_constants.dart';
+import '../../../core/widgets/premium_kit.dart';
 import '../../cubit/bulk_import_cubit.dart';
 
 /// File picker section for selecting Excel file.
@@ -20,92 +21,48 @@ class _FilePickerSectionState extends State<FilePickerSection> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Action buttons
-          Column(
-            children: [
-              // Download Sample Button
-              _DownloadSampleButton(
-                onTap: () => _downloadSampleFile(context),
-              ),
-              const SizedBox(height: 16),
-              // Select File Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _pickFile(context),
-                  icon: const Icon(Icons.folder_open_rounded, size: 22),
-                  label: const Text(
-                    'Select Excel File to Import',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppUIConstants.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 4,
-                    shadowColor: AppUIConstants.primary.withValues(alpha: 0.4),
-                  ),
-                ),
-              ),
-            ],
+          // Dropzone-style file picker
+          _Dropzone(onTap: () => _pickFile(context)),
+          const SizedBox(height: 14),
+          _DownloadSampleButton(onTap: () => _downloadSampleFile(context)),
+          const PremiumSectionHeader('Before you import'),
+          const _InfoCard(
+            icon: Icons.table_chart_rounded,
+            title: 'Use the template',
+            message:
+                'Download the sample file to see the exact columns: resident name, phone, bed, dates and rent amount.',
+            color: AppUIConstants.primaryLight,
           ),
-          const SizedBox(height: 32),
-
-          // Info cards
-          Row(
-            children: [
-              Expanded(
-                child: _InfoCard(
-                  icon: Icons.lightbulb_outline_rounded,
-                  title: 'Quick Tip',
-                  message: 'Download sample file to see the exact format',
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _InfoCard(
-                  icon: Icons.warning_amber_rounded,
-                  title: 'Important',
-                  message: 'Ensure data accuracy before importing',
-                  color: Colors.amber,
-                ),
-              ),
-            ],
+          const SizedBox(height: 10),
+          const _InfoCard(
+            icon: Icons.fact_check_rounded,
+            title: 'Check your data',
+            message:
+                'You will review every row on the next step before anything is saved.',
+            color: AppUIConstants.warning,
           ),
           const SizedBox(height: 24),
-
-          // Cleanup section
-          _CleanupSection(
-            onCleanup: () => _confirmCleanup(context),
-          ),
+          _CleanupSection(onCleanup: () => _confirmCleanup(context)),
         ],
       ),
     );
   }
 
   Future<void> _pickFile(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['xlsx', 'xls'],
-      withData: true,
     );
+    if (file == null) return;
 
+    final bytes = await file.readAsBytes();
     if (!context.mounted) return;
 
-    if (result != null && result.files.isNotEmpty) {
-      final file = result.files.first;
-      if (file.bytes != null) {
-        context.read<BulkImportCubit>().parseExcelFile(file.bytes!, file.name);
-      }
-    }
+    context.read<BulkImportCubit>().parseExcelFile(bytes, file.name);
   }
 
   Future<void> _downloadSampleFile(BuildContext context) async {
@@ -128,7 +85,9 @@ class _FilePickerSectionState extends State<FilePickerSection> {
       try {
         data = await rootBundle.load('assets/xl_sheet/sample_data.xlsx');
       } catch (e) {
-        throw Exception('Sample file not found. Please ensure the asset is included in pubspec.yaml');
+        throw Exception(
+          'Sample file not found. Please ensure the asset is included in pubspec.yaml',
+        );
       }
 
       final Uint8List bytes = data.buffer.asUint8List();
@@ -146,16 +105,16 @@ class _FilePickerSectionState extends State<FilePickerSection> {
         // Get screen size to calculate a valid position
         final mediaQuery = MediaQuery.of(context);
         final screenSize = mediaQuery.size;
-        
+
         // Try to get the button's position from the context
         final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
         if (renderBox != null && renderBox.hasSize) {
           final size = renderBox.size;
           final position = renderBox.localToGlobal(Offset.zero);
           // Ensure valid rect with non-zero dimensions and within screen bounds
-          if (size.width > 0 && 
-              size.height > 0 && 
-              position.dx >= 0 && 
+          if (size.width > 0 &&
+              size.height > 0 &&
+              position.dx >= 0 &&
               position.dy >= 0 &&
               position.dx + size.width <= screenSize.width &&
               position.dy + size.height <= screenSize.height) {
@@ -167,7 +126,7 @@ class _FilePickerSectionState extends State<FilePickerSection> {
             );
           }
         }
-        
+
         // If we couldn't get button position, use a calculated position based on screen size
         if (sharePositionOrigin == null) {
           // Use center-bottom area (typical for download buttons)
@@ -175,7 +134,7 @@ class _FilePickerSectionState extends State<FilePickerSection> {
           final bottomY = screenSize.height * 0.85; // 85% down the screen
           final buttonWidth = screenSize.width * 0.8; // 80% of screen width
           final buttonHeight = 60.0;
-          
+
           sharePositionOrigin = Rect.fromLTWH(
             centerX - (buttonWidth / 2),
             bottomY - buttonHeight,
@@ -191,7 +150,8 @@ class _FilePickerSectionState extends State<FilePickerSection> {
       await FileDownloadHelper.downloadFile(
         bytes: bytes,
         fileName: 'bulk_import_sample.xlsx',
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        mimeType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         sharePositionOrigin: sharePositionOrigin,
       );
 
@@ -200,7 +160,7 @@ class _FilePickerSectionState extends State<FilePickerSection> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Sample file downloaded successfully!'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppUIConstants.success,
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 2),
           ),
@@ -211,7 +171,7 @@ class _FilePickerSectionState extends State<FilePickerSection> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to download sample file: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppUIConstants.error,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
           ),
@@ -224,11 +184,15 @@ class _FilePickerSectionState extends State<FilePickerSection> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppUIConstants.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+        ),
         title: Row(
           children: [
-            Icon(Icons.warning, color: Colors.red.shade700),
+            Icon(Icons.warning, color: AppUIConstants.error),
             const SizedBox(width: 8),
-            const Text('Confirm Cleanup'),
+            const Text('Confirm Cleanup', style: AppUIConstants.headingMd),
           ],
         ),
         content: Column(
@@ -237,27 +201,30 @@ class _FilePickerSectionState extends State<FilePickerSection> {
           children: [
             const Text(
               'This will permanently delete:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: AppUIConstants.bodyLg,
             ),
             const SizedBox(height: 12),
-            const Text('• All memberships for this library'),
-            const Text('• All payment records'),
-            const Text('• All invoices'),
+            const Text('• All stays for this PG', style: AppUIConstants.bodyMd),
+            const Text('• All payment records', style: AppUIConstants.bodyMd),
+            const Text('• All invoices', style: AppUIConstants.bodyMd),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: AppUIConstants.error.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error, color: Colors.red.shade700),
+                  Icon(Icons.error, color: AppUIConstants.error),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
                       'This action CANNOT be undone!',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppUIConstants.error,
+                      ),
                     ),
                   ),
                 ],
@@ -268,7 +235,10 @@ class _FilePickerSectionState extends State<FilePickerSection> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppUIConstants.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -276,12 +246,106 @@ class _FilePickerSectionState extends State<FilePickerSection> {
               context.read<BulkImportCubit>().cleanupLibraryData();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppUIConstants.error,
               foregroundColor: Colors.white,
             ),
             child: const Text('Delete All Data'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Dropzone-style tap target for picking the Excel file.
+class _Dropzone extends StatelessWidget {
+  const _Dropzone({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppUIConstants.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+        side: BorderSide(
+          color: AppUIConstants.primaryLight.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppUIConstants.primarySoft,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppUIConstants.primaryLight.withValues(alpha: 0.2),
+                      blurRadius: 24,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.upload_file_rounded,
+                  size: 38,
+                  color: AppUIConstants.primaryLight,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Tap to choose an Excel file',
+                style: AppUIConstants.headingSm,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '.xlsx or .xls with your residents list',
+                style: AppUIConstants.bodySm,
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppUIConstants.primaryLight,
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusFull,
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.folder_open_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Select file',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -295,70 +359,41 @@ class _DownloadSampleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppUIConstants.primary.withValues(alpha: 0.1),
-            AppUIConstants.primary.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppUIConstants.primary.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+    return PremiumCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppUIConstants.primary.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+            ),
+            child: const Icon(
+              Icons.download_rounded,
+              color: AppUIConstants.primaryLight,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppUIConstants.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.download_rounded,
-                    color: AppUIConstants.primary,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Download Sample File',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Get the exact Excel template',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
+                Text('Download Sample File', style: AppUIConstants.bodyLg),
+                Text(
+                  'Get the exact Excel template',
+                  style: AppUIConstants.bodySm,
                 ),
               ],
             ),
           ),
-        ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppUIConstants.textTertiary,
+          ),
+        ],
       ),
     );
   }
@@ -381,86 +416,44 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _getShade50(color),
-            _getShade50(color).withValues(alpha: 0.5),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _getShade200(color), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _getShade100(color),
-              borderRadius: BorderRadius.circular(8),
+              color: AppUIConstants.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
             ),
-            child: Icon(
-              icon,
-              color: _getShade700(color),
-              size: 20,
-            ),
+            child: Icon(icon, color: AppUIConstants.textSecondary, size: 20),
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            style: TextStyle(
-              color: Colors.grey.shade700,
-              fontSize: 12,
-              height: 1.4,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppUIConstants.bodyLg),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: AppUIConstants.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  Color _getShade50(Color color) {
-    if (color == Colors.blue) return Colors.blue.shade50;
-    if (color == Colors.amber) return Colors.amber.shade50;
-    return color.withValues(alpha: 0.05);
-  }
-
-  Color _getShade100(Color color) {
-    if (color == Colors.blue) return Colors.blue.shade100;
-    if (color == Colors.amber) return Colors.amber.shade100;
-    return color.withValues(alpha: 0.1);
-  }
-
-  Color _getShade200(Color color) {
-    if (color == Colors.blue) return Colors.blue.shade200;
-    if (color == Colors.amber) return Colors.amber.shade200;
-    return color.withValues(alpha: 0.2);
-  }
-
-  Color _getShade700(Color color) {
-    if (color == Colors.blue) return Colors.blue.shade700;
-    if (color == Colors.amber) return Colors.amber.shade700;
-    return color;
   }
 }
 
@@ -473,18 +466,11 @@ class _CleanupSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.shade200, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+        border: Border.all(color: AppUIConstants.error.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,36 +480,32 @@ class _CleanupSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppUIConstants.error.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.cleaning_services_rounded,
-                  color: Colors.red.shade700,
+                  color: AppUIConstants.error,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
               const Text(
-                'Data Cleanup',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Color(0xFF1E293B),
-                ),
+                'Danger zone: Data Cleanup',
+                style: AppUIConstants.bodyLg,
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'Need to re-import? Delete all existing memberships and payments for this library first.',
+          const Text(
+            'Need to re-import? Delete all existing stays and payments for this PG first.',
             style: TextStyle(
-              color: Colors.grey.shade700,
+              color: AppUIConstants.textSecondary,
               fontSize: 13,
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -531,11 +513,13 @@ class _CleanupSection extends StatelessWidget {
               icon: const Icon(Icons.delete_sweep_rounded),
               label: const Text('Clear PG/Hostel Data'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red.shade700,
-                side: BorderSide(color: Colors.red.shade300, width: 1.5),
+                foregroundColor: AppUIConstants.error,
+                side: BorderSide(
+                  color: AppUIConstants.error.withValues(alpha: 0.5),
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
                 ),
               ),
             ),

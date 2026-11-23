@@ -26,6 +26,7 @@ class LibraryDto {
     this.isProfileComplete = false,
     this.ownerPhone,
     this.ownerUpiId,
+    this.ownerUpiQrUrl,
     // Custom Pricing
     this.customMonthlyPrice,
     this.customDiscount,
@@ -61,6 +62,7 @@ class LibraryDto {
   final bool isProfileComplete;
   final String? ownerPhone;
   final String? ownerUpiId;
+  final String? ownerUpiQrUrl;
 
   // Custom Pricing
   final double? customMonthlyPrice;
@@ -102,10 +104,13 @@ class LibraryDto {
       isProfileComplete: data['isProfileComplete'] as bool? ?? false,
       ownerPhone: data['ownerPhone'] as String?,
       ownerUpiId: data['ownerUpiId'] as String?,
+      ownerUpiQrUrl: data['ownerUpiQrUrl'] as String?,
       // Custom Pricing
       customMonthlyPrice: (data['customMonthlyPrice'] as num?)?.toDouble(),
       customDiscount: data['customDiscount'] != null
-          ? CustomDiscountDto.fromMap(data['customDiscount'] as Map<String, dynamic>)
+          ? CustomDiscountDto.fromMap(
+              data['customDiscount'] as Map<String, dynamic>,
+            )
           : null,
       // Timestamps
       createdAt: data['createdAt'] as Timestamp?,
@@ -143,6 +148,7 @@ class LibraryDto {
       'isProfileComplete': isProfileComplete,
       if (ownerPhone != null) 'ownerPhone': ownerPhone,
       if (ownerUpiId != null) 'ownerUpiId': ownerUpiId,
+      if (ownerUpiQrUrl != null) 'ownerUpiQrUrl': ownerUpiQrUrl,
       // Custom Pricing
       if (customMonthlyPrice != null) 'customMonthlyPrice': customMonthlyPrice,
       if (customDiscount != null) 'customDiscount': customDiscount!.toMap(),

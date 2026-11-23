@@ -86,23 +86,25 @@ class BulkImportState extends Equatable {
       invalidRows: invalidRows ?? this.invalidRows,
       importProgress: importProgress ?? this.importProgress,
       currentRowIndex: currentRowIndex ?? this.currentRowIndex,
-      importSummary: clearSummary ? null : (importSummary ?? this.importSummary),
+      importSummary: clearSummary
+          ? null
+          : (importSummary ?? this.importSummary),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 
   @override
   List<Object?> get props => [
-        status,
-        fileName,
-        parsedRows,
-        validRows,
-        invalidRows,
-        importProgress,
-        currentRowIndex,
-        importSummary,
-        errorMessage,
-      ];
+    status,
+    fileName,
+    parsedRows,
+    validRows,
+    invalidRows,
+    importProgress,
+    currentRowIndex,
+    importSummary,
+    errorMessage,
+  ];
 }
 
 /// Status of the bulk import process.

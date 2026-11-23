@@ -96,7 +96,7 @@ class SubscriptionPlan extends Equatable {
     if (seatCount <= 0) {
       return pricingTiers.first; // tier_149
     }
-    
+
     for (final plan in pricingTiers) {
       if (plan.appliesTo(seatCount)) {
         return plan;

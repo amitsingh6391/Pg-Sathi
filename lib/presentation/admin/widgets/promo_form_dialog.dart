@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +10,7 @@ import '../../../data/services/storage_service.dart';
 import '../../../domain/entities/promo_offer.dart';
 import '../../../domain/usecases/promo/promo_usecases.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import 'promo_preview_dialog.dart';
 
 /// Dialog for creating/editing a promo offer.
@@ -76,125 +77,208 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppUIConstants.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-      ),
-      child: Container(
-        width: 500,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
+  InputDecoration _decoration(String label, {String? hint}) {
+    OutlineInputBorder b(Color c, [double w = 1]) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusSm + 2),
+      borderSide: BorderSide(color: c, width: w),
+    );
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: AppUIConstants.surfaceMuted,
+      labelStyle: const TextStyle(color: AppUIConstants.textSecondary),
+      hintStyle: const TextStyle(color: AppUIConstants.textTertiary),
+      border: b(AppUIConstants.border),
+      enabledBorder: b(AppUIConstants.border),
+      focusedBorder: b(AppUIConstants.primaryLight, 1.5),
+      errorBorder: b(AppUIConstants.error),
+      focusedErrorBorder: b(AppUIConstants.error, 1.5),
+    );
+  }
+
+  Widget _section(String title, IconData icon, List<Widget> children) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppUIConstants.spacingMd),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTextField(
-                        controller: _titleController,
-                        label: 'Title',
-                        hint: 'e.g., Get 30% Off!',
-                        validator: (v) =>
-                            v?.isEmpty == true ? 'Required' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildImagePicker(),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _ctaTextController,
-                        label: 'CTA Button Text',
-                        hint: "e.g., I'm Interested",
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDropdown<PromoCtaAction>(
-                        label: 'CTA Action',
-                        value: _ctaAction,
-                        items: PromoCtaAction.values,
-                        itemLabel: _ctaActionLabel,
-                        onChanged: (v) => setState(() => _ctaAction = v!),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _ctaValueController,
-                        label: 'CTA Value',
-                        hint: _ctaActionHint(_ctaAction),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDropdown<PromoTargetAudience>(
-                        label: 'Target Audience',
-                        value: _targetAudience,
-                        items: PromoTargetAudience.values,
-                        itemLabel: _audienceLabel,
-                        onChanged: (v) => setState(() => _targetAudience = v!),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDropdown<PromoDisplayFrequency>(
-                        label: 'Display Frequency',
-                        value: _displayFrequency,
-                        items: PromoDisplayFrequency.values,
-                        itemLabel: _frequencyLabel,
-                        onChanged: (v) =>
-                            setState(() => _displayFrequency = v!),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _priorityController,
-                        label: 'Priority (higher = shown first)',
-                        hint: '1',
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDatePickers(),
-                      const SizedBox(height: 16),
-                      _buildActiveSwitch(),
-                    ],
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: AppUIConstants.primaryLight.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusSm,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 16,
+                    color: AppUIConstants.primaryLight,
                   ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Text(title, style: AppUIConstants.headingSm),
+              ],
             ),
-            _buildActions(),
+            const SizedBox(height: 14),
+            ...children,
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppUIConstants.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppUIConstants.radiusMd),
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.of(context).size.width >= 640;
+    final form = Column(
+      children: [
+        _buildHeader(wide),
+        Expanded(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _section('Basics', Icons.title_rounded, [
+                    _buildTextField(
+                      controller: _titleController,
+                      label: 'Title',
+                      hint: 'e.g., Get 30% Off!',
+                      validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                    ),
+                  ]),
+                  _section('Creative', Icons.image_outlined, [
+                    _buildImagePicker(),
+                  ]),
+                  _section('Call to action', Icons.touch_app_outlined, [
+                    _buildTextField(
+                      controller: _ctaTextController,
+                      label: 'Button text',
+                      hint: "e.g., I'm Interested",
+                    ),
+                    const SizedBox(height: 14),
+                    _buildDropdown<PromoCtaAction>(
+                      label: 'Button action',
+                      value: _ctaAction,
+                      items: PromoCtaAction.values,
+                      itemLabel: _ctaActionLabel,
+                      onChanged: (v) => setState(() => _ctaAction = v!),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildTextField(
+                      controller: _ctaValueController,
+                      label: 'Action value',
+                      hint: _ctaActionHint(_ctaAction),
+                    ),
+                  ]),
+                  _section('Targeting', Icons.people_outline_rounded, [
+                    _buildDropdown<PromoTargetAudience>(
+                      label: 'Target audience',
+                      value: _targetAudience,
+                      items: PromoTargetAudience.values,
+                      itemLabel: _audienceLabel,
+                      onChanged: (v) => setState(() => _targetAudience = v!),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildDropdown<PromoDisplayFrequency>(
+                      label: 'Display frequency',
+                      value: _displayFrequency,
+                      items: PromoDisplayFrequency.values,
+                      itemLabel: _frequencyLabel,
+                      onChanged: (v) => setState(() => _displayFrequency = v!),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildTextField(
+                      controller: _priorityController,
+                      label: 'Priority (higher = shown first)',
+                      hint: '1',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    ),
+                  ]),
+                  _section('Schedule', Icons.event_outlined, [
+                    _buildDatePickers(),
+                  ]),
+                  _section('Visibility', Icons.visibility_outlined, [
+                    _buildActiveSwitch(),
+                  ]),
+                ],
+              ),
+            ),
+          ),
         ),
+        _buildActions(),
+      ],
+    );
+
+    return Dialog(
+      backgroundColor: AppUIConstants.background,
+      insetPadding: wide ? const EdgeInsets.all(24) : EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(wide ? AppUIConstants.radiusLg : 0),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: wide
+          ? SizedBox(
+              width: 520,
+              height: MediaQuery.of(context).size.height * 0.88,
+              child: form,
+            )
+          : SizedBox.expand(child: SafeArea(child: form)),
+    );
+  }
+
+  Widget _buildHeader(bool wide) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 8, 14),
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border(bottom: BorderSide(color: AppUIConstants.border)),
       ),
       child: Row(
         children: [
-          Icon(
-            isEditing ? Icons.edit_rounded : Icons.add_rounded,
-            color: AppUIConstants.primary,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppUIConstants.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+            ),
+            child: Icon(
+              isEditing ? Icons.edit_rounded : Icons.local_offer_rounded,
+              color: AppUIConstants.primaryLight,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
-          Text(
-            isEditing ? 'Edit Promo' : 'New Promo',
-            style: AppUIConstants.headingMd,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isEditing ? 'Edit promo' : 'New promo',
+                  style: AppUIConstants.headingMd,
+                ),
+                const Text(
+                  'Shown as a popup on the owner dashboard',
+                  style: AppUIConstants.caption,
+                ),
+              ],
+            ),
           ),
-          const Spacer(),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(
+              Icons.close_rounded,
+              color: AppUIConstants.textSecondary,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -215,13 +299,8 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
       validator: validator,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        ),
-      ),
+      style: AppUIConstants.bodyLg,
+      decoration: _decoration(label, hint: hint),
     );
   }
 
@@ -229,10 +308,7 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Promo Image',
-          style: AppUIConstants.bodyMd.copyWith(fontWeight: FontWeight.w500),
-        ),
+        Text('Promo image', style: AppUIConstants.bodyMd),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: _pickImage,
@@ -240,7 +316,7 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
             height: 180,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: AppUIConstants.background,
+              color: AppUIConstants.surfaceMuted,
               borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
               border: Border.all(color: AppUIConstants.border, width: 1.5),
             ),
@@ -255,8 +331,8 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
                 _selectedImage != null
                     ? 'Image selected'
                     : _existingImageUrl != null && _existingImageUrl!.isNotEmpty
-                        ? 'Using existing image'
-                        : 'Default image will be used',
+                    ? 'Using existing image'
+                    : 'Default image will be used',
                 style: AppUIConstants.bodySm.copyWith(
                   color: AppUIConstants.textTertiary,
                 ),
@@ -372,12 +448,10 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
           .map((e) => DropdownMenuItem(value: e, child: Text(itemLabel(e))))
           .toList(),
       onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        ),
-      ),
+      dropdownColor: AppUIConstants.surfaceMuted,
+      isExpanded: true,
+      style: AppUIConstants.bodyLg,
+      decoration: _decoration(label),
     );
   }
 
@@ -389,23 +463,22 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
           child: InkWell(
             onTap: () => _pickDate(isStart: true),
             child: InputDecorator(
-              decoration: InputDecoration(
-                labelText: 'Start Date',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                ),
-              ),
+              decoration: _decoration('Start date'),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     _startDate != null ? formatter.format(_startDate!) : 'Now',
-                    style: AppUIConstants.bodyMd,
+                    style: AppUIConstants.bodyLg,
                   ),
                   if (_startDate != null)
                     GestureDetector(
                       onTap: () => setState(() => _startDate = null),
-                      child: const Icon(Icons.clear, size: 18),
+                      child: const Icon(
+                        Icons.clear,
+                        size: 18,
+                        color: AppUIConstants.textSecondary,
+                      ),
                     ),
                 ],
               ),
@@ -417,23 +490,22 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
           child: InkWell(
             onTap: () => _pickDate(isStart: false),
             child: InputDecorator(
-              decoration: InputDecoration(
-                labelText: 'End Date',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                ),
-              ),
+              decoration: _decoration('End date'),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     _endDate != null ? formatter.format(_endDate!) : 'Never',
-                    style: AppUIConstants.bodyMd,
+                    style: AppUIConstants.bodyLg,
                   ),
                   if (_endDate != null)
                     GestureDetector(
                       onTap: () => setState(() => _endDate = null),
-                      child: const Icon(Icons.clear, size: 18),
+                      child: const Icon(
+                        Icons.clear,
+                        size: 18,
+                        color: AppUIConstants.textSecondary,
+                      ),
                     ),
                 ],
               ),
@@ -467,7 +539,7 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
     return Container(
       padding: const EdgeInsets.all(AppUIConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppUIConstants.background,
+        color: AppUIConstants.surfaceMuted,
         borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
         border: Border.all(color: AppUIConstants.border),
       ),
@@ -476,7 +548,7 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
           Icon(
             _isActive ? Icons.visibility : Icons.visibility_off,
             color: _isActive
-                ? AppUIConstants.success
+                ? AppUIConstants.primaryLight
                 : AppUIConstants.textTertiary,
           ),
           const SizedBox(width: 12),
@@ -484,9 +556,11 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Active', style: AppUIConstants.bodyMd),
+                Text('Active', style: AppUIConstants.bodyLg),
                 Text(
-                  _isActive ? 'Promo is visible to owners' : 'Promo is hidden',
+                  _isActive
+                      ? 'Promo is visible to its audience'
+                      : 'Promo is hidden',
                   style: AppUIConstants.bodySm.copyWith(
                     color: AppUIConstants.textTertiary,
                   ),
@@ -497,8 +571,10 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
           Switch(
             value: _isActive,
             onChanged: (v) => setState(() => _isActive = v),
-            activeTrackColor: AppUIConstants.success.withValues(alpha: 0.5),
-            activeThumbColor: AppUIConstants.success,
+            activeTrackColor: AppUIConstants.primaryLight.withValues(
+              alpha: 0.5,
+            ),
+            activeThumbColor: AppUIConstants.primaryLight,
           ),
         ],
       ),
@@ -507,58 +583,50 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
 
   Widget _buildActions() {
     return Container(
-      padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surface,
         border: Border(top: BorderSide(color: AppUIConstants.border)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _showPreview,
-              icon: const Icon(Icons.visibility_outlined, size: 18),
-              label: const Text('Preview as Owner'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppUIConstants.accent,
-                side: BorderSide(color: AppUIConstants.accent),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+          OutlinedButton.icon(
+            onPressed: _showPreview,
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('Preview'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppUIConstants.primaryLight,
+              side: const BorderSide(color: AppUIConstants.primaryLight),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _savePromo,
+              style: AppUIConstants.accentButtonStyle,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 150),
+                child: _isSaving
+                    ? const SizedBox(
+                        key: ValueKey('s'),
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        isEditing ? 'Update promo' : 'Create promo',
+                        key: const ValueKey('t'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _savePromo,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppUIConstants.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(isEditing ? 'Update' : 'Create'),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -695,7 +763,7 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
       case PromoTargetAudience.allOwners:
         return 'All Owners';
       case PromoTargetAudience.allStudents:
-        return 'All Students';
+        return 'All Residents';
       case PromoTargetAudience.freeTier:
         return 'Free Tier Only';
       case PromoTargetAudience.paid:
@@ -707,11 +775,11 @@ class _PromoFormDialogState extends State<PromoFormDialog> {
       case PromoTargetAudience.newOwners:
         return 'New Owners (< 7 days)';
       case PromoTargetAudience.activeMembership:
-        return 'Active Students';
+        return 'Active Residents';
       case PromoTargetAudience.expiredMembership:
-        return 'Expired Students';
+        return 'Expired Residents';
       case PromoTargetAudience.noMembership:
-        return 'No Membership';
+        return 'No Stay';
     }
   }
 

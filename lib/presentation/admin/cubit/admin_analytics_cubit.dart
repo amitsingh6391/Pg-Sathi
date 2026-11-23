@@ -60,7 +60,8 @@ class AdminAnalyticsCubit extends Cubit<AdminAnalyticsState> {
       (data) => userActivity = data as UserActivityStats,
     );
 
-    if (errorMessage != null && state.dashboardStats == const AdminDashboardStats.empty()) {
+    if (errorMessage != null &&
+        state.dashboardStats == const AdminDashboardStats.empty()) {
       emit(
         state.copyWith(
           status: AdminAnalyticsStatus.error,

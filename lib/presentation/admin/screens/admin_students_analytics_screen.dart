@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/di/injection_container.dart';
@@ -7,6 +7,7 @@ import '../../../domain/entities/library.dart';
 import '../../../domain/repositories/membership_repository.dart';
 import '../../../domain/repositories/library_repository.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../utils/admin_contact_helper.dart';
 
 /// Admin screen showing all students grouped by library.
@@ -29,7 +30,8 @@ class _AdminStudentsAnalyticsScreenState
   bool _isLoading = true;
   String? _error;
   String _searchQuery = '';
-  
+  final _searchController = TextEditingController();
+
   // Bulk messaging state
   bool _isSendingBulk = false;
   int _bulkProgress = 0;
@@ -40,6 +42,12 @@ class _AdminStudentsAnalyticsScreenState
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -70,12 +78,12 @@ class _AdminStudentsAnalyticsScreenState
       Map<String, int>? membershipCounts;
 
       librariesResult.fold(
-        (failure) => errorMsg = failure.message ?? 'Failed to load libraries',
+        (failure) => errorMsg = failure.message ?? 'Failed to load PGs',
         (data) => libraries = data as List<Library>,
       );
       countsResult.fold(
         (failure) =>
-            errorMsg ??= failure.message ?? 'Failed to load membership counts',
+            errorMsg ??= failure.message ?? 'Failed to load stay counts',
         (data) => membershipCounts = data as Map<String, int>,
       );
 
@@ -147,7 +155,7 @@ class _AdminStudentsAnalyticsScreenState
       if (mounted) {
         result.fold(
           (failure) {
-            debugPrint('Failed to load students: ${failure.message}');
+            debugPrint('Failed to load tenants: ${failure.message}');
             setState(() {
               _loadingStudentsForLibraries.remove(libraryId);
               _studentsByLibrary[libraryId] = [];
@@ -163,7 +171,7 @@ class _AdminStudentsAnalyticsScreenState
       }
     } catch (e) {
       if (mounted) {
-        debugPrint('Error loading students: $e');
+        debugPrint('Error loading tenants: $e');
         setState(() {
           _loadingStudentsForLibraries.remove(libraryId);
           _studentsByLibrary[libraryId] = [];
@@ -192,8 +200,8 @@ class _AdminStudentsAnalyticsScreenState
     return _libraryCache.entries.where((entry) {
       final library = entry.value;
       final students = _studentsByLibrary[entry.key];
-      final areaMatch = library.area != null &&
-          library.area!.toLowerCase().contains(query);
+      final areaMatch =
+          library.area != null && library.area!.toLowerCase().contains(query);
 
       if (students == null) {
         return library.name.toLowerCase().contains(query) || areaMatch;
@@ -201,13 +209,12 @@ class _AdminStudentsAnalyticsScreenState
 
       return library.name.toLowerCase().contains(query) ||
           areaMatch ||
-          students.any(
-            (s) {
-              final nameMatch = s.studentName != null &&
-                  s.studentName!.toLowerCase().contains(query);
-              return nameMatch || s.phoneNumber.toLowerCase().contains(query);
-            },
-          );
+          students.any((s) {
+            final nameMatch =
+                s.studentName != null &&
+                s.studentName!.toLowerCase().contains(query);
+            return nameMatch || s.phoneNumber.toLowerCase().contains(query);
+          });
     }).toList();
   }
 
@@ -221,16 +228,17 @@ class _AdminStudentsAnalyticsScreenState
 
   Future<void> _showMessageCustomizationDialog() async {
     final controller = TextEditingController(
-      text: _customMessage ??
+      text:
+          _customMessage ??
           '''Hi {name}! 👋
 
-Your library *{library}* uses our official app to manage memberships and seat bookings.
+Your PG *{library}* uses our official app to manage stays and bed bookings.
 
 📱 *Download the app now:*
 • Android: ${AppConstants.playStoreUrl}
 • iOS: ${AppConstants.appStoreUrl}
 
-Manage your membership, book seats, and make payments - all in one place!
+Manage your stay, book beds, and make payments - all in one place!
 
 Thank you! 📚''',
     );
@@ -240,7 +248,7 @@ Thank you! 📚''',
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.edit_note, color: AppUIConstants.primary),
+            Icon(Icons.edit_note, color: AppUIConstants.primaryLight),
             SizedBox(width: 8),
             Text('Customize Message'),
           ],
@@ -251,7 +259,7 @@ Thank you! 📚''',
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Available placeholders: {name}, {library}',
+                'Available placeholders: {name}, {library} (PG name)',
                 style: AppUIConstants.caption.copyWith(
                   color: AppUIConstants.textSecondary,
                 ),
@@ -266,7 +274,7 @@ Thank you! 📚''',
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: AppUIConstants.background,
+                  fillColor: AppUIConstants.surfaceMuted,
                 ),
               ),
             ],
@@ -301,7 +309,7 @@ Thank you! 📚''',
     if (allStudents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No students found'),
+          content: Text('No residents found'),
           backgroundColor: AppUIConstants.warning,
         ),
       );
@@ -312,9 +320,9 @@ Thank you! 📚''',
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Send WhatsApp to All Students?'),
+        title: const Text('Send WhatsApp to All Residents?'),
         content: Text(
-          'This will send WhatsApp messages to ${allStudents.length} students one by one. You\'ll need to confirm each message in WhatsApp.',
+          'This will send WhatsApp messages to ${allStudents.length} residents one by one. You\'ll need to confirm each message in WhatsApp.',
         ),
         actions: [
           TextButton(
@@ -349,7 +357,8 @@ Thank you! 📚''',
 
       if (library == null) continue;
 
-      final message = _customMessage ??
+      final message =
+          _customMessage ??
           AdminContactHelper.generateAppDownloadMessage(
             studentName: student.studentName ?? 'Student',
             libraryName: library.name,
@@ -384,7 +393,7 @@ Thank you! 📚''',
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Sent WhatsApp to $_bulkTotal students'),
+          content: Text('Sent WhatsApp to $_bulkTotal residents'),
           backgroundColor: AppUIConstants.success,
           duration: const Duration(seconds: 2),
         ),
@@ -397,13 +406,17 @@ Thank you! 📚''',
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        title: const Text('Students Management'),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Residents Management',
+          style: AppUIConstants.headingSm,
+        ),
+        backgroundColor: AppUIConstants.background,
+        foregroundColor: AppUIConstants.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadData,
             tooltip: 'Refresh',
           ),
@@ -414,194 +427,20 @@ Thank you! 📚''',
           : FloatingActionButton.extended(
               onPressed: _sendBulkWhatsApp,
               backgroundColor: AppUIConstants.primary,
-              icon: const Icon(Icons.send, color: Colors.white),
+              icon: const Icon(Icons.send_rounded, color: Colors.white),
               label: const Text(
-                'Send All WhatsApp',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                'Message all residents',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-      body: Column(
-        children: [
-          // Search and stats bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppUIConstants.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Search bar
-                TextField(
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                  decoration: InputDecoration(
-                    hintText: 'Search libraries or students...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => setState(() => _searchQuery = ''),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppUIConstants.divider),
-                    ),
-                    filled: true,
-                    fillColor: AppUIConstants.background,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Stats row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.local_library_rounded,
-                        label: 'Libraries',
-                        value: '${_libraryCache.length}',
-                        color: AppUIConstants.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.school_rounded,
-                        label: 'Students',
-                        value: '${_studentCountsByLibrary.values.fold<int>(0, (sum, count) => sum + count)}',
-                        color: AppUIConstants.accent,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.message_rounded,
-                        label: 'Total',
-                        value: '${_allStudents.length}',
-                        color: AppUIConstants.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                // Message customization button
-                if (_customMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppUIConstants.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AppUIConstants.primary.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.edit_note,
-                                  size: 16,
-                                  color: AppUIConstants.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Custom message set',
-                                    style: AppUIConstants.bodySm.copyWith(
-                                      color: AppUIConstants.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: _showMessageCustomizationDialog,
-                                  child: const Text('Edit'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: OutlinedButton.icon(
-                      onPressed: _showMessageCustomizationDialog,
-                      icon: const Icon(Icons.edit_note, size: 18),
-                      label: const Text('Customize Message'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppUIConstants.primary,
-                        side: BorderSide(color: AppUIConstants.primary),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          // Bulk sending progress
-          if (_isSendingBulk)
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: AppUIConstants.primary.withValues(alpha: 0.1),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Sending WhatsApp messages...',
-                          style: AppUIConstants.bodyMd.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '$_bulkProgress/$_bulkTotal',
-                        style: AppUIConstants.bodyMd.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppUIConstants.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: _bulkTotal > 0 ? _bulkProgress / _bulkTotal : 0,
-                    backgroundColor: AppUIConstants.divider,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppUIConstants.primary),
-                  ),
-                ],
-              ),
-            ),
-          // Content
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? _buildErrorView()
-                    : _buildContent(),
-          ),
-        ],
-      ),
+      body: _isLoading
+          ? const _StudentsSkeleton()
+          : _error != null
+          ? _buildErrorView()
+          : _buildContent(),
     );
   }
 
@@ -610,12 +449,20 @@ Thank you! 📚''',
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.error_outline,
-              color: AppUIConstants.error,
-              size: 64,
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                color: AppUIConstants.surfaceMuted,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.cloud_off_rounded,
+                color: AppUIConstants.textSecondary,
+                size: 34,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -626,7 +473,7 @@ Thank you! 📚''',
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _loadData,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppUIConstants.primary,
@@ -639,59 +486,313 @@ Thank you! 📚''',
     );
   }
 
-  Widget _buildContent() {
-    final filteredLibraries = _filteredLibraries;
+  Widget _buildHeaderSection() {
+    final totalResidents = _studentCountsByLibrary.values.fold<int>(
+      0,
+      (sum, count) => sum + count,
+    );
+    final avg = _libraryCache.isEmpty
+        ? 0
+        : (totalResidents / _libraryCache.length).round();
 
-    if (filteredLibraries.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    OutlineInputBorder border(Color c) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+      borderSide: BorderSide(color: c),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Hero KPI
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppUIConstants.surface,
+            border: Border.all(color: AppUIConstants.border),
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'ACTIVE RESIDENTS',
+                style: TextStyle(
+                  color: AppUIConstants.textSecondary,
+                  fontSize: 11.5,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$totalResidents',
+                style: const TextStyle(
+                  color: AppUIConstants.textPrimary,
+                  fontSize: 40,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                'across ${_libraryCache.length} PGs',
+                style: const TextStyle(
+                  color: AppUIConstants.textSecondary,
+                  fontSize: 12.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
           children: [
-            Icon(
-              Icons.school_outlined,
-              size: 64,
-              color: AppUIConstants.textTertiary,
+            Expanded(
+              child: PremiumStatTile(
+                icon: Icons.apartment_rounded,
+                label: 'PGs',
+                value: '${_libraryCache.length}',
+                color: AppUIConstants.primaryLight,
+              ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              _searchQuery.isEmpty
-                  ? 'No libraries found'
-                  : 'No results found',
-              style: AppUIConstants.bodyLg.copyWith(
-                color: AppUIConstants.textTertiary,
+            const SizedBox(width: 12),
+            Expanded(
+              child: PremiumStatTile(
+                icon: Icons.groups_rounded,
+                label: 'Avg / PG',
+                value: '$avg',
+                color: AppUIConstants.primaryLight,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: PremiumStatTile(
+                icon: Icons.mark_chat_read_rounded,
+                label: 'Loaded',
+                value: '${_allStudents.length}',
+                color: AppUIConstants.primaryLight,
               ),
             ),
           ],
         ),
-      );
-    }
+        const PremiumSectionHeader('Search & messaging'),
+        TextField(
+          controller: _searchController,
+          onChanged: (value) => setState(() => _searchQuery = value),
+          style: AppUIConstants.bodyMd,
+          cursorColor: AppUIConstants.primaryLight,
+          decoration: InputDecoration(
+            hintText: 'Search PGs or residents...',
+            hintStyle: AppUIConstants.bodyMd.copyWith(
+              color: AppUIConstants.textTertiary,
+            ),
+            prefixIcon: const Icon(
+              Icons.search_rounded,
+              color: AppUIConstants.textTertiary,
+            ),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppUIConstants.textSecondary,
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  )
+                : null,
+            border: border(AppUIConstants.border),
+            enabledBorder: border(AppUIConstants.border),
+            focusedBorder: border(AppUIConstants.primaryLight),
+            filled: true,
+            fillColor: AppUIConstants.surface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        PremiumCard(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          onTap: _showMessageCustomizationDialog,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppUIConstants.primarySoft,
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+                ),
+                child: const Icon(
+                  Icons.edit_note_rounded,
+                  size: 18,
+                  color: AppUIConstants.primaryLight,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _customMessage != null
+                          ? 'Custom message set'
+                          : 'Customize WhatsApp message',
+                      style: AppUIConstants.bodyMd.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      _customMessage != null
+                          ? 'Tap to edit'
+                          : 'Using the default app download message',
+                      style: AppUIConstants.caption,
+                    ),
+                  ],
+                ),
+              ),
+              if (_customMessage != null)
+                const PremiumStatusPill(
+                  'Custom',
+                  color: AppUIConstants.primaryLight,
+                )
+              else
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppUIConstants.textTertiary,
+                ),
+            ],
+          ),
+        ),
+        if (_isSendingBulk) ...[
+          const SizedBox(height: 12),
+          PremiumCard(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppUIConstants.primaryLight,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Sending WhatsApp messages...',
+                        style: AppUIConstants.bodyMd.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$_bulkProgress/$_bulkTotal',
+                      style: AppUIConstants.bodyMd.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppUIConstants.primaryLight,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusFull,
+                  ),
+                  child: LinearProgressIndicator(
+                    value: _bulkTotal > 0 ? _bulkProgress / _bulkTotal : 0,
+                    minHeight: 6,
+                    backgroundColor: AppUIConstants.surfaceMuted,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppUIConstants.primaryLight,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        PremiumSectionHeader(_searchQuery.isEmpty ? 'PGs' : 'Results'),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    final filteredLibraries = _filteredLibraries;
+    final maxCount = _studentCountsByLibrary.values.fold<int>(
+      0,
+      (m, c) => c > m ? c : m,
+    );
 
     return RefreshIndicator(
+      color: AppUIConstants.primaryLight,
+      backgroundColor: AppUIConstants.surface,
       onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: filteredLibraries.length,
-        itemBuilder: (context, index) {
-          final entry = filteredLibraries[index];
-          final library = entry.value;
-          final libraryId = entry.key;
-          final studentCount = _studentCountsByLibrary[libraryId] ?? 0;
-          final students = _studentsByLibrary[libraryId];
-          final isLoading = _loadingStudentsForLibraries.contains(libraryId);
-          final isExpanded = _expandedLibraries.contains(libraryId);
-
-          return _LibraryCard(
-            library: library,
-            studentCount: studentCount,
-            students: students,
-            isLoading: isLoading,
-            isExpanded: isExpanded,
-            searchQuery: _searchQuery,
-            customMessage: _customMessage,
-            onExpand: () => _toggleLibraryExpansion(libraryId),
-            onSendAll: () => _sendWhatsAppToLibrary(libraryId, library, students ?? []),
-          );
-        },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+        children: [
+          _buildHeaderSection(),
+          if (filteredLibraries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: const BoxDecoration(
+                        color: AppUIConstants.surfaceMuted,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.search_off_rounded,
+                        size: 34,
+                        color: AppUIConstants.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _searchQuery.isEmpty
+                          ? 'No PGs found'
+                          : 'No results found',
+                      style: AppUIConstants.bodyLg,
+                    ),
+                    if (_searchQuery.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Try a different PG, resident or phone',
+                          style: AppUIConstants.bodySm,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            )
+          else
+            for (final entry in filteredLibraries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _LibraryCard(
+                  library: entry.value,
+                  studentCount: _studentCountsByLibrary[entry.key] ?? 0,
+                  maxCount: maxCount,
+                  students: _studentsByLibrary[entry.key],
+                  isLoading: _loadingStudentsForLibraries.contains(entry.key),
+                  isExpanded: _expandedLibraries.contains(entry.key),
+                  searchQuery: _searchQuery,
+                  customMessage: _customMessage,
+                  onExpand: () => _toggleLibraryExpansion(entry.key),
+                  onSendAll: () => _sendWhatsAppToLibrary(
+                    entry.key,
+                    entry.value,
+                    _studentsByLibrary[entry.key] ?? [],
+                  ),
+                ),
+              ),
+        ],
       ),
     );
   }
@@ -704,7 +805,7 @@ Thank you! 📚''',
     if (students.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No students in this library'),
+          content: Text('No residents in this PG'),
           backgroundColor: AppUIConstants.warning,
         ),
       );
@@ -714,9 +815,9 @@ Thank you! 📚''',
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Send WhatsApp to All Students?'),
+        title: const Text('Send WhatsApp to All Residents?'),
         content: Text(
-          'This will send WhatsApp messages to ${students.length} students in ${library.name} one by one.',
+          'This will send WhatsApp messages to ${students.length} residents in ${library.name} one by one.',
         ),
         actions: [
           TextButton(
@@ -741,7 +842,8 @@ Thank you! 📚''',
       if (!mounted) break;
 
       final student = students[i];
-      final message = _customMessage ??
+      final message =
+          _customMessage ??
           AdminContactHelper.generateAppDownloadMessage(
             studentName: student.studentName ?? 'Student',
             libraryName: library.name,
@@ -762,7 +864,7 @@ Thank you! 📚''',
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Sent WhatsApp to ${students.length} students'),
+          content: Text('Sent WhatsApp to ${students.length} residents'),
           backgroundColor: AppUIConstants.success,
         ),
       );
@@ -770,62 +872,101 @@ Thank you! 📚''',
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+class _StudentsSkeleton extends StatefulWidget {
+  const _StudentsSkeleton();
 
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
+  @override
+  State<_StudentsSkeleton> createState() => _StudentsSkeletonState();
+}
+
+class _StudentsSkeletonState extends State<_StudentsSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _bone(double h) => Container(
+    height: h,
+    decoration: BoxDecoration(
+      color: AppUIConstants.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1).animate(_c),
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 18),
+          _bone(120),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _bone(96)),
+              const SizedBox(width: 12),
+              Expanded(child: _bone(96)),
+              const SizedBox(width: 12),
+              Expanded(child: _bone(96)),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: AppUIConstants.bodyLg.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: AppUIConstants.caption.copyWith(
-                    color: AppUIConstants.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 24),
+          _bone(52),
+          const SizedBox(height: 12),
+          _bone(72),
+          const SizedBox(height: 12),
+          _bone(72),
         ],
+      ),
+    );
+  }
+}
+
+class _IconAction extends StatelessWidget {
+  const _IconAction({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.tooltip,
+    this.size = 18,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final String? tooltip;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: Material(
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+          child: Padding(
+            padding: const EdgeInsets.all(9),
+            child: Icon(
+              icon,
+              color: color == AppUIConstants.error
+                  ? AppUIConstants.error
+                  : AppUIConstants.primaryLight,
+              size: size,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -835,6 +976,7 @@ class _LibraryCard extends StatelessWidget {
   const _LibraryCard({
     required this.library,
     required this.studentCount,
+    this.maxCount = 0,
     this.students,
     required this.isLoading,
     required this.isExpanded,
@@ -846,6 +988,7 @@ class _LibraryCard extends StatelessWidget {
 
   final Library library;
   final int studentCount;
+  final int maxCount;
   final List<Membership>? students;
   final bool isLoading;
   final bool isExpanded;
@@ -877,236 +1020,206 @@ class _LibraryCard extends StatelessWidget {
 
     final query = searchQuery.toLowerCase();
     return students!.where((s) {
-      return s.studentName?.toLowerCase().contains(query) ?? false ||
-          s.phoneNumber.toLowerCase().contains(query);
+      return s.studentName?.toLowerCase().contains(query) ??
+          false || s.phoneNumber.toLowerCase().contains(query);
     }).toList();
   }
+
+  Widget _panelMessage(String text) => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Center(
+      child: Text(
+        text,
+        style: AppUIConstants.bodySm.copyWith(
+          color: AppUIConstants.textTertiary,
+        ),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final filteredStudents = _filteredStudents;
+    final hasPhone =
+        library.ownerPhone != null && library.ownerPhone!.isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppUIConstants.divider.withValues(alpha: 0.1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return PremiumCard(
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
-          // Library header
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onExpand,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppUIConstants.primary.withValues(alpha: 0.05),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppUIConstants.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.local_library_rounded,
-                        color: AppUIConstants.primary,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            library.name,
-                            style: AppUIConstants.bodyLg.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+          InkWell(
+            onTap: onExpand,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppUIConstants.primarySoft,
+                          borderRadius: BorderRadius.circular(
+                            AppUIConstants.radiusSm,
                           ),
-                          if (library.area != null) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on_rounded,
-                                  size: 12,
-                                  color: AppUIConstants.textSecondary,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    library.area!,
-                                    style: AppUIConstants.caption,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
+                        ),
+                        child: const Icon(
+                          Icons.apartment_rounded,
+                          color: AppUIConstants.primaryLight,
+                          size: 18,
+                        ),
                       ),
-                    ),
-                    // Owner call button
-                    if (library.ownerPhone != null &&
-                        library.ownerPhone!.isNotEmpty)
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _callOwner(context),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppUIConstants.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AppUIConstants.primary.withValues(alpha: 0.3),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              library.name,
+                              style: AppUIConstants.bodyLg.copyWith(
+                                fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            child: Icon(
-                              Icons.phone_rounded,
-                              color: AppUIConstants.primary,
-                              size: 18,
-                            ),
-                          ),
+                            if (library.area != null) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_rounded,
+                                    size: 12,
+                                    color: AppUIConstants.textTertiary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      library.area!,
+                                      style: AppUIConstants.caption,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    if (library.ownerPhone != null &&
-                        library.ownerPhone!.isNotEmpty)
-                      const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppUIConstants.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppUIConstants.accent.withValues(alpha: 0.3),
+                      if (hasPhone) ...[
+                        _IconAction(
+                          icon: Icons.phone_rounded,
+                          color: AppUIConstants.primaryLight,
+                          tooltip: 'Call owner',
+                          onTap: () => _callOwner(context),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: AppUIConstants.textSecondary,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.school_rounded,
-                            size: 14,
-                            color: AppUIConstants.accent,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '$studentCount',
-                            style: AppUIConstants.bodySm.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppUIConstants.accent,
-                            ),
-                          ),
-                        ],
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Text(
+                        '$studentCount',
+                        style: AppUIConstants.statValue.copyWith(
+                          color: AppUIConstants.primaryLight,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('residents', style: AppUIConstants.caption),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusFull,
+                    ),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(
+                        begin: 0,
+                        end: maxCount > 0 ? studentCount / maxCount : 0,
+                      ),
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOutCubic,
+                      builder: (_, v, _) => LinearProgressIndicator(
+                        value: v,
+                        minHeight: 5,
+                        backgroundColor: AppUIConstants.surfaceMuted,
+                        valueColor: const AlwaysStoppedAnimation(
+                          AppUIConstants.primaryLight,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: AppUIConstants.textSecondary,
-                      size: 20,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-          // Students list
-          if (isExpanded) ...[
-            if (isLoading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else if (students == null)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Text(
-                    'Tap to load students',
-                    style: AppUIConstants.bodySm.copyWith(
-                      color: AppUIConstants.textTertiary,
-                    ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: !isExpanded
+                ? const SizedBox(width: double.infinity)
+                : Column(
+                    children: [
+                      const Divider(height: 1, color: AppUIConstants.divider),
+                      if (isLoading)
+                        const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppUIConstants.primaryLight,
+                            ),
+                          ),
+                        )
+                      else if (students == null)
+                        _panelMessage('Tap to load residents')
+                      else if (filteredStudents.isEmpty)
+                        _panelMessage('No residents found')
+                      else ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: onSendAll,
+                              icon: const Icon(Icons.send_rounded, size: 18),
+                              label: Text(
+                                'Message all (${filteredStudents.length})',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppUIConstants.primaryLight,
+                                side: const BorderSide(
+                                  color: AppUIConstants.primaryLight,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        ...filteredStudents.map(
+                          (membership) => _StudentCard(
+                            membership: membership,
+                            libraryName: library.name,
+                            customMessage: customMessage,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              )
-            else if (filteredStudents.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Text(
-                    'No students found',
-                    style: AppUIConstants.bodySm.copyWith(
-                      color: AppUIConstants.textTertiary,
-                    ),
-                  ),
-                ),
-              )
-            else ...[
-              // Send all button for this library
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: onSendAll,
-                    icon: const Icon(Icons.send_rounded, size: 18),
-                    label: Text('Send WhatsApp to All (${filteredStudents.length})'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppUIConstants.primary,
-                      side: BorderSide(color: AppUIConstants.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ),
-              const Divider(height: 1),
-              // Student list
-              ...filteredStudents.map(
-                (membership) => _StudentCard(
-                  membership: membership,
-                  libraryName: library.name,
-                  customMessage: customMessage,
-                ),
-              ),
-            ],
-          ],
+          ),
         ],
       ),
     );
@@ -1125,7 +1238,8 @@ class _StudentCard extends StatelessWidget {
   final String? customMessage;
 
   Future<void> _sendWhatsApp(BuildContext context) async {
-    final message = customMessage ??
+    final message =
+        customMessage ??
         AdminContactHelper.generateAppDownloadMessage(
           studentName: membership.studentName ?? 'Student',
           libraryName: libraryName,
@@ -1152,28 +1266,31 @@ class _StudentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = membership.studentName;
+    final initial = (name != null && name.isNotEmpty)
+        ? name[0].toUpperCase()
+        : '?';
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: AppUIConstants.divider.withValues(alpha: 0.1),
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppUIConstants.divider)),
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppUIConstants.accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
+              color: AppUIConstants.surfaceMuted,
+              shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.person_rounded,
-              color: AppUIConstants.accent,
-              size: 20,
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: AppUIConstants.primaryLight,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -1182,31 +1299,19 @@ class _StudentCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  membership.studentName ?? 'Unknown Student',
+                  name ?? 'Unknown Resident',
                   style: AppUIConstants.bodyMd.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.phone_rounded,
-                      size: 12,
-                      color: AppUIConstants.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        membership.phoneNumber,
-                        style: AppUIConstants.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  membership.phoneNumber,
+                  style: AppUIConstants.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -1214,27 +1319,12 @@ class _StudentCard extends StatelessWidget {
           const SizedBox(width: 8),
           _StatusChip(status: membership.status),
           const SizedBox(width: 8),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _sendWhatsApp(context),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppUIConstants.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppUIConstants.primary.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Icon(
-                  Icons.send_rounded,
-                  color: AppUIConstants.primary,
-                  size: 16,
-                ),
-              ),
-            ),
+          _IconAction(
+            icon: Icons.send_rounded,
+            color: AppUIConstants.primaryLight,
+            size: 16,
+            tooltip: 'Send WhatsApp',
+            onTap: () => _sendWhatsApp(context),
           ),
         ],
       ),
@@ -1259,6 +1349,9 @@ class _StatusChip extends StatelessWidget {
       case MembershipStatus.pendingPayment:
         color = AppUIConstants.warning;
         label = 'Pending';
+      case MembershipStatus.pendingApproval:
+        color = AppUIConstants.warning;
+        label = 'Requested';
       case MembershipStatus.expired:
         color = AppUIConstants.textTertiary;
         label = 'Expired';
@@ -1270,24 +1363,6 @@ class _StatusChip extends StatelessWidget {
         label = 'Suspended';
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Text(
-        label,
-        style: AppUIConstants.caption.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-          fontSize: 10,
-        ),
-      ),
-    );
+    return PremiumStatusPill(label, color: color);
   }
 }

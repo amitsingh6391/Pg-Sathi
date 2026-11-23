@@ -1,174 +1,398 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/entities/library.dart';
 import '../../../../domain/entities/membership.dart';
 import '../../cubit/membership_assignment_state.dart';
+import '../../../core/app_ui_constants.dart';
+import '../../../core/widgets/premium_kit.dart';
 
-/// Fixed app header for tenant stay assignment screen.
+/// Hero header for the Add Tenant flow: back button, title, PG name and the
+/// step indicator.
 class MembershipAppHeader extends StatelessWidget {
   const MembershipAppHeader({
     super.key,
     required this.library,
     this.onBulkImport,
+    this.stepper,
   });
 
   final Library library;
   final VoidCallback? onBulkImport;
 
+  /// Optional step indicator rendered inside the hero.
+  final Widget? stepper;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: 8,
-        right: 16,
-        bottom: 12,
-      ),
-      decoration: const BoxDecoration(color: Color(0xFF1E293B)),
-      child: Row(
+    return PremiumHero(
+      padding: const EdgeInsets.fromLTRB(8, 4, 16, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppUIConstants.textPrimary,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Add Tenant',
+                      style: TextStyle(
+                        color: AppUIConstants.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    Text(
+                      library.name,
+                      style: const TextStyle(
+                        color: AppUIConstants.textSecondary,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Assign Tenant Stay',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  library.name,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 12,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          if (stepper != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 16, 0, 0),
+              child: stepper,
             ),
-          ),
-          // Bulk import button removed from header - now shown prominently in main content
         ],
       ),
     );
   }
 }
 
-/// Single-step progress indicator showing current assignment phase.
-class MembershipProgressIndicator extends StatelessWidget {
-  const MembershipProgressIndicator({super.key, required this.step1Complete});
+/// Three-step progress indicator: Resident -> Bed -> Rent & plan.
+/// [done] marks completed steps; [current] is the active (first incomplete).
+class MembershipStepper extends StatelessWidget {
+  const MembershipStepper({
+    super.key,
+    required this.done,
+    required this.current,
+  });
 
-  final bool step1Complete;
+  final List<bool> done;
+  final int current;
+
+  static const _labels = ['Resident', 'Bed', 'Rent & plan'];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          _StepIndicator(
-            step: 1,
-            label: 'Select Bed',
-            isComplete: step1Complete,
-            isActive: !step1Complete,
-          ),
+    final children = <Widget>[];
+    for (var i = 0; i < _labels.length; i++) {
+      children.add(
+        _StepDot(
+          index: i,
+          label: _labels[i],
+          isDone: done[i],
+          isActive: i == current,
+        ),
+      );
+      if (i < _labels.length - 1) {
+        children.add(
           Expanded(
-            child: Container(
-              height: 2,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: step1Complete
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(1),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 18, left: 6, right: 6),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                height: 3,
+                decoration: BoxDecoration(
+                  color: done[i]
+                      ? AppUIConstants.primaryLight
+                      : AppUIConstants.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
           ),
-          _StepIndicator(
-            step: 2,
-            label: 'Add Tenant',
-            isComplete: false,
-            isActive: step1Complete,
-          ),
-        ],
-      ),
+        );
+      }
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
     );
   }
 }
 
-class _StepIndicator extends StatelessWidget {
-  const _StepIndicator({
-    required this.step,
+class _StepDot extends StatelessWidget {
+  const _StepDot({
+    required this.index,
     required this.label,
-    required this.isComplete,
+    required this.isDone,
     required this.isActive,
   });
 
-  final int step;
+  final int index;
   final String label;
-  final bool isComplete;
+  final bool isDone;
   final bool isActive;
 
   @override
   Widget build(BuildContext context) {
-    final color = isComplete
-        ? const Color(0xFF10B981)
-        : isActive
-        ? const Color(0xFF6366F1)
-        : const Color(0xFF94A3B8);
-
-    return Row(
+    final filled = isDone || isActive;
+    return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 24,
-          height: 24,
+          duration: const Duration(milliseconds: 250),
+          width: 30,
+          height: 30,
           decoration: BoxDecoration(
-            color: isComplete || isActive ? color : Colors.transparent,
-            border: Border.all(color: color, width: 2),
-            borderRadius: BorderRadius.circular(12),
+            shape: BoxShape.circle,
+            color: isDone
+                ? AppUIConstants.primaryLight
+                : (isActive
+                      ? AppUIConstants.primary
+                      : AppUIConstants.surfaceMuted),
+            border: Border.all(
+              color: filled ? Colors.transparent : AppUIConstants.border,
+            ),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: AppUIConstants.primary.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                    ),
+                  ]
+                : null,
           ),
           child: Center(
-            child: isComplete
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+            child: isDone
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
                 : Text(
-                    step.toString(),
+                    '${index + 1}',
                     style: TextStyle(
-                      color: isActive ? Colors.white : color,
-                      fontSize: 12,
+                      color: isActive
+                          ? Colors.white
+                          : AppUIConstants.textSecondary,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(height: 6),
         Text(
           label,
           style: TextStyle(
-            color: isComplete || isActive
-                ? const Color(0xFF1E293B)
-                : const Color(0xFF94A3B8),
-            fontSize: 13,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            color: filled
+                ? AppUIConstants.textPrimary
+                : AppUIConstants.textSecondary,
+            fontSize: 11.5,
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Section card with an icon-well header, used for each step of the flow.
+class MembershipStepCard extends StatelessWidget {
+  const MembershipStepCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.child,
+    this.trailing,
+    this.iconColor = AppUIConstants.primaryLight,
+    this.dimmed = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final Widget? trailing;
+  final Color iconColor;
+  final bool dimmed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 250),
+      opacity: dimmed ? 0.55 : 1,
+      child: PremiumCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(
+                        AppUIConstants.radiusSm,
+                      ),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: AppUIConstants.headingSm),
+                        if (subtitle != null)
+                          Text(subtitle!, style: AppUIConstants.bodySm),
+                      ],
+                    ),
+                  ),
+                  if (trailing != null) trailing!,
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppUIConstants.divider),
+            Padding(padding: const EdgeInsets.all(16), child: child),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sticky bottom bar: live summary (bed + rent) and the primary CTA.
+class MembershipStickyBar extends StatelessWidget {
+  const MembershipStickyBar({
+    super.key,
+    required this.bedLabel,
+    required this.roomLabel,
+    required this.total,
+    required this.ctaLabel,
+    required this.onPressed,
+    this.isSubmitting = false,
+    this.ready = false,
+  });
+
+  final String? bedLabel;
+  final String? roomLabel;
+  final double? total;
+  final String ctaLabel;
+  final VoidCallback? onPressed;
+  final bool isSubmitting;
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        12 + MediaQuery.of(context).padding.bottom,
+      ),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surface,
+        border: const Border(top: BorderSide(color: AppUIConstants.border)),
+        boxShadow: [AppUIConstants.shadowLg],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: bedLabel == null
+                  ? const Column(
+                      key: ValueKey('none'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('No bed selected', style: AppUIConstants.bodyLg),
+                        Text(
+                          'Pick a bed on the bed map',
+                          style: AppUIConstants.bodySm,
+                        ),
+                      ],
+                    )
+                  : Column(
+                      key: ValueKey('$bedLabel-$total'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          total != null
+                              ? '\u20b9${total!.toStringAsFixed(0)}'
+                              : 'Bed $bedLabel',
+                          style: AppUIConstants.headingMd,
+                        ),
+                        Text(
+                          [
+                            'Bed $bedLabel',
+                            if (roomLabel != null) roomLabel!,
+                          ].join(' \u00b7 '),
+                          style: AppUIConstants.bodySm,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: isSubmitting ? null : onPressed,
+              style: AppUIConstants.primaryButtonStyle.copyWith(
+                backgroundColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.disabled)
+                      ? AppUIConstants.disabled
+                      : (ready
+                            ? AppUIConstants.primaryLight
+                            : AppUIConstants.surfaceMuted),
+                ),
+                foregroundColor: WidgetStatePropertyAll(
+                  ready ? Colors.white : AppUIConstants.textSecondary,
+                ),
+              ),
+              child: isSubmitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          ctaLabel,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -209,19 +433,9 @@ class MembershipSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E293B), Color(0xFF334155)],
-        ),
+        color: AppUIConstants.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1E293B).withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: AppUIConstants.border),
       ),
       child: Column(
         children: [
@@ -231,12 +445,12 @@ class MembershipSummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: AppUIConstants.primarySoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.apartment_rounded,
-                  color: Colors.white,
+                  color: AppUIConstants.primary,
                   size: 20,
                 ),
               ),
@@ -248,7 +462,7 @@ class MembershipSummaryCard extends StatelessWidget {
                     Text(
                       library.name,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppUIConstants.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
@@ -257,8 +471,8 @@ class MembershipSummaryCard extends StatelessWidget {
                     ),
                     Text(
                       '${library.totalSeatCapacity ?? library.capacity} beds total',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
+                      style: const TextStyle(
+                        color: AppUIConstants.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -273,7 +487,7 @@ class MembershipSummaryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
+              color: AppUIConstants.surfaceMuted,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -282,27 +496,19 @@ class MembershipSummaryCard extends StatelessWidget {
                 _StatItem(
                   label: 'Available',
                   value: totalAvailable,
-                  color: const Color(0xFF10B981),
+                  color: AppUIConstants.success,
                 ),
-                Container(
-                  width: 1,
-                  height: 30,
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
+                Container(width: 1, height: 30, color: AppUIConstants.border),
                 _StatItem(
                   label: 'Occupied',
                   value: occupied,
-                  color: Colors.red.shade300,
+                  color: AppUIConstants.error,
                 ),
-                Container(
-                  width: 1,
-                  height: 30,
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
+                Container(width: 1, height: 30, color: AppUIConstants.border),
                 _StatItem(
                   label: 'Reserved',
                   value: reserved,
-                  color: Colors.amber.shade300,
+                  color: AppUIConstants.warning,
                 ),
               ],
             ),
@@ -340,10 +546,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.8),
-            fontSize: 11,
-          ),
+          style: TextStyle(color: AppUIConstants.textSecondary, fontSize: 11),
         ),
       ],
     );

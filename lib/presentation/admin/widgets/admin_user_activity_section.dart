@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/user_activity_stats.dart';
 import '../../core/app_ui_constants.dart';
-
+import '../../core/widgets/premium_kit.dart';
 
 /// User activity section for admin dashboard.
 class AdminUserActivitySection extends StatelessWidget {
@@ -15,57 +15,39 @@ class AdminUserActivitySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text('User Activity', style: AppUIConstants.headingSm),
-            const Spacer(),
-            IconButton(
-              icon: Icon(
-                Icons.info_outline,
-                size: 18,
-                color: AppUIConstants.textSecondary,
-              ),
-              onPressed: () => _showDauInfoDialog(context),
-              tooltip: 'How DAU is calculated',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: AppUIConstants.accent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppUIConstants.accent.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Text(
-                'Stickiness: ${activity.stickiness}',
-                style: AppUIConstants.caption.copyWith(
-                  color: AppUIConstants.accent,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppUIConstants.spacingMd),
-        Container(
-          padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-          decoration: BoxDecoration(
-            color: AppUIConstants.surface,
-            borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
-            border: Border.all(
-              color: AppUIConstants.divider.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
+        PremiumSectionHeader('Resident engagement'),
+        PremiumCard(
           child: Column(
             children: [
+              Row(
+                children: [
+                  PremiumStatusPill(
+                    'Stickiness ${activity.stickiness}',
+                    color: AppUIConstants.primaryLight,
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () => _showDauInfoDialog(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: AppUIConstants.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text('How DAU works', style: AppUIConstants.caption),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppUIConstants.spacingMd),
               _buildStudentActivity(),
             ],
           ),
@@ -106,7 +88,7 @@ class AdminUserActivitySection extends StatelessWidget {
             ),
             const SizedBox(height: AppUIConstants.spacingSm),
             Text(
-              'DAU counts unique students who checked in to a library today. This metric tracks actual engagement, not just app opens.',
+              'DAU counts unique tenants who checked in to a PG today. This metric tracks actual engagement, not just app opens.',
               style: AppUIConstants.bodySm.copyWith(
                 color: AppUIConstants.textSecondary,
               ),
@@ -131,7 +113,7 @@ class AdminUserActivitySection extends StatelessWidget {
                   const SizedBox(width: AppUIConstants.spacingSm),
                   Expanded(
                     child: Text(
-                      'A student is counted once per day, regardless of multiple check-ins.',
+                      'A tenant is counted once per day, regardless of multiple check-ins.',
                       style: AppUIConstants.caption.copyWith(
                         color: AppUIConstants.textPrimary,
                       ),
@@ -153,51 +135,31 @@ class AdminUserActivitySection extends StatelessWidget {
   }
 
   Widget _buildStudentActivity() {
-    return Column(
+    return Row(
       children: [
-        Row(
-          children: [
-            Icon(
-              Icons.school_outlined,
-              size: 16,
-              color: AppUIConstants.textSecondary,
-            ),
-            const SizedBox(width: AppUIConstants.spacingSm),
-            Text(
-              'Students',
-              style: AppUIConstants.bodySm.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        Expanded(
+          child: _ActivityMetric(
+            label: 'DAU',
+            value: '${activity.dailyActiveStudents}',
+          ),
         ),
-        const SizedBox(height: AppUIConstants.spacingMd),
-        Row(
-          children: [
-            Expanded(
-              child: _ActivityMetric(
-                label: 'DAU',
-                value: '${activity.dailyActiveStudents}',
-              ),
-            ),
-            Expanded(
-              child: _ActivityMetric(
-                label: 'WAU',
-                value: '${activity.weeklyActiveStudents}',
-              ),
-            ),
-            Expanded(
-              child: _ActivityMetric(
-                label: 'MAU',
-                value: '${activity.monthlyActiveStudents}',
-              ),
-            ),
-          ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ActivityMetric(
+            label: 'WAU',
+            value: '${activity.weeklyActiveStudents}',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ActivityMetric(
+            label: 'MAU',
+            value: '${activity.monthlyActiveStudents}',
+          ),
         ),
       ],
     );
   }
-
 }
 
 class _ActivityMetric extends StatelessWidget {
@@ -209,48 +171,28 @@ class _ActivityMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDau = label == 'DAU';
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
-          decoration: BoxDecoration(
-            color: isDau
-                ? AppUIConstants.primary.withValues(alpha: 0.08)
-                : AppUIConstants.surface,
-            borderRadius: BorderRadius.circular(10),
-            border: isDau
-                ? Border.all(
-                    color: AppUIConstants.primary.withValues(alpha: 0.2),
-                    width: 1,
-                  )
-                : null,
-          ),
-          child: Text(
-            value,
-            style: AppUIConstants.headingLg.copyWith(
-              fontWeight: FontWeight.bold,
-              color: isDau
-                  ? AppUIConstants.primary
-                  : AppUIConstants.textPrimary,
-              letterSpacing: -0.5,
+    final c = isDau ? AppUIConstants.primaryLight : AppUIConstants.textPrimary;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        border: Border.all(color: AppUIConstants.border),
+      ),
+      child: Column(
+        children: [
+          Text(value, style: AppUIConstants.headingLg.copyWith(color: c)),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: AppUIConstants.caption.copyWith(
+              color: c,
+              letterSpacing: 1,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: AppUIConstants.bodySm.copyWith(
-            color: isDau
-                ? AppUIConstants.primary
-                : AppUIConstants.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
-

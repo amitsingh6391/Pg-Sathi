@@ -26,8 +26,8 @@ part 'admin_analytics_details_impl.dart';
 /// - [_ActivityDetailResolver]: hourly active user and timeline drill-downs
 class AdminAnalyticsRepositoryImpl implements AdminAnalyticsRepository {
   AdminAnalyticsRepositoryImpl({required this.firestore})
-      : _broadcastResolver = _BroadcastTargetResolver(firestore),
-        _detailResolver = _ActivityDetailResolver(firestore);
+    : _broadcastResolver = _BroadcastTargetResolver(firestore),
+      _detailResolver = _ActivityDetailResolver(firestore);
 
   final FirebaseFirestore firestore;
   final _BroadcastTargetResolver _broadcastResolver;
@@ -100,11 +100,11 @@ class AdminAnalyticsRepositoryImpl implements AdminAnalyticsRepository {
         slotsSnapshot: slotsSnapshot,
       );
 
-      return Right(AdminDashboardData(stats: stats, librarySummaries: summaries));
-    } catch (e) {
-      return Left(
-        ServerFailure(message: 'Failed to get dashboard data: $e'),
+      return Right(
+        AdminDashboardData(stats: stats, librarySummaries: summaries),
       );
+    } catch (e) {
+      return Left(ServerFailure(message: 'Failed to get dashboard data: $e'));
     }
   }
 
@@ -226,8 +226,9 @@ class AdminAnalyticsRepositoryImpl implements AdminAnalyticsRepository {
       final totalSeats =
           slotCapacityMap[doc.id] ?? data['capacity'] as int? ?? 0;
       final activeMemberships = membershipCountMap[doc.id] ?? 0;
-      final occupancyPercent =
-          totalSeats > 0 ? (activeMemberships / totalSeats) * 100 : 0.0;
+      final occupancyPercent = totalSeats > 0
+          ? (activeMemberships / totalSeats) * 100
+          : 0.0;
 
       final createdAtTimestamp = data['createdAt'] as Timestamp?;
       final createdAt = createdAtTimestamp?.toDate() ?? DateTime.now();
@@ -499,8 +500,7 @@ class AdminAnalyticsRepositoryImpl implements AdminAnalyticsRepository {
   @override
   Future<Either<Failure, List<String>>> getOwnerIdsForLibraries(
     List<String> libraryIds,
-  ) =>
-      _broadcastResolver.getOwnerIdsForLibraries(libraryIds);
+  ) => _broadcastResolver.getOwnerIdsForLibraries(libraryIds);
 
   @override
   Future<Either<Failure, List<String>>> getOwnerIdsWithLibrary() =>
@@ -511,21 +511,18 @@ class AdminAnalyticsRepositoryImpl implements AdminAnalyticsRepository {
       _broadcastResolver.getOwnerIdsWithoutLibrary();
 
   @override
-  Future<Either<Failure, List<String>>>
-      getStudentIdsWithActiveMembership() =>
-          _broadcastResolver.getStudentIdsWithActiveMembership();
+  Future<Either<Failure, List<String>>> getStudentIdsWithActiveMembership() =>
+      _broadcastResolver.getStudentIdsWithActiveMembership();
 
   @override
   Future<Either<Failure, List<String>>> getActiveStudentIds({
     Duration window = const Duration(days: 30),
-  }) =>
-      _broadcastResolver.getActiveStudentIds(window: window);
+  }) => _broadcastResolver.getActiveStudentIds(window: window);
 
   @override
   Future<Either<Failure, List<String>>> getStudentIdsForLibraries(
     List<String> libraryIds,
-  ) =>
-      _broadcastResolver.getStudentIdsForLibraries(libraryIds);
+  ) => _broadcastResolver.getStudentIdsForLibraries(libraryIds);
 
   // ===========================================================================
   // User activity details — delegated to part file
@@ -535,18 +532,16 @@ class AdminAnalyticsRepositoryImpl implements AdminAnalyticsRepository {
   Future<Either<Failure, List<UserActivityDetail>>> getHourlyActiveUsers({
     required DateTime date,
     required int hour,
-  }) =>
-      _detailResolver.getHourlyActiveUsers(date: date, hour: hour);
+  }) => _detailResolver.getHourlyActiveUsers(date: date, hour: hour);
 
   @override
   Future<Either<Failure, List<UserActivityTimeline>>> getUserActivityDetails({
     required String userId,
     required DateTime startDate,
     required DateTime endDate,
-  }) =>
-      _detailResolver.getUserActivityDetails(
-        userId: userId,
-        startDate: startDate,
-        endDate: endDate,
-      );
+  }) => _detailResolver.getUserActivityDetails(
+    userId: userId,
+    startDate: startDate,
+    endDate: endDate,
+  );
 }

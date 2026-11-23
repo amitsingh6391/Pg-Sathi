@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/di/injection_container.dart';
@@ -9,6 +9,7 @@ import '../cubit/student_home_state.dart';
 import 'explore_libraries_screen.dart';
 import 'student_home_screen.dart';
 import 'student_notices_screen.dart';
+import '../../core/widgets/premium_bottom_nav.dart';
 
 /// Main navigation screen with bottom navigation bar for students.
 class StudentMainNavigationScreen extends StatefulWidget {
@@ -44,11 +45,20 @@ class _StudentMainNavigationScreenState
     super.dispose();
   }
 
+  /// Switches to the Explore tab (index 1, only present when Explore is shown).
+  void _openExploreTab() {
+    if (!_homeCubit.state.canShowExploreLibraries) return;
+    setState(() => _currentIndex = 1);
+  }
+
   List<Widget> _getScreens(bool showExplore) {
     final screens = <Widget>[
       BlocProvider.value(
         value: _homeCubit,
-        child: StudentHomeScreen(userId: widget.userId),
+        child: StudentHomeScreen(
+          userId: widget.userId,
+          onOpenExploreTab: _openExploreTab,
+        ),
       ),
     ];
 
@@ -81,8 +91,41 @@ class _StudentMainNavigationScreenState
             .toList();
 
         if (libraryIds.isEmpty) {
-          return const Scaffold(
-            body: Center(child: Text('No active PG stay found')),
+          return Scaffold(
+            backgroundColor: AppUIConstants.background,
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppUIConstants.primarySoft,
+                        ),
+                        child: Icon(
+                          Icons.campaign_rounded,
+                          size: 38,
+                          color: AppUIConstants.primaryLight,
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      Text('No notices yet', style: AppUIConstants.headingMd),
+                      SizedBox(height: 8),
+                      Text(
+                        'Join a PG to get announcements from your owner here.',
+                        style: AppUIConstants.bodyMd,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           );
         }
 
@@ -115,6 +158,8 @@ class _StudentMainNavigationScreenState
             }
           },
           child: Scaffold(
+            backgroundColor: AppUIConstants.background,
+            extendBody: false,
             body: IndexedStack(index: safeIndex, children: screens),
             bottomNavigationBar: _buildBottomNavigationBar(showExplore),
           ),
@@ -124,85 +169,17 @@ class _StudentMainNavigationScreenState
   }
 
   Widget _buildBottomNavigationBar(bool showExplore) {
-    int idx = 0;
     final items = [
-      _NavItemData(Icons.home_rounded, 'Home', idx++),
-      if (showExplore) _NavItemData(Icons.apartment_rounded, 'PGs', idx++),
-      _NavItemData(Icons.campaign_rounded, 'Notices', idx++),
+      const PremiumNavDestination(Icons.home_rounded, 'Home'),
+      if (showExplore)
+        const PremiumNavDestination(Icons.explore_rounded, 'Explore'),
+      const PremiumNavDestination(Icons.campaign_rounded, 'Notices'),
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(
-          top: 8.0,
-          bottom: 8.0,
-          left: 4.0,
-          right: 4.0,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: items
-              .map(
-                (item) => _buildNavItem(
-                  icon: item.icon,
-                  label: item.label,
-                  index: item.index,
-                ),
-              )
-              .toList(),
-        ),
-      ),
+    return PremiumBottomNav(
+      destinations: items,
+      selectedIndex: _currentIndex.clamp(0, items.length - 1),
+      onSelected: (i) => setState(() => _currentIndex = i),
     );
   }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-  }) {
-    final isSelected = _currentIndex == index;
-    final color = isSelected ? AppUIConstants.primary : Colors.grey[600];
-
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _currentIndex = index),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 26, color: color),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItemData {
-  const _NavItemData(this.icon, this.label, this.index);
-  final IconData icon;
-  final String label;
-  final int index;
 }

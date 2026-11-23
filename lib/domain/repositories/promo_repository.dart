@@ -62,6 +62,5 @@ class PromoAnalytics {
   final int dismissCount;
   final int uniqueOwners;
 
-  double get clickRate =>
-      viewCount > 0 ? (clickCount / viewCount) * 100 : 0.0;
+  double get clickRate => viewCount > 0 ? (clickCount / viewCount) * 100 : 0.0;
 }

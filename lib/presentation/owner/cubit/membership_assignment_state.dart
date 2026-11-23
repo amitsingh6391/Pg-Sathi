@@ -164,9 +164,4 @@ enum MembershipAssignmentStatus {
   error,
 }
 
-enum SeatLayoutStatus {
-  available,
-  partiallyAvailable,
-  occupied,
-  reserved,
-}
+enum SeatLayoutStatus { available, partiallyAvailable, occupied, reserved }

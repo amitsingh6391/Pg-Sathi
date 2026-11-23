@@ -17,7 +17,8 @@ class ExpenseState extends Equatable {
     this.errorMessage,
     this.savedSuccessfully = false,
     DateTime? selectedMonth,
-  }) : selectedMonth = selectedMonth ?? DateTime(DateTime.now().year, DateTime.now().month);
+  }) : selectedMonth =
+           selectedMonth ?? DateTime(DateTime.now().year, DateTime.now().month);
 
   final List<Expense> expenses;
   final bool isLoading;
@@ -28,8 +29,7 @@ class ExpenseState extends Equatable {
   /// First day of the currently selected month.
   final DateTime selectedMonth;
 
-  double get monthTotal =>
-      expenses.fold<double>(0, (sum, e) => sum + e.amount);
+  double get monthTotal => expenses.fold<double>(0, (sum, e) => sum + e.amount);
 
   bool get isCurrentMonth {
     final now = DateTime.now();
@@ -115,14 +115,13 @@ class ExpenseCubit extends Cubit<ExpenseState> {
     );
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        isLoading: false,
-        errorMessage: failure.message ?? 'Failed to load expenses',
-      )),
-      (expenses) => emit(state.copyWith(
-        isLoading: false,
-        expenses: expenses,
-      )),
+      (failure) => emit(
+        state.copyWith(
+          isLoading: false,
+          errorMessage: failure.message ?? 'Failed to load expenses',
+        ),
+      ),
+      (expenses) => emit(state.copyWith(isLoading: false, expenses: expenses)),
     );
   }
 
@@ -151,22 +150,26 @@ class ExpenseCubit extends Cubit<ExpenseState> {
     final result = await expenseRepository.addExpense(expense);
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        isSaving: false,
-        errorMessage: failure.message ?? 'Failed to save expense',
-      )),
+      (failure) => emit(
+        state.copyWith(
+          isSaving: false,
+          errorMessage: failure.message ?? 'Failed to save expense',
+        ),
+      ),
       (_) {
         final isInSelectedMonth =
             date.year == state.selectedMonth.year &&
             date.month == state.selectedMonth.month;
 
-        emit(state.copyWith(
-          isSaving: false,
-          savedSuccessfully: true,
-          expenses: isInSelectedMonth
-              ? [expense, ...state.expenses]
-              : state.expenses,
-        ));
+        emit(
+          state.copyWith(
+            isSaving: false,
+            savedSuccessfully: true,
+            expenses: isInSelectedMonth
+                ? [expense, ...state.expenses]
+                : state.expenses,
+          ),
+        );
       },
     );
   }
@@ -176,12 +179,14 @@ class ExpenseCubit extends Cubit<ExpenseState> {
     final result = await expenseRepository.deleteExpense(expenseId);
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        errorMessage: failure.message ?? 'Failed to delete',
-      )),
-      (_) => emit(state.copyWith(
-        expenses: state.expenses.where((e) => e.id != expenseId).toList(),
-      )),
+      (failure) => emit(
+        state.copyWith(errorMessage: failure.message ?? 'Failed to delete'),
+      ),
+      (_) => emit(
+        state.copyWith(
+          expenses: state.expenses.where((e) => e.id != expenseId).toList(),
+        ),
+      ),
     );
   }
 }

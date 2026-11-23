@@ -3,9 +3,7 @@ import '../../domain/repositories/notification_repository.dart';
 /// Service for sending membership-related push notifications.
 /// Handles notifications for payments, seat assignments, and seat changes.
 class MembershipNotificationService {
-  const MembershipNotificationService({
-    required this.notificationRepository,
-  });
+  const MembershipNotificationService({required this.notificationRepository});
 
   final NotificationRepository notificationRepository;
 
@@ -22,7 +20,8 @@ class MembershipNotificationService {
       await notificationRepository.sendNotificationToUser(
         userId: ownerId,
         title: '💰 Payment Marked as Done',
-        body: '$studentName has marked payment of ₹${amount.toStringAsFixed(0)} as done. Please verify.',
+        body:
+            '$studentName has marked payment of ₹${amount.toStringAsFixed(0)} as done. Please verify.',
         data: {
           'type': 'payment_marked_done',
           'membershipId': membershipId,
@@ -53,7 +52,8 @@ class MembershipNotificationService {
       await notificationRepository.sendNotificationToUser(
         userId: ownerId,
         title: '💰 $paymentType Payment Initiated',
-        body: '$studentName has initiated $paymentType payment of ₹${amount.toStringAsFixed(0)} for $planType. Please approve.',
+        body:
+            '$studentName has initiated $paymentType payment of ₹${amount.toStringAsFixed(0)} for $planType. Please approve.',
         data: {
           'type': 'payment_initiated',
           'membershipId': membershipId,
@@ -81,7 +81,8 @@ class MembershipNotificationService {
       await notificationRepository.sendNotificationToUser(
         userId: studentId,
         title: '✅ Payment Approved!',
-        body: 'Your payment of ₹${amount.toStringAsFixed(0)} for $libraryName has been approved.',
+        body:
+            'Your payment of ₹${amount.toStringAsFixed(0)} for $libraryName has been approved.',
         data: {
           'type': 'payment_approved',
           'membershipId': membershipId,
@@ -112,7 +113,8 @@ class MembershipNotificationService {
       await notificationRepository.sendNotificationToUser(
         userId: studentId,
         title: '🪑 Seat Assigned!',
-        body: 'You have been assigned Seat $seatNumber ($slotName) at $libraryName. $statusMessage',
+        body:
+            'You have been assigned Seat $seatNumber ($slotName) at $libraryName. $statusMessage',
         data: {
           'type': 'seat_assigned',
           'membershipId': membershipId,
@@ -140,7 +142,8 @@ class MembershipNotificationService {
       await notificationRepository.sendNotificationToUser(
         userId: studentId,
         title: '🎉 Seat Activated!',
-        body: 'Your Seat $seatNumber ($slotName) at $libraryName is now active. Happy studying!',
+        body:
+            'Your Seat $seatNumber ($slotName) at $libraryName is now active. Happy studying!',
         data: {
           'type': 'seat_activated',
           'membershipId': membershipId,
@@ -168,7 +171,8 @@ class MembershipNotificationService {
       await notificationRepository.sendNotificationToUser(
         userId: studentId,
         title: '🔄 Seat Changed',
-        body: 'Your seat at $libraryName has been changed from Seat $oldSeatNumber to Seat $newSeatNumber ($slotName).',
+        body:
+            'Your seat at $libraryName has been changed from Seat $oldSeatNumber to Seat $newSeatNumber ($slotName).',
         data: {
           'type': 'seat_changed',
           'membershipId': membershipId,
@@ -199,13 +203,102 @@ class MembershipNotificationService {
       await notificationRepository.sendNotificationToUser(
         userId: studentId,
         title: '❌ Payment Rejected',
-        body: 'Your payment of ₹${amount.toStringAsFixed(0)} for $libraryName was rejected.$reasonText',
+        body:
+            'Your payment of ₹${amount.toStringAsFixed(0)} for $libraryName was rejected.$reasonText',
         data: {
           'type': 'payment_rejected',
           'membershipId': membershipId,
           'libraryName': libraryName,
           'amount': amount.toString(),
           if (reason != null) 'reason': reason,
+        },
+      );
+    } catch (_) {
+      // Silent failure - notification is non-critical
+    }
+  }
+
+  /// Notifies the PG owner when a resident requests a bed.
+  Future<void> notifyOwnerSeatRequestSubmitted({
+    required String ownerId,
+    required String studentName,
+    required String libraryName,
+    required String seatId,
+    required String slotName,
+    required String membershipId,
+  }) async {
+    try {
+      final bedText = seatId.trim().isEmpty ? 'a bed' : 'Bed $seatId';
+      final slotText = slotName.trim().isEmpty ? '' : ' ($slotName)';
+      await notificationRepository.sendNotificationToUser(
+        userId: ownerId,
+        title: 'New bed request',
+        body:
+            '$studentName has requested $bedText$slotText at $libraryName. Please review.',
+        data: {
+          'type': 'seat_request_submitted',
+          'membershipId': membershipId,
+          'libraryName': libraryName,
+          'studentName': studentName,
+          'seatId': seatId,
+          'slotName': slotName,
+        },
+      );
+    } catch (_) {
+      // Silent failure - notification is non-critical
+    }
+  }
+
+  /// Notifies the resident when their bed request is approved.
+  Future<void> notifyStudentSeatRequestApproved({
+    required String studentId,
+    required String libraryName,
+    required String seatId,
+    required String slotName,
+    required String membershipId,
+  }) async {
+    try {
+      final bedText = seatId.trim().isEmpty ? 'your bed' : 'Bed $seatId';
+      final slotText = slotName.trim().isEmpty ? '' : ' ($slotName)';
+      await notificationRepository.sendNotificationToUser(
+        userId: studentId,
+        title: 'Bed request approved',
+        body:
+            'Your request for $bedText$slotText at $libraryName has been approved. Your stay is now active.',
+        data: {
+          'type': 'seat_request_approved',
+          'membershipId': membershipId,
+          'libraryName': libraryName,
+          'seatId': seatId,
+          'slotName': slotName,
+        },
+      );
+    } catch (_) {
+      // Silent failure - notification is non-critical
+    }
+  }
+
+  /// Notifies the resident when their bed request is rejected.
+  Future<void> notifyStudentSeatRequestRejected({
+    required String studentId,
+    required String libraryName,
+    required String membershipId,
+    String? reason,
+  }) async {
+    try {
+      final reasonText = reason != null && reason.trim().isNotEmpty
+          ? ' Reason: ${reason.trim()}'
+          : '';
+      await notificationRepository.sendNotificationToUser(
+        userId: studentId,
+        title: 'Bed request declined',
+        body: 'Your bed request for $libraryName was declined.$reasonText',
+        data: {
+          'type': 'seat_request_rejected',
+          'membershipId': membershipId,
+          'libraryName': libraryName,
+          if (reason != null && reason.trim().isNotEmpty)
+            'reason': reason.trim(),
         },
       );
     } catch (_) {

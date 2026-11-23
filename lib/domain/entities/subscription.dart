@@ -72,11 +72,7 @@ class Subscription extends Equatable {
       startDate.month,
       startDate.day,
     );
-    final endDateOnly = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-    );
+    final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
     return status == SubscriptionStatus.active &&
         !currentDateOnly.isBefore(startDateOnly) &&
         !currentDateOnly.isAfter(endDateOnly);
@@ -92,11 +88,7 @@ class Subscription extends Equatable {
       currentDate.month,
       currentDate.day,
     );
-    final endDateOnly = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-    );
+    final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
     return currentDateOnly.isAfter(endDateOnly);
   }
 
@@ -112,11 +104,7 @@ class Subscription extends Equatable {
       currentDate.month,
       currentDate.day,
     );
-    final endDateOnly = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-    );
+    final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
     return endDateOnly.difference(currentDateOnly).inDays;
   }
 

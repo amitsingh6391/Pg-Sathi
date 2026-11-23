@@ -1,15 +1,17 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/entities/library.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/explore_libraries_cubit.dart';
 import '../cubit/explore_libraries_state.dart';
 import '../widgets/explore_library_card.dart';
 import 'explore_library_detail_screen.dart';
 
-/// Screen for students to explore available libraries.
-/// Redesigned to match modern UI with search, filters, and sorting.
+/// Search-first PG discovery: hero with search + amenity chips, then a feed
+/// of rich PG cards.
 ///
 /// Expects an [ExploreLibrariesCubit] to be provided by a parent
 /// [BlocProvider] (typically from the navigation screen) to avoid
@@ -34,173 +36,216 @@ class _ExploreLibrariesView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppUIConstants.background,
-      body: BlocBuilder<ExploreLibrariesCubit, ExploreLibrariesState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppUIConstants.primary),
-            );
-          }
-          if (state.isError) {
-            return _ErrorView(
-              message: state.failure?.message ?? 'Failed to load libraries',
-              onRetry: () => context.read<ExploreLibrariesCubit>().refresh(),
-            );
-          }
-
-          return CustomScrollView(
-            slivers: [
-              // Sliver App Bar with search and filters
-              SliverAppBar(
-                expandedHeight: 150,
-                floating: false,
-                pinned: true,
-                centerTitle: false,
-                backgroundColor: AppUIConstants.primary,
-                title: const Text(
-                  'Explore PGs',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      color: AppUIConstants.primary,
-                    ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 64, 20, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 8),
-                            _SearchAndFilterSection(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Filter chips section
-              SliverToBoxAdapter(
-                child: Container(
-                  color: AppUIConstants.primary,
-                  padding: const EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    bottom: 8,
-                    top: 8,
-                  ),
-                  child: _FilterChipsSection(),
-                ),
-              ),
-
-              // Content
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                sliver: _ContentSection(userId: userId),
-              ),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          const _ExploreHero(),
+          Expanded(
+            child: BlocBuilder<ExploreLibrariesCubit, ExploreLibrariesState>(
+              builder: (context, state) {
+                final Widget body;
+                if (state.isLoading) {
+                  body = const _ListingSkeleton(key: ValueKey('loading'));
+                } else if (state.isError) {
+                  body = _ErrorView(
+                    key: const ValueKey('error'),
+                    message: state.failure?.message ?? 'Failed to load PGs',
+                    onRetry: () =>
+                        context.read<ExploreLibrariesCubit>().refresh(),
+                  );
+                } else {
+                  body = _ListingFeed(
+                    key: const ValueKey('feed'),
+                    userId: userId,
+                  );
+                }
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  child: body,
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _SearchAndFilterSection extends StatelessWidget {
+// ===========================================================================
+// HERO: title, search, amenity chips
+// ===========================================================================
+
+class _ExploreHero extends StatefulWidget {
+  const _ExploreHero();
+
+  @override
+  State<_ExploreHero> createState() => _ExploreHeroState();
+}
+
+class _ExploreHeroState extends State<_ExploreHero> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 48,
+    return PremiumHero(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Explore PGs',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppUIConstants.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 50,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: AppUIConstants.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+              border: Border.all(color: AppUIConstants.border),
             ),
             child: TextField(
-              onChanged: (value) =>
-                  context.read<ExploreLibrariesCubit>().updateSearch(value),
-              style: const TextStyle(color: Colors.black87, fontSize: 15),
+              controller: _controller,
+              onChanged: (value) {
+                context.read<ExploreLibrariesCubit>().updateSearch(value);
+                setState(() {});
+              },
+              style: const TextStyle(
+                color: AppUIConstants.textPrimary,
+                fontSize: 15,
+              ),
               cursorColor: AppUIConstants.primary,
+              textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'Search PGs, areas...',
-                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-                prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[600]),
+                hintText: 'Search PGs or areas',
+                hintStyle: const TextStyle(
+                  color: AppUIConstants.textTertiary,
+                  fontSize: 14.5,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppUIConstants.primary,
+                  size: 22,
+                ),
+                suffixIcon: _controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.clear_rounded,
+                          color: AppUIConstants.textTertiary,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          _controller.clear();
+                          context.read<ExploreLibrariesCubit>().updateSearch(
+                            '',
+                          );
+                          setState(() {});
+                        },
+                      ),
+                filled: false,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  horizontal: 8,
+                  vertical: 14,
                 ),
               ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          const _FilterChipsSection(),
+        ],
+      ),
     );
   }
 }
 
 class _FilterChipsSection extends StatelessWidget {
+  const _FilterChipsSection();
+
+  static const _filters = [
+    LibraryFacility.ac,
+    LibraryFacility.wifi,
+    LibraryFacility.cctv,
+    LibraryFacility.drinkingWater,
+    LibraryFacility.washroom,
+    LibraryFacility.powerBackup,
+  ];
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ExploreLibrariesCubit, ExploreLibrariesState>(
+      buildWhen: (a, b) => a.selectedFilters != b.selectedFilters,
       builder: (context, state) {
-        final filters = [
-          LibraryFacility.ac,
-          LibraryFacility.wifi,
-          LibraryFacility.cctv,
-          LibraryFacility.drinkingWater,
-          LibraryFacility.washroom,
-          LibraryFacility
-              .powerBackup, // Using powerBackup as "Silent Zone" equivalent
-        ];
-
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: filters.map((filter) {
-              final isSelected = state.selectedFilters.contains(filter);
+            children: _filters.map((filter) {
+              final selected = state.selectedFilters.contains(filter);
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  selected: isSelected,
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getFilterIcon(filter),
-                        size: 16,
-                        color: isSelected
-                            ? Colors.white
-                            : Colors.black.withValues(alpha: 0.7),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.read<ExploreLibrariesCubit>().toggleFilter(filter);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppUIConstants.primary
+                          : AppUIConstants.surfaceMuted,
+                      borderRadius: BorderRadius.circular(
+                        AppUIConstants.radiusFull,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _getFilterLabel(filter),
-                        style: TextStyle(
-                          color: isSelected
+                      border: Border.all(
+                        color: selected
+                            ? AppUIConstants.primary
+                            : AppUIConstants.border,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          selected ? Icons.check_rounded : _icon(filter),
+                          size: 15,
+                          color: selected
                               ? Colors.white
-                              : Colors.black.withValues(alpha: 0.7),
-                          fontSize: 12,
+                              : AppUIConstants.textSecondary,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Text(
+                          _label(filter),
+                          style: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : AppUIConstants.textPrimary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  onSelected: (_) => context
-                      .read<ExploreLibrariesCubit>()
-                      .toggleFilter(filter),
-                  selectedColor: AppUIConstants.primaryLight,
-                  backgroundColor: Colors.white.withValues(alpha: 0.15),
-                  checkmarkColor: Colors.white,
-                  side: BorderSide.none,
                 ),
               );
             }).toList(),
@@ -210,39 +255,47 @@ class _FilterChipsSection extends StatelessWidget {
     );
   }
 
-  IconData _getFilterIcon(LibraryFacility facility) {
+  static IconData _icon(LibraryFacility facility) {
     switch (facility) {
       case LibraryFacility.ac:
-        return Icons.ac_unit;
+        return Icons.ac_unit_rounded;
       case LibraryFacility.wifi:
-        return Icons.wifi;
+        return Icons.wifi_rounded;
       case LibraryFacility.powerBackup:
-        return Icons.volume_off;
+        return Icons.bolt_rounded;
       case LibraryFacility.cctv:
-        return Icons.camera_alt_outlined;
+        return Icons.videocam_rounded;
       case LibraryFacility.drinkingWater:
-        return Icons.water;
+        return Icons.water_drop_rounded;
       case LibraryFacility.washroom:
-        return Icons.wash_rounded;
+        return Icons.bathtub_outlined;
     }
   }
 
-  String _getFilterLabel(LibraryFacility facility) {
+  static String _label(LibraryFacility facility) {
     switch (facility) {
       case LibraryFacility.ac:
         return 'AC';
       case LibraryFacility.wifi:
-        return 'Free Wifi';
+        return 'Wi-Fi';
       case LibraryFacility.powerBackup:
-        return 'Silent Zone';
-      default:
-        return facility.displayName;
+        return 'Power backup';
+      case LibraryFacility.washroom:
+        return 'Attached bath';
+      case LibraryFacility.drinkingWater:
+        return 'RO water';
+      case LibraryFacility.cctv:
+        return 'CCTV';
     }
   }
 }
 
-class _ContentSection extends StatelessWidget {
-  const _ContentSection({required this.userId});
+// ===========================================================================
+// FEED
+// ===========================================================================
+
+class _ListingFeed extends StatelessWidget {
+  const _ListingFeed({super.key, required this.userId});
 
   final String userId;
 
@@ -252,31 +305,70 @@ class _ContentSection extends StatelessWidget {
       builder: (context, state) {
         final libraries = state.filteredLibraries;
 
-        if (libraries.isEmpty) {
-          return SliverFillRemaining(child: _EmptyView());
-        }
-
-        return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              if (index == 0) return _SectionHeader();
-
-              final libraryIndex = index - 1;
-              if (libraryIndex >= libraries.length) return const SizedBox.shrink();
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: ExploreLibraryCard(
-                  libraryWithStats: libraries[libraryIndex],
-                  onTap: () => _navigateToDetails(
-                    context,
-                    libraries[libraryIndex].library,
+        return RefreshIndicator(
+          color: AppUIConstants.primary,
+          backgroundColor: AppUIConstants.surface,
+          onRefresh: () => context.read<ExploreLibrariesCubit>().refresh(),
+          child: libraries.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.5,
+                      child: _EmptyView(
+                        hasFilters:
+                            state.selectedFilters.isNotEmpty ||
+                            state.searchQuery.isNotEmpty,
+                        onReset: () {
+                          final cubit = context.read<ExploreLibrariesCubit>();
+                          cubit.updateSearch('');
+                          for (final f in state.selectedFilters.toList()) {
+                            cubit.toggleFilter(f);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    0,
+                    16,
+                    24 + MediaQuery.of(context).padding.bottom,
                   ),
+                  itemCount: libraries.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return _ResultsHeader(count: libraries.length);
+                    }
+                    final item = libraries[index - 1];
+                    return TweenAnimationBuilder<double>(
+                      key: ValueKey(item.library.id),
+                      tween: Tween(begin: 0, end: 1),
+                      duration: Duration(
+                        milliseconds: 300 + (index.clamp(0, 5) * 60),
+                      ),
+                      curve: Curves.easeOutCubic,
+                      builder: (_, v, child) => Opacity(
+                        opacity: v,
+                        child: Transform.translate(
+                          offset: Offset(0, (1 - v) * 24),
+                          child: child,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: ExploreLibraryCard(
+                          libraryWithStats: item,
+                          onTap: () =>
+                              _navigateToDetails(context, item.library),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-            childCount: libraries.length + 1, // +1 for header
-          ),
         );
       },
     );
@@ -292,141 +384,150 @@ class _ContentSection extends StatelessWidget {
   }
 }
 
-// Removed _FilterIconButton - unnecessary as filter chips are already available
+class _ResultsHeader extends StatelessWidget {
+  const _ResultsHeader({required this.count});
 
-class _SectionHeader extends StatelessWidget {
+  final int count;
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ExploreLibrariesCubit, ExploreLibrariesState>(
+      buildWhen: (a, b) => a.sortBy != b.sortBy,
       builder: (context, state) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          color: AppUIConstants.background,
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(4, 18, 0, 12),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const               Text('PGs NEAR YOU',
-                style: TextStyle(
-                  color: AppUIConstants.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'PGs near you',
+                      style: TextStyle(
+                        color: AppUIConstants.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$count ${count == 1 ? 'result' : 'results'}',
+                      style: const TextStyle(
+                        color: AppUIConstants.textSecondary,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              _SortDropdown(),
+              Material(
+                color: AppUIConstants.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusSm + 2,
+                  ),
+                  side: const BorderSide(color: AppUIConstants.border),
+                ),
+                child: InkWell(
+                  onTap: () => _showSortSheet(context, state.sortBy),
+                  borderRadius: BorderRadius.circular(
+                    AppUIConstants.radiusSm + 2,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.swap_vert_rounded,
+                          size: 16,
+                          color: AppUIConstants.primary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _sortLabel(state.sortBy),
+                          style: const TextStyle(
+                            color: AppUIConstants.primary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         );
       },
     );
   }
-}
 
-class _SortDropdown extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ExploreLibrariesCubit, ExploreLibrariesState>(
-      builder: (context, state) {
-        return PopupMenuButton<SortOption>(
-          icon: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Sort: ${_getSortLabel(state.sortBy)}',
-                style: const TextStyle(
-                  color: AppUIConstants.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.arrow_drop_down,
-                color: AppUIConstants.primary,
-                size: 16,
-              ),
-            ],
-          ),
-          onSelected: (value) {
-            context.read<ExploreLibrariesCubit>().updateSort(value);
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem<SortOption>(
-              value: SortOption.distance,
-              child: Row(
-                children: [
-                  if (state.sortBy == SortOption.distance)
-                    const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: AppUIConstants.primary,
-                    )
-                  else
-                    const SizedBox(width: 16),
-                  const SizedBox(width: 8),
-                  const Text('Distance'),
-                ],
-              ),
-            ),
-            PopupMenuItem<SortOption>(
-              value: SortOption.name,
-              child: Row(
-                children: [
-                  if (state.sortBy == SortOption.name)
-                    const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: AppUIConstants.primary,
-                    )
-                  else
-                    const SizedBox(width: 16),
-                  const SizedBox(width: 8),
-                  const Text('Name'),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  String _getSortLabel(SortOption sort) {
+  static String _sortLabel(SortOption sort) {
     switch (sort) {
+      case SortOption.recent:
+        return 'Newest';
       case SortOption.distance:
-        return 'Distance';
+        return 'Nearest';
       case SortOption.name:
-        return 'Name';
+        return 'Name A-Z';
     }
   }
-}
 
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppUIConstants.background,
-      child: Center(
+  void _showSortSheet(BuildContext context, SortOption current) {
+    final cubit = context.read<ExploreLibrariesCubit>();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppUIConstants.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.local_library_outlined,
-                size: 56,
-                color: AppUIConstants.disabled,
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppUIConstants.border,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
               ),
-              const SizedBox(height: 20),
-              Text('No PGs Found', style: AppUIConstants.headingMd),
-              const SizedBox(height: 8),
-              Text(
-                'Try adjusting your filters or search in a different area.',
-                style: AppUIConstants.bodySm,
-                textAlign: TextAlign.center,
-              ),
+              const SizedBox(height: 18),
+              const Text('Sort PGs by', style: AppUIConstants.headingMd),
+              const SizedBox(height: 12),
+              for (final option in SortOption.values)
+                _SortTile(
+                  icon: switch (option) {
+                    SortOption.recent => Icons.schedule_rounded,
+                    SortOption.distance => Icons.near_me_rounded,
+                    SortOption.name => Icons.sort_by_alpha_rounded,
+                  },
+                  label: switch (option) {
+                    SortOption.recent => 'Newest first',
+                    SortOption.distance => 'Nearest first',
+                    SortOption.name => 'Name A-Z',
+                  },
+                  selected: option == current,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    cubit.updateSort(option);
+                    Navigator.pop(ctx);
+                  },
+                ),
             ],
           ),
         ),
@@ -435,46 +536,230 @@ class _EmptyView extends StatelessWidget {
   }
 }
 
+class _SortTile extends StatelessWidget {
+  const _SortTile({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppUIConstants.primarySoft
+                : AppUIConstants.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+            border: Border.all(
+              color: selected ? AppUIConstants.primary : AppUIConstants.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: selected
+                    ? AppUIConstants.primary
+                    : AppUIConstants.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: AppUIConstants.bodyLg)),
+              if (selected)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppUIConstants.primary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// STATES
+// ===========================================================================
+
+class _ListingSkeleton extends StatefulWidget {
+  const _ListingSkeleton({super.key});
+
+  @override
+  State<_ListingSkeleton> createState() => _ListingSkeletonState();
+}
+
+class _ListingSkeletonState extends State<_ListingSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _bar(double w, double h) => Container(
+    width: w,
+    height: h,
+    decoration: BoxDecoration(
+      color: AppUIConstants.skeletonBase,
+      borderRadius: BorderRadius.circular(6),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween(begin: 0.45, end: 1.0).animate(_c),
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        itemBuilder: (_, _) => Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: PremiumCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(height: 172, color: AppUIConstants.skeletonBase),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _bar(180, 16),
+                      const SizedBox(height: 10),
+                      _bar(110, 12),
+                      const SizedBox(height: 16),
+                      _bar(double.infinity, 8),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyView extends StatelessWidget {
+  const _EmptyView({required this.hasFilters, required this.onReset});
+
+  final bool hasFilters;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppUIConstants.primarySoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.home_work_outlined,
+                size: 42,
+                color: AppUIConstants.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('No PGs Found', style: AppUIConstants.headingMd),
+            const SizedBox(height: 6),
+            const Text(
+              'Try adjusting your filters or search in a different area.',
+              style: AppUIConstants.bodyMd,
+              textAlign: TextAlign.center,
+            ),
+            if (hasFilters) ...[
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: onReset,
+                icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
+                label: const Text('Clear search & filters'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppUIConstants.primary,
+                  side: const BorderSide(color: AppUIConstants.border),
+                  shape: const StadiumBorder(),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
+  const _ErrorView({super.key, required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppUIConstants.background,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline_rounded,
-                size: 48,
-                color: AppUIConstants.textTertiary,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: AppUIConstants.error.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 20),
-              Text('Something went wrong', style: AppUIConstants.headingMd),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                style: AppUIConstants.bodySm,
-                textAlign: TextAlign.center,
+              child: const Icon(
+                Icons.wifi_off_rounded,
+                size: 38,
+                color: AppUIConstants.error,
               ),
-              const SizedBox(height: 24),
-              TextButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Try Again'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppUIConstants.primary,
-                ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Something went wrong', style: AppUIConstants.headingMd),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: AppUIConstants.bodyMd,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try Again'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppUIConstants.primary,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

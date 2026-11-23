@@ -49,9 +49,7 @@ abstract class AdminAnalyticsRepository {
   Future<Either<Failure, List<String>>> getStudentIdsWithActiveMembership();
 
   /// Gets student IDs with recent activity (attendance in last 30 days).
-  Future<Either<Failure, List<String>>> getActiveStudentIds({
-    Duration window,
-  });
+  Future<Either<Failure, List<String>>> getActiveStudentIds({Duration window});
 
   /// Gets student IDs for specific libraries.
   Future<Either<Failure, List<String>>> getStudentIdsForLibraries(

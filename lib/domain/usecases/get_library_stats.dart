@@ -42,7 +42,8 @@ class GetLibraryStats implements UseCase<LibraryStats, GetLibraryStatsParams> {
 
     return slotsResult.fold((failure) => Left(failure), (slots) async {
       final slotSum = slots.fold<int>(0, (sum, slot) => sum + slot.capacity);
-      final totalSeats = (params.totalSeatCapacity != null && params.totalSeatCapacity! > 0)
+      final totalSeats =
+          (params.totalSeatCapacity != null && params.totalSeatCapacity! > 0)
           ? params.totalSeatCapacity!
           : slotSum;
 

@@ -9,7 +9,6 @@ import '../models/library_dto.dart';
 import '../utils/firebase_error_handler.dart';
 
 /// Firebase implementation of LibraryRepository.
-/// V1: One library per owner.
 class LibraryRepositoryImpl implements LibraryRepository {
   LibraryRepositoryImpl({required this.firestore});
 
@@ -32,14 +31,20 @@ class LibraryRepositoryImpl implements LibraryRepository {
     return FirebaseErrorHandler.guard(() async {
       final dto = LibraryMapper.toDto(library);
       final updateData = <String, dynamic>{...dto.toFirestore()};
-      
+
       // Explicitly handle null customMonthlyPrice (when admin clears custom pricing)
       // We need to explicitly delete the field from Firestore
-      if (library.customMonthlyPrice == null && 
+      if (library.customMonthlyPrice == null &&
           !updateData.containsKey('customMonthlyPrice')) {
         updateData['customMonthlyPrice'] = FieldValue.delete();
       }
-      
+
+      // Removing the UPI QR code must clear the stored field too.
+      if (library.ownerUpiQrUrl == null &&
+          !updateData.containsKey('ownerUpiQrUrl')) {
+        updateData['ownerUpiQrUrl'] = FieldValue.delete();
+      }
+
       await _librariesCollection.doc(library.id).update(updateData);
       return library;
     });
@@ -71,6 +76,22 @@ class LibraryRepositoryImpl implements LibraryRepository {
 
       final dto = LibraryDto.fromFirestore(query.docs.first);
       return LibraryMapper.toEntity(dto);
+    });
+  }
+
+  @override
+  Future<Either<Failure, List<Library>>> getLibrariesByOwnerId(
+    String ownerId,
+  ) async {
+    return FirebaseErrorHandler.guard(() async {
+      final query = await _librariesCollection
+          .where('ownerId', isEqualTo: ownerId)
+          .get();
+
+      return query.docs.map((doc) {
+        final dto = LibraryDto.fromFirestore(doc);
+        return LibraryMapper.toEntity(dto);
+      }).toList();
     });
   }
 

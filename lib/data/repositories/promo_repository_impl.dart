@@ -50,7 +50,9 @@ class PromoRepositoryImpl implements PromoRepository {
           .map((doc) => PromoOfferModel.fromFirestore(doc).toEntity())
           .where((promo) {
             final valid = _isPromoValidForOwner(promo, ownerAudience, now);
-            print('[PromoRepo] Promo "${promo.title}" (${promo.targetAudience}) valid for owner: $valid');
+            print(
+              '[PromoRepo] Promo "${promo.title}" (${promo.targetAudience}) valid for owner: $valid',
+            );
             return valid;
           })
           .toList();
@@ -63,7 +65,9 @@ class PromoRepositoryImpl implements PromoRepository {
           promo: promo,
           ownerId: ownerId,
         );
-        print('[PromoRepo] Should show "${promo.title}": $shouldShow (freq: ${promo.displayFrequency})');
+        print(
+          '[PromoRepo] Should show "${promo.title}": $shouldShow (freq: ${promo.displayFrequency})',
+        );
         if (shouldShow) {
           return Right(promo);
         }
@@ -88,7 +92,9 @@ class PromoRepositoryImpl implements PromoRepository {
           .orderBy('priority', descending: true)
           .get();
 
-      print('[PromoRepo] Found ${querySnapshot.docs.length} active promos (student)');
+      print(
+        '[PromoRepo] Found ${querySnapshot.docs.length} active promos (student)',
+      );
       print('[PromoRepo] Student audience: $studentAudience');
 
       if (querySnapshot.docs.isEmpty) {
@@ -100,7 +106,9 @@ class PromoRepositoryImpl implements PromoRepository {
           .map((doc) => PromoOfferModel.fromFirestore(doc).toEntity())
           .where((promo) {
             final valid = _isPromoValidForStudent(promo, studentAudience, now);
-            print('[PromoRepo] Promo "${promo.title}" (${promo.targetAudience}) valid for student: $valid');
+            print(
+              '[PromoRepo] Promo "${promo.title}" (${promo.targetAudience}) valid for student: $valid',
+            );
             return valid;
           })
           .toList();
@@ -113,7 +121,9 @@ class PromoRepositoryImpl implements PromoRepository {
           promo: promo,
           ownerId: studentId, // Reusing ownerId field for student tracking
         );
-        print('[PromoRepo] Should show "${promo.title}": $shouldShow (freq: ${promo.displayFrequency})');
+        print(
+          '[PromoRepo] Should show "${promo.title}": $shouldShow (freq: ${promo.displayFrequency})',
+        );
         if (shouldShow) {
           return Right(promo);
         }
@@ -144,12 +154,12 @@ class PromoRepositoryImpl implements PromoRepository {
         promo.targetAudience == PromoTargetAudience.allOwners) {
       return true;
     }
-    
+
     // Student-only audiences should not show to owners
     if (_isStudentOnlyAudience(promo.targetAudience)) {
       return false;
     }
-    
+
     return promo.targetAudience == ownerAudience;
   }
 
@@ -171,12 +181,12 @@ class PromoRepositoryImpl implements PromoRepository {
         promo.targetAudience == PromoTargetAudience.allStudents) {
       return true;
     }
-    
+
     // Owner-only audiences should not show to students
     if (_isOwnerOnlyAudience(promo.targetAudience)) {
       return false;
     }
-    
+
     return promo.targetAudience == studentAudience;
   }
 
@@ -239,9 +249,9 @@ class PromoRepositoryImpl implements PromoRepository {
         timestamp: now,
       );
 
-      await _interactionsCollection.doc(interactionId).set(
-            interaction.toFirestore(),
-          );
+      await _interactionsCollection
+          .doc(interactionId)
+          .set(interaction.toFirestore());
 
       // Mark as seen locally
       await promoSeenService.markPromoAsSeen(
@@ -357,13 +367,15 @@ class PromoRepositoryImpl implements PromoRepository {
         }
       }
 
-      return Right(PromoAnalytics(
-        promoId: promoId,
-        viewCount: viewCount,
-        clickCount: clickCount,
-        dismissCount: dismissCount,
-        uniqueOwners: uniqueOwners.length,
-      ));
+      return Right(
+        PromoAnalytics(
+          promoId: promoId,
+          viewCount: viewCount,
+          clickCount: clickCount,
+          dismissCount: dismissCount,
+          uniqueOwners: uniqueOwners.length,
+        ),
+      );
     } catch (e) {
       return Left(ServerFailure(message: 'Failed to fetch analytics: $e'));
     }

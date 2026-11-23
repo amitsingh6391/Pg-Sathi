@@ -165,7 +165,7 @@ class AuthRepositoryImpl implements AuthRepository {
         );
 
         if (verifyResult.isLeft()) {
-          return verifyResult.fold(
+          return await verifyResult.fold(
             (failure) => Left(failure),
             (_) => const Left(InvalidOtpFailure()),
           );
@@ -197,7 +197,7 @@ class AuthRepositoryImpl implements AuthRepository {
         );
 
         if (verifyResult.isLeft()) {
-          return verifyResult.fold(
+          return await verifyResult.fold(
             (failure) => Left(failure),
             (_) => const Left(InvalidOtpFailure()),
           );
@@ -232,19 +232,33 @@ class AuthRepositoryImpl implements AuthRepository {
           'isPhoneVerified': true,
         });
       } else {
-        // New user - create in Firestore
+        // New user - create in Firestore. A pending manager invite makes
+        // this account an owner-side manager for the owner's PG.
+        final inviteRef = firestore
+            .collection('manager_invites')
+            .doc(phoneNumber);
+        final invite = await inviteRef.get();
         user = User(
           id: userId,
           name: name ?? 'User',
           phone: phoneNumber,
-          role: role,
+          role: invite.exists ? UserRole.owner : role,
           deviceId: deviceId,
           isPhoneVerified: true,
           createdAt: DateTime.now(),
+          managedByOwnerId: invite.data()?['ownerId'] as String?,
+          managedLibraryIds: UserDto.readManagedLibraryIds(
+            invite.data(),
+            listKey: 'libraryIds',
+            legacyKey: 'libraryId',
+          ),
         );
 
         final dto = UserMapper.toDto(user);
-        await _usersCollection.doc(userId).set(dto.toFirestore());
+        final batch = firestore.batch()
+          ..set(_usersCollection.doc(userId), dto.toFirestore());
+        if (invite.exists) batch.delete(inviteRef);
+        await batch.commit();
       }
 
       return Right(user);

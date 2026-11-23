@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_ui_constants.dart';
@@ -26,7 +26,7 @@ class FullScreenImageViewer extends StatefulWidget {
     return Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
-        barrierColor: Colors.black,
+        barrierColor: AppUIConstants.background,
         pageBuilder: (context, animation, secondaryAnimation) {
           return FullScreenImageViewer(
             images: images,
@@ -78,10 +78,19 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
     });
   }
 
+  void _goTo(int index) {
+    HapticFeedback.selectionClick();
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppUIConstants.background,
       body: Stack(
         children: [
           // Image viewer with swipe
@@ -114,9 +123,31 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
           // Top bar with close button
           _buildTopBar(context),
 
-          // Bottom indicator
-          if (widget.images.length > 1) _buildBottomIndicator(),
+          // Bottom filmstrip
+          if (widget.images.length > 1) _buildFilmstrip(),
         ],
+      ),
+    );
+  }
+
+  Widget _glassButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.14),
+        shape: const CircleBorder(side: BorderSide(color: Colors.white24)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+        ),
       ),
     );
   }
@@ -129,42 +160,51 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
       child: Container(
         padding: EdgeInsets.only(
           top: MediaQuery.of(context).padding.top + 8,
-          left: 8,
+          left: 16,
           right: 16,
-          bottom: 8,
+          bottom: 24,
         ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
+            colors: [
+              AppUIConstants.background.withValues(alpha: 0.85),
+              Colors.transparent,
+            ],
           ),
         ),
         child: Row(
           children: [
-            IconButton(
-              icon: const Icon(Icons.close_rounded, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
+            _glassButton(
+              icon: Icons.close_rounded,
+              tooltip: 'Close',
+              onTap: () => Navigator.of(context).pop(),
             ),
             const Spacer(),
             if (widget.images.length > 1)
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 14,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withValues(alpha: 0.14),
+                  border: Border.all(color: Colors.white24),
                   borderRadius: BorderRadius.circular(
                     AppUIConstants.radiusFull,
                   ),
                 ),
-                child: Text(
-                  '${_currentIndex + 1} / ${widget.images.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: Text(
+                    '${_currentIndex + 1} / ${widget.images.length}',
+                    key: ValueKey(_currentIndex),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -174,25 +214,75 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
     );
   }
 
-  Widget _buildBottomIndicator() {
+  Widget _buildFilmstrip() {
     return Positioned(
-      bottom: MediaQuery.of(context).padding.bottom + 20,
+      bottom: 0,
       left: 0,
       right: 0,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          widget.images.length,
-          (index) => Container(
-            width: index == _currentIndex ? 24 : 8,
-            height: 8,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            decoration: BoxDecoration(
-              color: index == _currentIndex
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(4),
-            ),
+      child: Container(
+        padding: EdgeInsets.only(
+          top: 28,
+          bottom: MediaQuery.of(context).padding.bottom + 16,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [
+              AppUIConstants.background.withValues(alpha: 0.9),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: widget.images.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final selected = index == _currentIndex;
+              return GestureDetector(
+                onTap: () => _goTo(index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusSm,
+                    ),
+                    border: Border.all(
+                      color: selected
+                          ? AppUIConstants.primaryLight
+                          : Colors.white.withValues(alpha: 0.2),
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                  child: Opacity(
+                    opacity: selected ? 1 : 0.6,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                        AppUIConstants.radiusSm - 2,
+                      ),
+                      child: Image.network(
+                        widget.images[index],
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const ColoredBox(
+                          color: AppUIConstants.surfaceMuted,
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            size: 18,
+                            color: AppUIConstants.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -304,7 +394,7 @@ class _ZoomableImageState extends State<_ZoomableImage>
                 ? loadingProgress.cumulativeBytesLoaded /
                       loadingProgress.expectedTotalBytes!
                 : null,
-            color: Colors.white,
+            color: AppUIConstants.primaryLight,
             strokeWidth: 2,
           ),
         );
@@ -314,11 +404,23 @@ class _ZoomableImageState extends State<_ZoomableImage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.broken_image, color: Colors.white54, size: 48),
-              const SizedBox(height: 12),
-              Text(
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppUIConstants.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppUIConstants.border),
+                ),
+                child: const Icon(
+                  Icons.broken_image_rounded,
+                  color: AppUIConstants.textTertiary,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
                 'Failed to load image',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                style: TextStyle(color: AppUIConstants.textSecondary),
               ),
             ],
           ),

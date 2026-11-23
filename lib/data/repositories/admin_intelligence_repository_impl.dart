@@ -110,9 +110,8 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
         // status='active' alone is unreliable \u2014 the lapse cron may not have
         // run yet, so an "active" sub past its endDate is really expired.
         final endDate = (data['endDate'] as Timestamp?)?.toDate();
-        final isTrulyActive = status == 'active' &&
-            endDate != null &&
-            !endDate.isBefore(now);
+        final isTrulyActive =
+            status == 'active' && endDate != null && !endDate.isBefore(now);
 
         lifetimeRevenue += amount;
 
@@ -120,7 +119,9 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
           paidLibraryIds.add(libraryId);
           if (revenueDate != null) {
             if (!libraryFirstSubscriptionDate.containsKey(libraryId) ||
-                revenueDate.isBefore(libraryFirstSubscriptionDate[libraryId]!)) {
+                revenueDate.isBefore(
+                  libraryFirstSubscriptionDate[libraryId]!,
+                )) {
               libraryFirstSubscriptionDate[libraryId] = revenueDate;
             }
           }
@@ -143,8 +144,11 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
           if (isTrulyActive) {
             _accumulateSeatSlab(seatSlabs, seatCount, amount);
             activeLibraryIds.add(libraryId);
-          } else if (status == 'expired' || status == 'cancelled' ||
-                     (status == 'active' && endDate != null && endDate.isBefore(now))) {
+          } else if (status == 'expired' ||
+              status == 'cancelled' ||
+              (status == 'active' &&
+                  endDate != null &&
+                  endDate.isBefore(now))) {
             expiredLibraryIds.add(libraryId);
           }
         }
@@ -153,10 +157,14 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
         // operationally active but \u20B90 of cash, so counting them inflates both.
         final isAdminBypassed = data['isAdminBypassed'] as bool? ?? false;
 
-        if (!isAdminBypassed && revenueDate != null &&
+        if (!isAdminBypassed &&
+            revenueDate != null &&
             !revenueDate.isBefore(sevenDayWindowStart)) {
-          final dayKey =
-              DateTime(revenueDate.year, revenueDate.month, revenueDate.day);
+          final dayKey = DateTime(
+            revenueDate.year,
+            revenueDate.month,
+            revenueDate.day,
+          );
           if (dailyRevenueMap.containsKey(dayKey)) {
             dailyRevenueMap[dayKey] = dailyRevenueMap[dayKey]! + amount;
           }
@@ -194,16 +202,24 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
 
       final paidCount = paidLibraryIds.length;
       final activeCount = activeLibraryIds.length;
-      final churnedCount = expiredLibraryIds.difference(activeLibraryIds).length;
+      final churnedCount = expiredLibraryIds
+          .difference(activeLibraryIds)
+          .length;
 
-      final thisMonthNewLibraries = monthlyNewLibrariesMap[currMonthKey]?.length ?? 0;
-      final lastMonthNewLibraries = monthlyNewLibrariesMap[prevMonthKey]?.length ?? 0;
+      final thisMonthNewLibraries =
+          monthlyNewLibrariesMap[currMonthKey]?.length ?? 0;
+      final lastMonthNewLibraries =
+          monthlyNewLibrariesMap[prevMonthKey]?.length ?? 0;
 
       final monthlyData = _buildMonthlyDataPoints(monthlyRevenueMap, now);
-      final monthlySubscriptionData = _buildMonthlySubscriptionPoints(monthlyNewLibrariesMap, now);
+      final monthlySubscriptionData = _buildMonthlySubscriptionPoints(
+        monthlyNewLibrariesMap,
+        now,
+      );
 
-      final trialSnapshot =
-          await _libraries.where('isOnTrial', isEqualTo: true).get();
+      final trialSnapshot = await _libraries
+          .where('isOnTrial', isEqualTo: true)
+          .get();
       final freeTrialCount = trialSnapshot.docs.length;
 
       final upcomingRenewals = await getUpcomingRenewals();
@@ -304,10 +320,9 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
       final monthDate = DateTime(now.year, now.month - i, 1);
       final key =
           '${monthDate.year}-${monthDate.month.toString().padLeft(2, '0')}';
-      points.add(MonthlyRevenuePoint(
-        date: monthDate,
-        revenue: revenueMap[key] ?? 0,
-      ));
+      points.add(
+        MonthlyRevenuePoint(date: monthDate, revenue: revenueMap[key] ?? 0),
+      );
     }
     return points;
   }
@@ -322,10 +337,12 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
       final monthDate = DateTime(now.year, now.month - i, 1);
       final key =
           '${monthDate.year}-${monthDate.month.toString().padLeft(2, '0')}';
-      points.add(MonthlySubscriptionPoint(
-        date: monthDate,
-        count: subscriptionMap[key]?.length ?? 0,
-      ));
+      points.add(
+        MonthlySubscriptionPoint(
+          date: monthDate,
+          count: subscriptionMap[key]?.length ?? 0,
+        ),
+      );
     }
     return points;
   }
@@ -486,7 +503,7 @@ class AdminIntelligenceRepositoryImpl implements AdminIntelligenceRepository {
     try {
       final atRiskResult = await getAtRiskLibraries();
 
-      return atRiskResult.fold((l) => Left(l), (libraries) {
+      return await atRiskResult.fold((l) => Left(l), (libraries) {
         final inactive7 = libraries
             .where(
               (l) =>

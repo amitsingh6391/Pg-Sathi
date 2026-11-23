@@ -64,8 +64,9 @@ void main() {
   });
 
   test('should_fail_when_code_not_found', () async {
-    when(mockReferralRepo.getReferralByCode('LT-XXX-0000'))
-        .thenAnswer((_) async => const Right(null));
+    when(
+      mockReferralRepo.getReferralByCode('LT-XXX-0000'),
+    ).thenAnswer((_) async => const Right(null));
 
     final result = await useCase(
       const ValidateReferralCodeParams(
@@ -82,8 +83,9 @@ void main() {
   });
 
   test('should_fail_when_self_referral', () async {
-    when(mockReferralRepo.getReferralByCode('LT-ABC-1234'))
-        .thenAnswer((_) async => const Right(referral));
+    when(
+      mockReferralRepo.getReferralByCode('LT-ABC-1234'),
+    ).thenAnswer((_) async => const Right(referral));
 
     final result = await useCase(
       const ValidateReferralCodeParams(
@@ -100,8 +102,9 @@ void main() {
   });
 
   test('should_fail_when_referee_already_used_a_referral', () async {
-    when(mockReferralRepo.getReferralByCode('LT-ABC-1234'))
-        .thenAnswer((_) async => const Right(referral));
+    when(
+      mockReferralRepo.getReferralByCode('LT-ABC-1234'),
+    ).thenAnswer((_) async => const Right(referral));
 
     final existingRedemption = ReferralRedemption(
       id: 'red_1',
@@ -111,8 +114,9 @@ void main() {
       status: ReferralRedemptionStatus.converted,
     );
 
-    when(mockReferralRepo.getRedemptionByReferee('referee_owner'))
-        .thenAnswer((_) async => Right(existingRedemption));
+    when(
+      mockReferralRepo.getRedemptionByReferee('referee_owner'),
+    ).thenAnswer((_) async => Right(existingRedemption));
 
     final result = await useCase(
       const ValidateReferralCodeParams(
@@ -129,14 +133,17 @@ void main() {
   });
 
   test('should_fail_when_referrer_has_no_active_subscription', () async {
-    when(mockReferralRepo.getReferralByCode('LT-ABC-1234'))
-        .thenAnswer((_) async => const Right(referral));
+    when(
+      mockReferralRepo.getReferralByCode('LT-ABC-1234'),
+    ).thenAnswer((_) async => const Right(referral));
 
-    when(mockReferralRepo.getRedemptionByReferee('referee_owner'))
-        .thenAnswer((_) async => const Right(null));
+    when(
+      mockReferralRepo.getRedemptionByReferee('referee_owner'),
+    ).thenAnswer((_) async => const Right(null));
 
-    when(mockSubscriptionRepo.getActiveSubscription('referrer_owner'))
-        .thenAnswer((_) async => const Right(null));
+    when(
+      mockSubscriptionRepo.getActiveSubscription('referrer_owner'),
+    ).thenAnswer((_) async => const Right(null));
 
     final result = await useCase(
       const ValidateReferralCodeParams(
@@ -153,14 +160,17 @@ void main() {
   });
 
   test('should_succeed_when_all_conditions_met', () async {
-    when(mockReferralRepo.getReferralByCode('LT-ABC-1234'))
-        .thenAnswer((_) async => const Right(referral));
+    when(
+      mockReferralRepo.getReferralByCode('LT-ABC-1234'),
+    ).thenAnswer((_) async => const Right(referral));
 
-    when(mockReferralRepo.getRedemptionByReferee('referee_owner'))
-        .thenAnswer((_) async => const Right(null));
+    when(
+      mockReferralRepo.getRedemptionByReferee('referee_owner'),
+    ).thenAnswer((_) async => const Right(null));
 
-    when(mockSubscriptionRepo.getActiveSubscription('referrer_owner'))
-        .thenAnswer((_) async => Right(activeSubscription));
+    when(
+      mockSubscriptionRepo.getActiveSubscription('referrer_owner'),
+    ).thenAnswer((_) async => Right(activeSubscription));
 
     final result = await useCase(
       const ValidateReferralCodeParams(

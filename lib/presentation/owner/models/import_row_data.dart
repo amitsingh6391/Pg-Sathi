@@ -129,22 +129,22 @@ class ImportRowData extends Equatable {
 
   @override
   List<Object?> get props => [
-        rowIndex,
-        studentName,
-        phone,
-        seatNumber,
-        slot,
-        startDate,
-        endDate,
-        amount,
-        plan,
-        paymentMode,
-        email,
-        validationErrors,
-        rawTiming,
-        slotStartMinutes,
-        slotEndMinutes,
-      ];
+    rowIndex,
+    studentName,
+    phone,
+    seatNumber,
+    slot,
+    startDate,
+    endDate,
+    amount,
+    plan,
+    paymentMode,
+    email,
+    validationErrors,
+    rawTiming,
+    slotStartMinutes,
+    slotEndMinutes,
+  ];
 }
 
 /// Result of processing a single import row.
@@ -169,14 +169,14 @@ class ImportRowResult extends Equatable {
 
   @override
   List<Object?> get props => [
-        rowIndex,
-        phone,
-        status,
-        message,
-        studentId,
-        membershipId,
-        isStudentCreated,
-      ];
+    rowIndex,
+    phone,
+    status,
+    message,
+    studentId,
+    membershipId,
+    isStudentCreated,
+  ];
 }
 
 /// Status of an import row.
@@ -213,12 +213,12 @@ class ImportSummary extends Equatable {
 
   @override
   List<Object?> get props => [
-        totalRows,
-        successCount,
-        skippedCount,
-        failedCount,
-        studentsCreated,
-        studentsReused,
-        results,
-      ];
+    totalRows,
+    successCount,
+    skippedCount,
+    failedCount,
+    studentsCreated,
+    studentsReused,
+    results,
+  ];
 }

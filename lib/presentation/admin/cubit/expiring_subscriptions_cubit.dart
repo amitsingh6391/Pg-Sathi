@@ -9,10 +9,9 @@ import '../../../domain/usecases/get_expiring_trials.dart';
 part 'expiring_subscriptions_state.dart';
 
 class ExpiringSubscriptionsCubit extends Cubit<ExpiringSubscriptionsState> {
-  ExpiringSubscriptionsCubit({
-    required GetExpiringTrials getExpiringTrials,
-  })  : _getExpiringTrials = getExpiringTrials,
-        super(const ExpiringSubscriptionsState());
+  ExpiringSubscriptionsCubit({required GetExpiringTrials getExpiringTrials})
+    : _getExpiringTrials = getExpiringTrials,
+      super(const ExpiringSubscriptionsState());
 
   final GetExpiringTrials _getExpiringTrials;
 
@@ -28,7 +27,8 @@ class ExpiringSubscriptionsCubit extends Cubit<ExpiringSubscriptionsState> {
     );
 
     result.fold(
-      (failure) => emit(state.copyWith(isLoading: false, error: failure.message)),
+      (failure) =>
+          emit(state.copyWith(isLoading: false, error: failure.message)),
       (data) => emit(
         state.copyWith(
           isLoading: false,

@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/user_activity_stats.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import 'admin_activity_chart.dart';
 
 /// Hourly activity chart section for admin dashboard.
@@ -19,28 +20,37 @@ class AdminHourlyActivity extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text('Hourly Activity', style: AppUIConstants.headingSm),
-            const Spacer(),
-            if (activity.peakHours.isNotEmpty)
-              Text(
-                'Peak: ${activity.peakHours.map(_formatHour).join(", ")}',
-                style: AppUIConstants.caption.copyWith(
-                  color: AppUIConstants.accent,
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: AppUIConstants.spacingMd),
-        Container(
-          padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-          decoration: AppUIConstants.cardDecoration,
+        PremiumSectionHeader('Hourly activity'),
+        PremiumCard(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (activity.peakHours.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 16,
+                        color: AppUIConstants.primaryLight,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Peak: ${activity.peakHours.map(_formatHour).join(", ")}',
+                          style: AppUIConstants.bodySm.copyWith(
+                            color: AppUIConstants.primaryLight,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (_hasComparisons()) _buildComparisons(),
               SizedBox(
-                height: 100,
+                height: 120,
                 child: AdminActivityChart(
                   hourlyActivity: activity.hourlyActivityBreakdown,
                 ),

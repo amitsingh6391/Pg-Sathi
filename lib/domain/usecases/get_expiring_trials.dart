@@ -53,14 +53,14 @@ class ExpiringTrialInfo extends Equatable {
 
   @override
   List<Object?> get props => [
-        ownerId,
-        libraryId,
-        libraryName,
-        ownerName,
-        ownerPhone,
-        trial,
-        daysRemaining,
-      ];
+    ownerId,
+    libraryId,
+    libraryName,
+    ownerName,
+    ownerPhone,
+    trial,
+    daysRemaining,
+  ];
 }
 
 class GetExpiringTrialsParams extends Equatable {
@@ -99,26 +99,27 @@ class GetExpiringTrials
     try {
       final now = DateTime.now();
 
-      final allOwnersResult = await userRepository.getUsersByRole(UserRole.owner);
+      final allOwnersResult = await userRepository.getUsersByRole(
+        UserRole.owner,
+      );
 
       late List<User> owners;
-      final foldError = allOwnersResult.fold<Failure?>(
-        (f) => f,
-        (o) {
-          owners = o;
-          return null;
-        },
-      );
+      final foldError = allOwnersResult.fold<Failure?>((f) => f, (o) {
+        owners = o;
+        return null;
+      });
       if (foldError != null) return Left(foldError);
 
       if (owners.isEmpty) {
-        return Right(ExpiringTrialsResult(
-          expiringTrials: const [],
-          activeTrials: const [],
-          expiredTrials: const [],
-          libraryCache: const {},
-          ownerCache: const {},
-        ));
+        return Right(
+          ExpiringTrialsResult(
+            expiringTrials: const [],
+            activeTrials: const [],
+            expiredTrials: const [],
+            libraryCache: const {},
+            ownerCache: const {},
+          ),
+        );
       }
 
       // Fetch all libraries + trials in parallel across all owners
@@ -185,13 +186,15 @@ class GetExpiringTrials
       final libraryCache = await _fetchLibraryCache(params.allSubscriptions);
       final ownerCache = await _fetchOwnerCache(libraryCache.values.toList());
 
-      return Right(ExpiringTrialsResult(
-        expiringTrials: expiringTrials,
-        activeTrials: activeTrials,
-        expiredTrials: expiredTrials,
-        libraryCache: libraryCache,
-        ownerCache: ownerCache,
-      ));
+      return Right(
+        ExpiringTrialsResult(
+          expiringTrials: expiringTrials,
+          activeTrials: activeTrials,
+          expiredTrials: expiredTrials,
+          libraryCache: libraryCache,
+          ownerCache: ownerCache,
+        ),
+      );
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }
@@ -200,8 +203,7 @@ class GetExpiringTrials
   Future<Map<String, Library>> _fetchLibraryCache(
     List<Subscription> subscriptions,
   ) async {
-    final uniqueIds =
-        subscriptions.map((s) => s.libraryId).toSet().toList();
+    final uniqueIds = subscriptions.map((s) => s.libraryId).toSet().toList();
     if (uniqueIds.isEmpty) return {};
 
     final results = await Future.wait(
@@ -218,8 +220,7 @@ class GetExpiringTrials
   }
 
   Future<Map<String, User>> _fetchOwnerCache(List<Library> libraries) async {
-    final uniqueOwnerIds =
-        libraries.map((lib) => lib.ownerId).toSet().toList();
+    final uniqueOwnerIds = libraries.map((lib) => lib.ownerId).toSet().toList();
     if (uniqueOwnerIds.isEmpty) return {};
 
     final results = await Future.wait(

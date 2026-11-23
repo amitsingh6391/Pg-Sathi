@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/app_ui_constants.dart';
 
@@ -19,29 +19,33 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: AppUIConstants.primary, size: 20),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppUIConstants.bodyLg.copyWith(fontWeight: FontWeight.bold),
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppUIConstants.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+          ),
+          child: Icon(icon, color: AppUIConstants.primaryLight, size: 16),
         ),
-        if (count != null) ...[
-          const SizedBox(width: 8),
+        const SizedBox(width: 10),
+        Expanded(child: Text(title, style: AppUIConstants.headingSm)),
+        if (count != null)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
-              color: AppUIConstants.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: AppUIConstants.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+              border: Border.all(color: AppUIConstants.border),
             ),
             child: Text(
               '$count',
-              style: AppUIConstants.caption.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppUIConstants.primary,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                color: AppUIConstants.primaryLight,
               ),
             ),
           ),
-        ],
       ],
     );
   }

@@ -24,9 +24,7 @@ class GetUserActivityDetails {
     required DateTime endDate,
   }) async {
     if (userId.isEmpty) {
-      return const Left(
-        ValidationFailure(message: 'User ID cannot be empty'),
-      );
+      return const Left(ValidationFailure(message: 'User ID cannot be empty'));
     }
 
     if (endDate.isBefore(startDate)) {

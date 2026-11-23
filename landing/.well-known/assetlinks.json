@@ -1,0 +1,16 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.pgsathi.app",
+      "sha256_cert_fingerprints": [
+        "51:8C:EC:F1:9B:41:27:40:E0:F6:35:67:E7:41:C2:72:EA:E1:46:EB:4A:62:28:DC:57:EC:6A:26:A6:D7:05:54",
+        "36:C4:30:05:7D:AE:0F:11:7C:F0:9B:7B:53:DD:20:17:1B:D9:39:F5:50:A3:8F:A7:55:8B:5D:EC:4D:7C:75:88",
+        "6B:AA:9F:49:6F:67:35:89:8E:2C:34:EA:6F:C2:5E:7F:64:31:F1:73:1F:59:69:17:6E:E4:73:B0:15:79:6B:60"
+      ]
+    }
+  }
+]

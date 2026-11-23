@@ -83,18 +83,11 @@ class RejectCashPayment
 
       // Send notification to student (fire-and-forget)
       if (notificationService != null && membership.userId != null) {
-        _sendStudentNotification(
-          membership,
-          rejectedPayment,
-          params.reason,
-        );
+        _sendStudentNotification(membership, rejectedPayment, params.reason);
       }
 
       return Right(
-        CashRejectionResult(
-          payment: rejectedPayment,
-          membership: membership,
-        ),
+        CashRejectionResult(payment: rejectedPayment, membership: membership),
       );
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));

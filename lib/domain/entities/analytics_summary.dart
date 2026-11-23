@@ -22,12 +22,12 @@ class AnalyticsSummary extends Equatable {
 
   @override
   List<Object?> get props => [
-        eventName,
-        userId,
-        role,
-        libraryId,
-        platform,
-        parameters,
-        timestamp,
-      ];
+    eventName,
+    userId,
+    role,
+    libraryId,
+    platform,
+    parameters,
+    timestamp,
+  ];
 }

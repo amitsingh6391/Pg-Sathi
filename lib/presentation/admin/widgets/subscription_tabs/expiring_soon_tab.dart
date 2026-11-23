@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../domain/entities/subscription.dart';
@@ -7,6 +7,7 @@ import '../../cubit/expiring_subscriptions_cubit.dart';
 import '../subscription_cards/expiring_subscription_card.dart';
 import '../subscription_cards/expiring_trial_card.dart';
 import '../subscription_widgets/section_header.dart';
+import '../subscription_widgets/shimmer_box.dart';
 
 /// Filter options for trials.
 enum TrialFilter {
@@ -55,55 +56,10 @@ class _ExpiringSoonTabState extends State<ExpiringSoonTab>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context
-          .read<ExpiringSubscriptionsCubit>()
-          .loadExpiringData(widget.allSubscriptions);
+      context.read<ExpiringSubscriptionsCubit>().loadExpiringData(
+        widget.allSubscriptions,
+      );
     });
-  }
-
-  void _showFilterBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppUIConstants.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.filter_list_rounded,
-                  color: AppUIConstants.primary,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Filter Trials',
-                  style: AppUIConstants.bodyLg.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppUIConstants.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ...TrialFilter.values.map((filter) => _FilterOption(
-                  filter: filter,
-                  isSelected: _selectedFilter == filter,
-                  onTap: () {
-                    setState(() => _selectedFilter = filter);
-                    Navigator.pop(context);
-                  },
-                )),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -113,158 +69,116 @@ class _ExpiringSoonTabState extends State<ExpiringSoonTab>
     return BlocBuilder<ExpiringSubscriptionsCubit, ExpiringSubscriptionsState>(
       builder: (context, state) {
         if (state.isLoading) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Loading expiring data...'),
-              ],
-            ),
+          return ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(top: 12),
+            children: List.generate(5, (_) => const ShimmerCardRow()),
           );
         }
 
         if (state.error != null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: AppUIConstants.error,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Error loading data',
-                  style: AppUIConstants.bodyLg.copyWith(
-                    color: AppUIConstants.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  state.error!,
-                  style: AppUIConstants.bodySm.copyWith(
-                    color: AppUIConstants.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => context
-                      .read<ExpiringSubscriptionsCubit>()
-                      .refresh(widget.allSubscriptions),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppUIConstants.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
+          return AdminEmptyState(
+            icon: Icons.cloud_off_rounded,
+            color: AppUIConstants.error,
+            title: 'Error loading data',
+            message: state.error,
+            actionLabel: 'Retry',
+            onAction: () => context.read<ExpiringSubscriptionsCubit>().refresh(
+              widget.allSubscriptions,
             ),
           );
         }
 
         if (!state.hasData) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.check_circle_outline,
-                  size: 64,
-                  color: AppUIConstants.success,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No expiring subscriptions or trials',
-                  style: AppUIConstants.bodyLg.copyWith(
-                    color: AppUIConstants.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'All subscriptions and trials are up to date',
-                  style: AppUIConstants.bodySm.copyWith(
-                    color: AppUIConstants.textTertiary,
-                  ),
-                ),
-              ],
-            ),
+          return const AdminEmptyState(
+            icon: Icons.verified_rounded,
+            color: AppUIConstants.success,
+            title: 'All caught up',
+            message: 'No expiring subscriptions or trials right now',
           );
         }
 
         // Apply search filter
-        final filteredSubscriptions = _filterSubscriptions(state.expiringSubscriptions);
+        final filteredSubscriptions = _filterSubscriptions(
+          state.expiringSubscriptions,
+        );
         final filteredExpiringTrials = _filterTrials(state.expiringTrials);
         final filteredActiveTrials = _filterTrials(state.activeTrials);
         final filteredExpiredTrials = _filterTrials(state.expiredTrials);
 
-        final hasTrials = filteredExpiringTrials.isNotEmpty ||
-            filteredActiveTrials.isNotEmpty ||
-            filteredExpiredTrials.isNotEmpty;
-
-        return Stack(
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              children: [
-                // Expiring subscriptions
-                if (filteredSubscriptions.isNotEmpty) ...[
-                  const SectionHeader(
-                    title: 'Expiring Subscriptions',
-                    icon: Icons.subscriptions_rounded,
-                  ),
-                  const SizedBox(height: 12),
-                  ...filteredSubscriptions.map(
-                    (sub) => ExpiringSubscriptionCard(
-                      subscription: sub,
-                      library: state.libraryCache[sub.libraryId],
-                      ownerName: context
-                          .read<ExpiringSubscriptionsCubit>()
-                          .getOwnerName(sub.libraryId),
-                      ownerPhone: context
-                          .read<ExpiringSubscriptionsCubit>()
-                          .getOwnerPhone(sub.libraryId),
-                      customMessage: widget.customMessage,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                // Trials section
-                _buildTrialSection(
+            _SummaryStrip(
+              items: [
+                _SummaryItem(
+                  'Subs',
+                  filteredSubscriptions.length,
+                  AppUIConstants.warning,
+                  null,
+                ),
+                _SummaryItem(
+                  'Expiring',
+                  filteredExpiringTrials.length,
+                  AppUIConstants.warning,
+                  TrialFilter.expiring,
+                ),
+                _SummaryItem(
+                  'Active',
+                  filteredActiveTrials.length,
+                  AppUIConstants.success,
+                  TrialFilter.active,
+                ),
+                _SummaryItem(
+                  'Expired',
+                  filteredExpiredTrials.length,
+                  AppUIConstants.error,
+                  TrialFilter.expired,
+                ),
+              ],
+              selected: _selectedFilter,
+              onSelect: (f) => setState(
+                () => _selectedFilter = f == _selectedFilter
+                    ? TrialFilter.all
+                    : f,
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Expiring subscriptions
+            if (filteredSubscriptions.isNotEmpty) ...[
+              SectionHeader(
+                title: 'Expiring Subscriptions',
+                count: filteredSubscriptions.length,
+                icon: Icons.subscriptions_rounded,
+              ),
+              const SizedBox(height: 12),
+              ...filteredSubscriptions.map(
+                (sub) => ExpiringSubscriptionCard(
+                  subscription: sub,
+                  library: state.libraryCache[sub.libraryId],
+                  ownerName: context
+                      .read<ExpiringSubscriptionsCubit>()
+                      .getOwnerName(sub.libraryId),
+                  ownerPhone: context
+                      .read<ExpiringSubscriptionsCubit>()
+                      .getOwnerPhone(sub.libraryId),
+                  customMessage: widget.customMessage,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            // Trials section
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: KeyedSubtree(
+                key: ValueKey(_selectedFilter),
+                child: _buildTrialSection(
                   filteredExpiringTrials,
                   filteredActiveTrials,
                   filteredExpiredTrials,
                 ),
-              ],
-            ),
-            // Floating Action Button for Filter
-            if (hasTrials)
-              Positioned(
-                bottom: 16,
-                right: 16,
-                child: FloatingActionButton.extended(
-                  onPressed: _showFilterBottomSheet,
-                  backgroundColor: AppUIConstants.primary,
-                  foregroundColor: Colors.white,
-                  icon: Icon(_selectedFilter.icon, size: 20),
-                  label: Text(
-                    _selectedFilter == TrialFilter.expiring
-                        ? 'Expiring'
-                        : _selectedFilter == TrialFilter.active
-                        ? 'Active'
-                        : _selectedFilter == TrialFilter.expired
-                        ? 'Expired'
-                        : 'All',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  elevation: 4,
-                ),
               ),
+            ),
           ],
         );
       },
@@ -276,10 +190,11 @@ class _ExpiringSoonTabState extends State<ExpiringSoonTab>
 
     final query = widget.searchQuery.toLowerCase();
     return subs.where((s) {
-      final libraryName = widget.libraryCache[s.libraryId]?.name?.toLowerCase() ?? '';
+      final libraryName =
+          widget.libraryCache[s.libraryId]?.name?.toLowerCase() ?? '';
       final ownerName = widget.ownerNames[s.libraryId]?.toLowerCase() ?? '';
       final ownerPhone = widget.ownerPhones[s.libraryId]?.toLowerCase() ?? '';
-      
+
       return libraryName.contains(query) ||
           ownerName.contains(query) ||
           ownerPhone.contains(query) ||
@@ -296,7 +211,7 @@ class _ExpiringSoonTabState extends State<ExpiringSoonTab>
       final libraryName = t.libraryName?.toLowerCase() ?? '';
       final ownerName = t.ownerName?.toLowerCase() ?? '';
       final ownerPhone = t.ownerPhone?.toLowerCase() ?? '';
-      
+
       return libraryName.contains(query) ||
           ownerName.contains(query) ||
           ownerPhone.contains(query);
@@ -310,214 +225,138 @@ class _ExpiringSoonTabState extends State<ExpiringSoonTab>
   ) {
     final children = <Widget>[];
 
-    switch (_selectedFilter) {
-      case TrialFilter.expiring:
-        if (expiringTrials.isNotEmpty) {
-          children.addAll([
-            SectionHeader(
-              title: 'Expiring Trials',
-              count: expiringTrials.length,
-              icon: Icons.timer_off_rounded,
-            ),
-            const SizedBox(height: 12),
-            ...expiringTrials.map(
-              (t) => ExpiringTrialCard(
-                trialInfo: t,
-                customMessage: widget.customMessage,
-              ),
-            ),
-          ]);
-        }
-        break;
+    void addGroup(String title, IconData icon, List<dynamic> trials) {
+      if (trials.isEmpty) return;
+      if (children.isNotEmpty) children.add(const SizedBox(height: 16));
+      children.addAll([
+        SectionHeader(title: title, count: trials.length, icon: icon),
+        const SizedBox(height: 12),
+        ...trials.map(
+          (t) => ExpiringTrialCard(
+            trialInfo: t,
+            customMessage: widget.customMessage,
+          ),
+        ),
+      ]);
+    }
 
-      case TrialFilter.active:
-        if (activeTrials.isNotEmpty) {
-          children.addAll([
-            SectionHeader(
-              title: 'Active Trials',
-              count: activeTrials.length,
-              icon: Icons.timer_rounded,
-            ),
-            const SizedBox(height: 12),
-            ...activeTrials.map(
-              (t) => ExpiringTrialCard(
-                trialInfo: t,
-                customMessage: widget.customMessage,
-              ),
-            ),
-          ]);
-        }
-        break;
+    final showExpiring =
+        _selectedFilter == TrialFilter.expiring ||
+        _selectedFilter == TrialFilter.all;
+    final showActive =
+        _selectedFilter == TrialFilter.active ||
+        _selectedFilter == TrialFilter.all;
+    final showExpired =
+        _selectedFilter == TrialFilter.expired ||
+        _selectedFilter == TrialFilter.all;
 
-      case TrialFilter.expired:
-        if (expiredTrials.isNotEmpty) {
-          children.addAll([
-            SectionHeader(
-              title: 'Expired Trials',
-              count: expiredTrials.length,
-              icon: Icons.cancel_outlined,
-            ),
-            const SizedBox(height: 12),
-            ...expiredTrials.map(
-              (t) => ExpiringTrialCard(
-                trialInfo: t,
-                customMessage: widget.customMessage,
-              ),
-            ),
-          ]);
-        }
-        break;
-
-      case TrialFilter.all:
-        if (expiringTrials.isNotEmpty) {
-          children.addAll([
-            SectionHeader(
-              title: 'Expiring Trials',
-              count: expiringTrials.length,
-              icon: Icons.timer_off_rounded,
-            ),
-            const SizedBox(height: 12),
-            ...expiringTrials.map(
-              (t) => ExpiringTrialCard(
-                trialInfo: t,
-                customMessage: widget.customMessage,
-              ),
-            ),
-            const SizedBox(height: 24),
-          ]);
-        }
-
-        if (activeTrials.isNotEmpty) {
-          children.addAll([
-            SectionHeader(
-              title: 'Active Trials',
-              count: activeTrials.length,
-              icon: Icons.timer_rounded,
-            ),
-            const SizedBox(height: 12),
-            ...activeTrials.map(
-              (t) => ExpiringTrialCard(
-                trialInfo: t,
-                customMessage: widget.customMessage,
-              ),
-            ),
-            const SizedBox(height: 24),
-          ]);
-        }
-
-        if (expiredTrials.isNotEmpty) {
-          children.addAll([
-            SectionHeader(
-              title: 'Expired Trials',
-              count: expiredTrials.length,
-              icon: Icons.cancel_outlined,
-            ),
-            const SizedBox(height: 12),
-            ...expiredTrials.map(
-              (t) => ExpiringTrialCard(
-                trialInfo: t,
-                customMessage: widget.customMessage,
-              ),
-            ),
-          ]);
-        }
-        break;
+    if (showExpiring) {
+      addGroup('Expiring Trials', Icons.timer_off_rounded, expiringTrials);
+    }
+    if (showActive) {
+      addGroup('Active Trials', Icons.timer_rounded, activeTrials);
+    }
+    if (showExpired) {
+      addGroup('Expired Trials', Icons.cancel_outlined, expiredTrials);
     }
 
     if (children.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            children: [
-              Icon(
-                Icons.inbox_outlined,
-                size: 48,
-                color: AppUIConstants.textTertiary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                widget.searchQuery.isEmpty
-                    ? 'No trials in this category'
-                    : 'No results found',
-                style: AppUIConstants.bodyMd.copyWith(
-                  color: AppUIConstants.textTertiary,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return AdminEmptyState(
+        icon: widget.searchQuery.isEmpty
+            ? Icons.inbox_outlined
+            : Icons.search_off_rounded,
+        title: widget.searchQuery.isEmpty
+            ? 'No trials in this category'
+            : 'No results found',
+        message: widget.searchQuery.isEmpty
+            ? 'Pick another status above to see more'
+            : 'Try a different search',
       );
     }
 
-    return Column(children: children);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
   }
 }
 
-class _FilterOption extends StatelessWidget {
-  const _FilterOption({
-    required this.filter,
-    required this.isSelected,
-    required this.onTap,
+class _SummaryItem {
+  const _SummaryItem(this.label, this.count, this.color, this.filter);
+
+  final String label;
+  final int count;
+  final Color color;
+  final TrialFilter? filter;
+}
+
+/// Count strip; trial tiles double as status filters.
+class _SummaryStrip extends StatelessWidget {
+  const _SummaryStrip({
+    required this.items,
+    required this.selected,
+    required this.onSelect,
   });
 
-  final TrialFilter filter;
-  final bool isSelected;
-  final VoidCallback onTap;
+  final List<_SummaryItem> items;
+  final TrialFilter selected;
+  final ValueChanged<TrialFilter> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppUIConstants.primary.withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? AppUIConstants.primary
-                  : AppUIConstants.border,
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                filter.icon,
-                color: isSelected
-                    ? AppUIConstants.primary
-                    : AppUIConstants.textSecondary,
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  filter.label,
-                  style: AppUIConstants.bodyMd.copyWith(
-                    color: isSelected
-                        ? AppUIConstants.primary
-                        : AppUIConstants.textPrimary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    return Row(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(child: _tile(items[i])),
+        ],
+      ],
+    );
+  }
+
+  Widget _tile(_SummaryItem it) {
+    final isSel = it.filter != null && it.filter == selected;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: isSel
+            ? it.color.withValues(alpha: 0.16)
+            : AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        border: Border.all(
+          color: isSel
+              ? it.color.withValues(alpha: 0.7)
+              : AppUIConstants.border,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+          onTap: it.filter == null ? null : () => onSelect(it.filter!),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              children: [
+                Text(
+                  '${it.count}',
+                  style: TextStyle(
+                    color: it.color,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-              if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: AppUIConstants.primary,
-                  size: 20,
+                const SizedBox(height: 2),
+                Text(
+                  it.label,
+                  style: const TextStyle(
+                    color: AppUIConstants.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

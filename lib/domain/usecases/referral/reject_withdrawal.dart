@@ -30,13 +30,15 @@ class RejectWithdrawal
       final request = match.first;
       final rejected = request.reject(params.reason);
 
-      final updateResult =
-          await referralRepository.updateWithdrawalRequest(rejected);
+      final updateResult = await referralRepository.updateWithdrawalRequest(
+        rejected,
+      );
 
       return updateResult.fold(Left.new, (updated) async {
         // Refund the held amount back to the wallet
-        final walletResult =
-            await referralRepository.getOrCreateWallet(request.ownerId);
+        final walletResult = await referralRepository.getOrCreateWallet(
+          request.ownerId,
+        );
 
         await walletResult.fold((_) => null, (wallet) async {
           final refunded = wallet.addCredit(request.amount);

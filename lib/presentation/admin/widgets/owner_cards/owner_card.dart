@@ -1,11 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/entities/library.dart';
+import '../../../../domain/entities/subscription_plan.dart';
 import '../../../../domain/entities/user.dart';
 import '../../../core/app_ui_constants.dart';
+import '../../../core/widgets/premium_kit.dart';
 import '../../utils/admin_contact_helper.dart';
 
-/// Reusable owner card widget showing owner info and library status.
+/// Reusable owner card widget showing owner info and PG status.
 class OwnerCard extends StatefulWidget {
   const OwnerCard({
     super.key,
@@ -27,207 +29,272 @@ class OwnerCard extends StatefulWidget {
 }
 
 class _OwnerCardState extends State<OwnerCard> {
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppUIConstants.spacingMd,
-        vertical: AppUIConstants.spacingSm,
+  Future<void> _call() async {
+    final ok = await AdminContactHelper.callOwner(widget.owner.phone);
+    if (!ok && mounted) _snack('Could not open phone dialer');
+  }
+
+  Future<void> _whatsApp() async {
+    final ok = await AdminContactHelper.sendWhatsApp(
+      phone: widget.owner.phone,
+      message: 'Hello! 👋',
+    );
+    if (!ok && mounted) _snack('Could not open WhatsApp');
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(msg),
+          ],
+        ),
+        backgroundColor: AppUIConstants.error,
+        behavior: SnackBarBehavior.floating,
       ),
-      elevation: widget.isExpanded ? 2 : 0,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: widget.isExpanded 
-              ? AppUIConstants.primary.withValues(alpha: 0.2)
-              : AppUIConstants.border.withValues(alpha: 0.5),
-          width: widget.isExpanded ? 1.5 : 0.5,
+    );
+  }
+
+  void _openActions() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppUIConstants.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppUIConstants.radiusXl),
         ),
       ),
+      builder: (ctx) {
+        Widget tile(
+          IconData icon,
+          String label,
+          Color color,
+          VoidCallback onTap,
+        ) {
+          return ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            title: Text(
+              label,
+              style: AppUIConstants.bodyMd.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              onTap();
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.border,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    widget.owner.displayName,
+                    style: AppUIConstants.headingSm,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                  child: Text(widget.owner.phone, style: AppUIConstants.bodySm),
+                ),
+                tile(
+                  Icons.phone_rounded,
+                  'Call owner',
+                  AppUIConstants.primaryLight,
+                  _call,
+                ),
+                tile(
+                  Icons.chat_rounded,
+                  'WhatsApp',
+                  AppUIConstants.success,
+                  _whatsApp,
+                ),
+                tile(
+                  Icons.notifications_rounded,
+                  'Notify',
+                  AppUIConstants.primaryLight,
+                  () {
+                    // TODO: Implement notification
+                  },
+                ),
+                if (widget.onEditPricing != null)
+                  tile(
+                    Icons.price_change_rounded,
+                    'Edit custom pricing',
+                    AppUIConstants.primaryLight,
+                    widget.onEditPricing!,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final owner = widget.owner;
+    final library = widget.library;
+    final expanded = widget.isExpanded;
+    final active = library != null;
+    final statusColor = active
+        ? AppUIConstants.success
+        : AppUIConstants.warning;
+    final hasCustom = library?.customMonthlyPrice != null;
+    final plan = library != null
+        ? SubscriptionPlan.getPlanForSeats(library.capacity).name
+        : null;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+        border: Border.all(
+          color: expanded
+              ? AppUIConstants.primaryLight.withValues(alpha: 0.5)
+              : AppUIConstants.border,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
         child: Column(
           children: [
-            _OwnerHeader(
-              owner: widget.owner,
-              library: widget.library,
-              isExpanded: widget.isExpanded,
+            InkWell(
               onTap: widget.onExpand,
-            ),
-            if (widget.isExpanded && widget.library != null) ...[
-              _LibraryDetailsExpanded(
-                owner: widget.owner,
-                library: widget.library!,
-                onEditPricing: widget.onEditPricing,
-              ),
-            ] else if (widget.isExpanded && widget.library == null) ...[
-              _NoLibraryActions(owner: widget.owner),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Header section showing owner info with library status badge.
-class _OwnerHeader extends StatelessWidget {
-  const _OwnerHeader({
-    required this.owner,
-    required this.library,
-    required this.isExpanded,
-    required this.onTap,
-  });
-
-  final User owner;
-  final Library? library;
-  final bool isExpanded;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasCustomPricing = library?.customMonthlyPrice != null;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: isExpanded
-              ? LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    AppUIConstants.primary.withValues(alpha: 0.03),
-                    Colors.transparent,
-                  ],
-                )
-              : null,
-        ),
-        child: Row(
-          children: [
-            // Avatar with gradient border
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppUIConstants.primary.withValues(alpha: 0.3),
-                    AppUIConstants.primary.withValues(alpha: 0.1),
-                  ],
-                ),
-                boxShadow: isExpanded
-                    ? [
-                        BoxShadow(
-                          color: AppUIConstants.primary.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          spreadRadius: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppUIConstants.primarySoft,
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.6),
+                          width: 1.5,
                         ),
-                      ]
-                    : null,
-              ),
-              padding: const EdgeInsets.all(2),
-              child: CircleAvatar(
-                radius: 22,
-                backgroundColor: AppUIConstants.surface,
-                child: Text(
-                  owner.displayName.isNotEmpty
-                      ? owner.displayName[0].toUpperCase()
-                      : '?',
-                  style: AppUIConstants.headingSm.copyWith(
-                    color: AppUIConstants.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Owner Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    owner.displayName,
-                    style: AppUIConstants.bodyMd.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppUIConstants.textPrimary,
+                      ),
+                      child: Text(
+                        owner.displayName.isNotEmpty
+                            ? owner.displayName[0].toUpperCase()
+                            : '?',
+                        style: AppUIConstants.headingSm.copyWith(
+                          color: AppUIConstants.primaryLight,
+                        ),
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.phone,
-                        size: 12,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            owner.displayName,
+                            style: AppUIConstants.bodyMd.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            library?.name ?? owner.phone,
+                            style: AppUIConstants.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              PremiumStatusPill(
+                                active ? 'Active' : 'Pending',
+                                color: statusColor,
+                              ),
+                              if (plan != null)
+                                PremiumStatusPill(
+                                  plan,
+                                  color: AppUIConstants.primaryLight,
+                                ),
+                              if (hasCustom)
+                                const PremiumStatusPill(
+                                  'Custom',
+                                  color: AppUIConstants.primaryLight,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _openActions,
+                      tooltip: 'Actions',
+                      icon: const Icon(
+                        Icons.more_vert_rounded,
                         color: AppUIConstants.textSecondary,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        owner.phone,
-                        style: AppUIConstants.caption.copyWith(
-                          color: AppUIConstants.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    ),
+                    AnimatedRotation(
+                      turns: expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 220),
+                      child: const Icon(
+                        Icons.expand_more_rounded,
+                        color: AppUIConstants.textTertiary,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            // Badges
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (library != null)
-                  _StatusBadge(
-                    label: 'Active',
-                    icon: Icons.check_circle,
-                    color: AppUIConstants.success,
-                  )
-                else
-                  _StatusBadge(
-                    label: 'Pending',
-                    icon: Icons.pending,
-                    color: AppUIConstants.warning,
-                  ),
-                if (hasCustomPricing) ...[
-                  const SizedBox(height: 4),
-                  _StatusBadge(
-                    label: 'Custom',
-                    icon: Icons.star,
-                    color: AppUIConstants.primary,
-                    compact: true,
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(width: 8),
-
-            // Expand icon
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isExpanded
-                    ? AppUIConstants.primary.withValues(alpha: 0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                isExpanded ? Icons.expand_less : Icons.expand_more,
-                color: isExpanded
-                    ? AppUIConstants.primary
-                    : AppUIConstants.textSecondary,
-                size: 20,
-              ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              alignment: Alignment.topCenter,
+              child: expanded
+                  ? _Details(
+                      owner: owner,
+                      library: library,
+                      onCall: _call,
+                      onWhatsApp: _whatsApp,
+                      onEditPricing: widget.onEditPricing,
+                    )
+                  : const SizedBox(width: double.infinity),
             ),
           ],
         ),
@@ -236,368 +303,40 @@ class _OwnerHeader extends StatelessWidget {
   }
 }
 
-/// Library details section (expanded view with actions).
-class _LibraryDetailsExpanded extends StatelessWidget {
-  const _LibraryDetailsExpanded({
+class _Details extends StatelessWidget {
+  const _Details({
     required this.owner,
     required this.library,
+    required this.onCall,
+    required this.onWhatsApp,
     this.onEditPricing,
   });
 
   final User owner;
-  final Library library;
+  final Library? library;
+  final VoidCallback onCall;
+  final VoidCallback onWhatsApp;
   final VoidCallback? onEditPricing;
 
-  Future<void> _handleCall(BuildContext context) async {
-    final success = await AdminContactHelper.callOwner(owner.phone);
-    if (!success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('Could not open phone dialer'),
-            ],
-          ),
-          backgroundColor: AppUIConstants.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  Future<void> _handleWhatsApp(BuildContext context) async {
-    final success = await AdminContactHelper.sendWhatsApp(
-      phone: owner.phone,
-      message: 'Hello! 👋',
-    );
-    if (!success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('Could not open WhatsApp'),
-            ],
-          ),
-          backgroundColor: AppUIConstants.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
+  String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
   @override
   Widget build(BuildContext context) {
+    final lib = library;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppUIConstants.surface.withValues(alpha: 0.3),
-            Colors.transparent,
-          ],
-        ),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surfaceMuted,
+        border: Border(top: BorderSide(color: AppUIConstants.divider)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Library Name Header
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppUIConstants.primary.withValues(alpha: 0.08),
-                  AppUIConstants.primary.withValues(alpha: 0.03),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
+          if (lib == null)
+            Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppUIConstants.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.local_library_rounded,
-                    size: 20,
-                    color: AppUIConstants.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        library.name,
-                        style: AppUIConstants.bodyMd.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppUIConstants.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (library.area != null) ...[
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 12,
-                              color: AppUIConstants.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                library.area!,
-                                style: AppUIConstants.caption.copyWith(
-                                  color: AppUIConstants.textSecondary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Compact Details Section
-          _CompactInfoRow(
-            icon: Icons.event_seat,
-            label: 'Capacity',
-            value: '${library.capacity} seats',
-            color: AppUIConstants.primary,
-          ),
-          const SizedBox(height: 8),
-          _CompactInfoRow(
-            icon: Icons.payments_outlined,
-            label: 'Pricing',
-            value: library.customMonthlyPrice != null
-                ? '₹${library.customMonthlyPrice!.toStringAsFixed(0)}/month'
-                : 'Default tier pricing',
-            color: library.customMonthlyPrice != null
-                ? AppUIConstants.success
-                : AppUIConstants.textSecondary,
-            highlighted: library.customMonthlyPrice != null,
-          ),
-          const SizedBox(height: 8),
-          _CompactInfoRow(
-            icon: Icons.calendar_today,
-            label: 'Created',
-            value: library.createdAt != null
-                ? _formatDate(library.createdAt!)
-                : 'N/A',
-            color: AppUIConstants.textSecondary,
-          ),
-          const SizedBox(height: 8),
-          _CompactInfoRow(
-            icon: Icons.info_outline,
-            label: 'Status',
-            value: library.isProfileComplete ? 'Profile Complete' : 'Profile Incomplete',
-            color: library.isProfileComplete
-                ? AppUIConstants.success
-                : AppUIConstants.warning,
-            highlighted: !library.isProfileComplete,
-          ),
-
-          // Address (if available)
-          if (library.fullAddress != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppUIConstants.surface.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AppUIConstants.border.withValues(alpha: 0.3),
-                  width: 0.5,
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.place_outlined,
-                    size: 16,
-                    color: AppUIConstants.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      library.fullAddress!,
-                      style: AppUIConstants.caption.copyWith(
-                        color: AppUIConstants.textSecondary,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 14),
-
-          // Action Buttons - Compact Row
-          Row(
-            children: [
-              Expanded(
-                child: _CompactActionButton(
-                  icon: Icons.phone_rounded,
-                  label: 'Call',
-                  onTap: () => _handleCall(context),
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactActionButton(
-                  icon: Icons.message_rounded,
-                  label: 'WhatsApp',
-                  onTap: () => _handleWhatsApp(context),
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactActionButton(
-                  icon: Icons.notifications_rounded,
-                  label: 'Notify',
-                  onTap: () {
-                    // TODO: Implement notification
-                  },
-                  color: AppUIConstants.primary,
-                ),
-              ),
-            ],
-          ),
-
-          // Edit pricing button
-          if (onEditPricing != null) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onEditPricing!,
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Edit Custom Pricing'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppUIConstants.primary,
-                  side: BorderSide(
-                    color: AppUIConstants.primary.withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-}
-
-/// No library actions for owners without library.
-class _NoLibraryActions extends StatelessWidget {
-  const _NoLibraryActions({required this.owner});
-
-  final User owner;
-
-  Future<void> _handleCall(BuildContext context) async {
-    final success = await AdminContactHelper.callOwner(owner.phone);
-    if (!success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('Could not open phone dialer'),
-            ],
-          ),
-          backgroundColor: AppUIConstants.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  Future<void> _handleWhatsApp(BuildContext context) async {
-    final success = await AdminContactHelper.sendWhatsApp(
-      phone: owner.phone,
-      message: 'Hello! 👋',
-    );
-    if (!success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_outline, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('Could not open WhatsApp'),
-            ],
-          ),
-          backgroundColor: AppUIConstants.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppUIConstants.warning.withValues(alpha: 0.05),
-            Colors.transparent,
-          ],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppUIConstants.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppUIConstants.warning.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
+                const Icon(
                   Icons.info_outline,
                   size: 18,
                   color: AppUIConstants.warning,
@@ -605,47 +344,133 @@ class _NoLibraryActions extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'No library profile created yet',
+                    'No PG profile created yet',
                     style: AppUIConstants.bodySm.copyWith(
                       color: AppUIConstants.textPrimary,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
               ],
+            )
+          else ...[
+            Row(
+              children: [
+                const Icon(
+                  Icons.apartment_rounded,
+                  size: 18,
+                  color: AppUIConstants.primaryLight,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    lib.name,
+                    style: AppUIConstants.bodyMd.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-          ),
+            if (lib.fullAddress != null || lib.area != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.place_outlined,
+                    size: 14,
+                    color: AppUIConstants.textTertiary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      lib.fullAddress ?? lib.area!,
+                      style: AppUIConstants.caption.copyWith(height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Capacity',
+                    value: '${lib.capacity} beds',
+                    color: AppUIConstants.primaryLight,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Pricing',
+                    value: lib.customMonthlyPrice != null
+                        ? '₹${lib.customMonthlyPrice!.toStringAsFixed(0)}/mo'
+                        : 'Default tier',
+                    color: lib.customMonthlyPrice != null
+                        ? AppUIConstants.primaryLight
+                        : AppUIConstants.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Created',
+                    value: lib.createdAt != null ? _fmt(lib.createdAt!) : 'N/A',
+                    color: AppUIConstants.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MiniStat(
+                    label: 'Profile',
+                    value: lib.isProfileComplete ? 'Complete' : 'Incomplete',
+                    color: lib.isProfileComplete
+                        ? AppUIConstants.success
+                        : AppUIConstants.warning,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: _CompactActionButton(
+                child: _ActionButton(
                   icon: Icons.phone_rounded,
                   label: 'Call',
-                  onTap: () => _handleCall(context),
-                  color: Colors.blue,
+                  color: AppUIConstants.primaryLight,
+                  onTap: onCall,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _CompactActionButton(
-                  icon: Icons.message_rounded,
+                child: _ActionButton(
+                  icon: Icons.chat_rounded,
                   label: 'WhatsApp',
-                  onTap: () => _handleWhatsApp(context),
-                  color: Colors.green,
+                  color: AppUIConstants.success,
+                  onTap: onWhatsApp,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _CompactActionButton(
-                  icon: Icons.notifications_rounded,
-                  label: 'Notify',
-                  onTap: () {
-                    // TODO: Implement notification
-                  },
-                  color: AppUIConstants.primary,
+              if (onEditPricing != null) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.price_change_rounded,
+                    label: 'Pricing',
+                    color: AppUIConstants.primaryLight,
+                    onTap: onEditPricing!,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ],
@@ -654,53 +479,40 @@ class _NoLibraryActions extends StatelessWidget {
   }
 }
 
-/// Compact info row for displaying library details.
-class _CompactInfoRow extends StatelessWidget {
-  const _CompactInfoRow({
-    required this.icon,
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({
     required this.label,
     required this.value,
     required this.color,
-    this.highlighted = false,
   });
 
-  final IconData icon;
   final String label;
   final String value;
   final Color color;
-  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: highlighted
-            ? color.withValues(alpha: 0.08)
-            : AppUIConstants.surface.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: highlighted
-            ? Border.all(color: color.withValues(alpha: 0.3), width: 1)
-            : null,
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+        border: Border.all(color: AppUIConstants.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: AppUIConstants.caption.copyWith(
-              color: AppUIConstants.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const Spacer(),
+          Text(label, style: AppUIConstants.caption),
+          const SizedBox(height: 2),
           Text(
             value,
-            style: AppUIConstants.bodySm.copyWith(
-              color: highlighted ? color : AppUIConstants.textPrimary,
-              fontWeight: highlighted ? FontWeight.w600 : FontWeight.w500,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -708,47 +520,43 @@ class _CompactInfoRow extends StatelessWidget {
   }
 }
 
-/// Compact action button for quick actions.
-class _CompactActionButton extends StatelessWidget {
-  const _CompactActionButton({
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
     required this.icon,
     required this.label,
-    required this.onTap,
     required this.color,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
   final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+        child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: color.withValues(alpha: 0.4),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: AppUIConstants.caption.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
                 ),
               ),
             ],
@@ -758,59 +566,3 @@ class _CompactActionButton extends StatelessWidget {
     );
   }
 }
-
-/// Status badge widget with optional icon.
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.color,
-    this.icon,
-    this.compact = false,
-  });
-
-  final String label;
-  final Color color;
-  final IconData? icon;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 6 : 8,
-        vertical: compact ? 3 : 4,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.4),
-          width: 1,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(
-              icon,
-              size: compact ? 10 : 12,
-              color: color,
-            ),
-            SizedBox(width: compact ? 3 : 4),
-          ],
-          Text(
-            label,
-            style: (compact ? AppUIConstants.caption : AppUIConstants.caption)
-                .copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: compact ? 9 : 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-

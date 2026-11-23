@@ -12,7 +12,11 @@ import 'package:mockito/mockito.dart';
 
 import 'sync_memberships_on_login_test.mocks.dart';
 
-@GenerateMocks([MembershipRepository, InvoiceRepository, StudentDocumentRepository])
+@GenerateMocks([
+  MembershipRepository,
+  InvoiceRepository,
+  StudentDocumentRepository,
+])
 void main() {
   late SyncMembershipsOnLogin useCase;
   late MockMembershipRepository mockMembershipRepo;

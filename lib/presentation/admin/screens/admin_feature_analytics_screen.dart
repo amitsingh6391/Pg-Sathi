@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/di/injection_container.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/feature_analytics_cubit.dart';
+
+// Extra dark-friendly series colors to complement the token palette.
 
 /// Admin screen to view app-wide feature usage analytics.
 /// Shows real-time metrics from Firebase Analytics for all tracked events.
@@ -34,26 +37,38 @@ class _AdminFeatureAnalyticsViewState
   String _selectedTimeRange = '7d';
   String? _selectedRole;
 
+  static const _rangeLabels = {
+    '1d': 'Last 24 hours',
+    '7d': 'Last 7 days',
+    '30d': 'Last 30 days',
+    '90d': 'Last 90 days',
+  };
+
+  void _reload({String? role, String? timeRange, bool useCurrentRole = true}) {
+    context.read<FeatureAnalyticsCubit>().loadAnalytics(
+      role: useCurrentRole ? _selectedRole : role,
+      timeRange: timeRange ?? _selectedTimeRange,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        title: const Text('Feature Analytics'),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
+        title: const Text('Feature Analytics', style: AppUIConstants.headingSm),
+        backgroundColor: AppUIConstants.background,
+        foregroundColor: AppUIConstants.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<FeatureAnalyticsCubit>().loadAnalytics(
-                  role: _selectedRole,
-                  timeRange: _selectedTimeRange,
-                ),
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => _reload(),
             tooltip: 'Refresh',
           ),
           IconButton(
-            icon: const Icon(Icons.help_outline),
+            icon: const Icon(Icons.help_outline_rounded),
             onPressed: _showHelpDialog,
             tooltip: 'Help',
           ),
@@ -62,733 +77,716 @@ class _AdminFeatureAnalyticsViewState
       body: BlocBuilder<FeatureAnalyticsCubit, FeatureAnalyticsState>(
         builder: (context, state) {
           if (state.isLoading && state.eventCounts.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const _FeatureSkeleton();
           }
 
           if (state.errorMessage != null && state.eventCounts.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: AppUIConstants.textSecondary,
-                  ),
-                  const SizedBox(height: AppUIConstants.spacingLg),
-                  Text(
-                    state.errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: AppUIConstants.bodyMd,
-                  ),
-                  const SizedBox(height: AppUIConstants.spacingLg),
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        context.read<FeatureAnalyticsCubit>().loadAnalytics(
-                              role: _selectedRole,
-                              timeRange: _selectedTimeRange,
-                            ),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => context.read<FeatureAnalyticsCubit>().loadAnalytics(
-                  role: _selectedRole,
-                  timeRange: _selectedTimeRange,
-                ),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Filters
-                  _buildFilters(),
-                  const SizedBox(height: AppUIConstants.spacingXl),
-
-                  // Event Categories
-                  _buildSectionHeader('📊 Event Categories'),
-                  const SizedBox(height: AppUIConstants.spacingMd),
-                  _buildEventCategories(state.eventCounts),
-                  const SizedBox(height: AppUIConstants.spacing2Xl),
-
-                  // Top Features
-                  _buildSectionHeader('🔥 Most Used Features'),
-                  const SizedBox(height: AppUIConstants.spacingMd),
-                  _buildTopFeatures(state.eventCounts),
-                  const SizedBox(height: AppUIConstants.spacing2Xl),
-
-                  // User Role Breakdown
-                  _buildSectionHeader('👥 Usage by Role'),
-                  const SizedBox(height: AppUIConstants.spacingMd),
-                  _buildRoleBreakdown(state.roleCounts),
-                  const SizedBox(height: AppUIConstants.spacing2Xl),
-
-                  // Platform Breakdown
-                  _buildSectionHeader('📱 Platform Distribution'),
-                  const SizedBox(height: AppUIConstants.spacingMd),
-                  _buildPlatformBreakdown(state.platformCounts),
-                  const SizedBox(height: AppUIConstants.spacing2Xl),
-
-                  // Recent Events Timeline
-                  _buildSectionHeader('⏱️ Recent Events'),
-                  const SizedBox(height: AppUIConstants.spacingMd),
-                  _buildRecentEvents(state.recentEvents),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildFilters() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Filters', style: AppUIConstants.headingSm),
-            const SizedBox(height: AppUIConstants.spacingMd),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Time Range',
-                        style: AppUIConstants.bodySm.copyWith(
-                          color: AppUIConstants.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedTimeRange,
-                        isDense: true,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF1E293B),
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 6,
-                          ),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: '1d', child: Text('1d', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: '7d', child: Text('7d', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: '30d', child: Text('30d', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: '90d', child: Text('90d', style: TextStyle(fontSize: 12))),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() => _selectedTimeRange = value);
-                            context.read<FeatureAnalyticsCubit>().loadAnalytics(
-                              role: _selectedRole,
-                              timeRange: value,
-                            );
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppUIConstants.spacingMd),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'User Role',
-                        style: AppUIConstants.bodySm.copyWith(
-                          color: AppUIConstants.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String?>(
-                        initialValue: _selectedRole,
-                        isDense: true,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF1E293B),
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 6,
-                          ),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: null, child: Text('All', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'admin', child: Text('Admin', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'owner', child: Text('Owner', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 'student', child: Text('Student', style: TextStyle(fontSize: 12))),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _selectedRole = value);
-                          context.read<FeatureAnalyticsCubit>().loadAnalytics(
-                            role: value,
-                            timeRange: _selectedTimeRange,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventCategories(Map<String, int> eventCounts) {
-    // Group events by category
-    final membershipCount = (eventCounts[AnalyticsEventNames.membershipCreated] ?? 0) +
-        (eventCounts[AnalyticsEventNames.membershipRenewed] ?? 0) +
-        (eventCounts[AnalyticsEventNames.membershipExpired] ?? 0);
-    
-    final attendanceCount = (eventCounts[AnalyticsEventNames.attendanceMarked] ?? 0) +
-        (eventCounts[AnalyticsEventNames.bulkAttendanceMarked] ?? 0);
-    
-    final invoiceCount = (eventCounts[AnalyticsEventNames.invoiceGenerated] ?? 0) +
-        (eventCounts[AnalyticsEventNames.invoiceDownloaded] ?? 0) +
-        (eventCounts[AnalyticsEventNames.invoiceShared] ?? 0);
-    
-    final paymentCount = (eventCounts[AnalyticsEventNames.paymentInitiated] ?? 0) +
-        (eventCounts[AnalyticsEventNames.paymentSuccess] ?? 0) +
-        (eventCounts[AnalyticsEventNames.paymentFailed] ?? 0);
-    
-    final seatCount = (eventCounts[AnalyticsEventNames.seatAssigned] ?? 0) +
-        (eventCounts[AnalyticsEventNames.seatUnassigned] ?? 0);
-    
-    final utilityCount = (eventCounts[AnalyticsEventNames.studentUtilityUsed] ?? 0) +
-        (eventCounts[AnalyticsEventNames.bulkImportUsed] ?? 0);
-
-    final categories = [
-      _EventCategory(
-        name: 'Memberships',
-        icon: Icons.card_membership,
-        color: Colors.purple,
-        events: [
-          AnalyticsEventNames.membershipCreated,
-          AnalyticsEventNames.membershipRenewed,
-          AnalyticsEventNames.membershipExpired,
-        ],
-        totalCount: membershipCount,
-      ),
-      _EventCategory(
-        name: 'Attendance',
-        icon: Icons.check_circle,
-        color: Colors.green,
-        events: [
-          AnalyticsEventNames.attendanceMarked,
-          AnalyticsEventNames.bulkAttendanceMarked,
-        ],
-        totalCount: attendanceCount,
-      ),
-      _EventCategory(
-        name: 'Invoices',
-        icon: Icons.receipt_long,
-        color: Colors.orange,
-        events: [
-          AnalyticsEventNames.invoiceGenerated,
-          AnalyticsEventNames.invoiceDownloaded,
-          AnalyticsEventNames.invoiceShared,
-        ],
-        totalCount: invoiceCount,
-      ),
-      _EventCategory(
-        name: 'Payments',
-        icon: Icons.payment,
-        color: Colors.blue,
-        events: [
-          AnalyticsEventNames.paymentInitiated,
-          AnalyticsEventNames.paymentSuccess,
-          AnalyticsEventNames.paymentFailed,
-        ],
-        totalCount: paymentCount,
-      ),
-      _EventCategory(
-        name: 'Seats',
-        icon: Icons.event_seat,
-        color: Colors.teal,
-        events: [
-          AnalyticsEventNames.seatAssigned,
-          AnalyticsEventNames.seatUnassigned,
-        ],
-        totalCount: seatCount,
-      ),
-      _EventCategory(
-        name: 'Utilities',
-        icon: Icons.build_circle,
-        color: Colors.indigo,
-        events: [
-          AnalyticsEventNames.studentUtilityUsed,
-          AnalyticsEventNames.bulkImportUsed,
-        ],
-        totalCount: utilityCount,
-      ),
-    ];
-
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 3,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 0.85,
-      children: categories.map((category) => _buildCategoryCard(category)).toList(),
-    );
-  }
-
-  Widget _buildCategoryCard(_EventCategory category) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: category.color.withValues(alpha: 0.3), width: 1.5),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          final state = context.read<FeatureAnalyticsCubit>().state;
-          _showCategoryDetails(category, state.eventCounts);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: category.color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  category.icon,
-                  color: category.color,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                NumberFormat.compact().format(category.totalCount),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: category.color,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                category.name,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopFeatures(Map<String, int> eventCounts) {
-    // Get top 5 events by count
-    final sortedEntries = eventCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    final topEntries = sortedEntries.take(5).toList();
-    if (topEntries.isEmpty) {
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-          side: BorderSide(color: Colors.grey[200]!),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppUIConstants.spacingXl),
-          child: Center(
-            child: Text(
-              'No data available',
-              style: AppUIConstants.bodyMd.copyWith(
-                color: AppUIConstants.textSecondary,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    
-    final features = topEntries.map((entry) {
-      final eventName = entry.key;
-      final count = entry.value;
-      final color = _getEventColor(eventName);
-      final displayName = eventName.replaceAll('_', ' ').split(' ').map((word) => 
-        word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1)
-      ).join(' ');
-      
-      return _FeatureUsage(displayName, count, eventName, color);
-    }).toList();
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-        itemCount: features.length,
-        separatorBuilder: (_, _) => const Divider(height: 24),
-        itemBuilder: (context, index) {
-          final feature = features[index];
-          final maxCount = features.first.count;
-          final percentage = (feature.count / maxCount * 100).round();
-
-          return Row(
-            children: [
-              Container(
-                width: 8,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: feature.color,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(width: AppUIConstants.spacingMd),
-              Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(AppUIConstants.spacing2Xl),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      feature.name,
-                      style: AppUIConstants.bodyMd.copyWith(
-                        fontWeight: FontWeight.w600,
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        color: AppUIConstants.surfaceMuted,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.cloud_off_rounded,
+                        size: 34,
+                        color: AppUIConstants.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppUIConstants.spacingLg),
                     Text(
-                      feature.eventName,
-                      style: AppUIConstants.bodySm.copyWith(
-                        color: AppUIConstants.textSecondary,
-                        fontFamily: 'monospace',
-                      ),
+                      state.errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: AppUIConstants.bodyMd,
+                    ),
+                    const SizedBox(height: AppUIConstants.spacingLg),
+                    ElevatedButton.icon(
+                      onPressed: () => _reload(),
+                      style: AppUIConstants.primaryButtonStyle,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
                     ),
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    NumberFormat('#,###').format(feature.count),
-                    style: AppUIConstants.bodyLg.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: feature.color,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$percentage%',
-                    style: AppUIConstants.bodySm.copyWith(
-                      color: AppUIConstants.textSecondary,
-                    ),
-                  ),
-                ],
+            );
+          }
+
+          final totalEvents = state.eventCounts.values.fold<int>(
+            0,
+            (s, c) => s + c,
+          );
+
+          return RefreshIndicator(
+            color: AppUIConstants.primaryLight,
+            backgroundColor: AppUIConstants.surface,
+            onRefresh: () async => _reload(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AppUIConstants.spacingLg,
+                0,
+                AppUIConstants.spacingLg,
+                32,
               ),
-            ],
+              children: [
+                if (state.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      color: AppUIConstants.primaryLight,
+                      backgroundColor: AppUIConstants.surfaceMuted,
+                    ),
+                  ),
+                _buildHero(totalEvents, state.eventCounts),
+                const SizedBox(height: AppUIConstants.spacingMd),
+                _buildFilters(),
+                const PremiumSectionHeader('Event categories'),
+                _buildEventCategories(state.eventCounts),
+                const PremiumSectionHeader('Most used features'),
+                _buildTopFeatures(state.eventCounts),
+                const PremiumSectionHeader('Usage by role'),
+                _buildRoleBreakdown(state.roleCounts),
+                const PremiumSectionHeader('Platform distribution'),
+                _buildPlatformBreakdown(state.platformCounts),
+                const PremiumSectionHeader('Recent events'),
+                _buildRecentEvents(state.recentEvents),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildRoleBreakdown(Map<String, int> roleCounts) {
-    final total = roleCounts.values.fold<int>(0, (sum, count) => sum + count);
-    
-    if (total == 0) {
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-          side: BorderSide(color: Colors.grey[200]!),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppUIConstants.spacingXl),
-          child: Center(
+  // ---------------------------------------------------------------- hero
+
+  Widget _buildHero(int totalEvents, Map<String, int> eventCounts) {
+    final distinct = eventCounts.values.where((c) => c > 0).length;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppUIConstants.spacingXl),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border.all(color: AppUIConstants.border),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'TOTAL EVENTS',
+            style: TextStyle(
+              color: AppUIConstants.textSecondary,
+              fontSize: 11.5,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
             child: Text(
-              'No data available',
+              NumberFormat('#,###').format(totalEvents),
+              key: ValueKey(totalEvents),
+              style: const TextStyle(
+                color: AppUIConstants.textPrimary,
+                fontSize: 40,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${_rangeLabels[_selectedTimeRange] ?? _selectedTimeRange} · $distinct active event types',
+            style: const TextStyle(
+              color: AppUIConstants.textSecondary,
+              fontSize: 12.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------- filters
+
+  Widget _buildFilters() {
+    const ranges = ['1d', '7d', '30d', '90d'];
+    const roles = <(String?, String)>[
+      (null, 'All roles'),
+      ('owner', 'Owner'),
+      ('student', 'Resident'),
+      ('admin', 'Admin'),
+    ];
+
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppUIConstants.spacingMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppUIConstants.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+            ),
+            child: Row(
+              children: [
+                for (final r in ranges)
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (r == _selectedTimeRange) return;
+                        setState(() => _selectedTimeRange = r);
+                        _reload(timeRange: r);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: r == _selectedTimeRange
+                              ? AppUIConstants.primary
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(
+                            AppUIConstants.radiusFull,
+                          ),
+                        ),
+                        child: Text(
+                          r,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: r == _selectedTimeRange
+                                ? Colors.white
+                                : AppUIConstants.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final r in roles) ...[
+                  _RoleChip(
+                    label: r.$2,
+                    selected: _selectedRole == r.$1,
+                    onTap: () {
+                      setState(() => _selectedRole = r.$1);
+                      _reload(role: r.$1, useCurrentRole: false);
+                    },
+                  ),
+                  const SizedBox(width: AppUIConstants.spacingSm),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------- categories
+
+  Widget _buildEventCategories(Map<String, int> eventCounts) {
+    int sum(List<String> keys) =>
+        keys.fold<int>(0, (s, k) => s + (eventCounts[k] ?? 0));
+
+    final defs = <(String, IconData, Color, List<String>)>[
+      (
+        'Stays',
+        Icons.badge_rounded,
+        AppUIConstants.primaryLight,
+        [
+          AnalyticsEventNames.membershipCreated,
+          AnalyticsEventNames.membershipRenewed,
+          AnalyticsEventNames.membershipExpired,
+        ],
+      ),
+      (
+        'Attendance',
+        Icons.check_circle_rounded,
+        AppUIConstants.primaryLight,
+        [
+          AnalyticsEventNames.attendanceMarked,
+          AnalyticsEventNames.bulkAttendanceMarked,
+        ],
+      ),
+      (
+        'Invoices',
+        Icons.receipt_long_rounded,
+        AppUIConstants.primaryLight,
+        [
+          AnalyticsEventNames.invoiceGenerated,
+          AnalyticsEventNames.invoiceDownloaded,
+          AnalyticsEventNames.invoiceShared,
+        ],
+      ),
+      (
+        'Payments',
+        Icons.payments_rounded,
+        AppUIConstants.primaryLight,
+        [
+          AnalyticsEventNames.paymentInitiated,
+          AnalyticsEventNames.paymentSuccess,
+          AnalyticsEventNames.paymentFailed,
+        ],
+      ),
+      (
+        'Beds',
+        Icons.bed_rounded,
+        AppUIConstants.primaryLight,
+        [AnalyticsEventNames.seatAssigned, AnalyticsEventNames.seatUnassigned],
+      ),
+      (
+        'Utilities',
+        Icons.build_circle_rounded,
+        AppUIConstants.primaryLight,
+        [
+          AnalyticsEventNames.studentUtilityUsed,
+          AnalyticsEventNames.bulkImportUsed,
+        ],
+      ),
+    ];
+
+    final categories = [
+      for (final d in defs)
+        _EventCategory(
+          name: d.$1,
+          icon: d.$2,
+          color: d.$3,
+          events: d.$4,
+          totalCount: sum(d.$4),
+        ),
+    ];
+
+    final maxCount = categories.fold<int>(
+      0,
+      (m, c) => c.totalCount > m ? c.totalCount : m,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 12.0;
+        final w = (constraints.maxWidth - gap * 2) / 3;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final c in categories)
+              SizedBox(width: w, child: _buildCategoryCard(c, maxCount)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryCard(_EventCategory category, int maxCount) {
+    return PremiumCard(
+      padding: const EdgeInsets.all(12),
+      onTap: () {
+        final state = context.read<FeatureAnalyticsCubit>().state;
+        _showCategoryDetails(category, state.eventCounts);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppUIConstants.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+            ),
+            child: Icon(category.icon, color: category.color, size: 18),
+          ),
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              NumberFormat.compact().format(category.totalCount),
+              style: AppUIConstants.statValue,
+            ),
+          ),
+          Text(
+            category.name,
+            style: AppUIConstants.caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(
+                begin: 0,
+                end: maxCount > 0 ? category.totalCount / maxCount : 0,
+              ),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => LinearProgressIndicator(
+                value: v,
+                minHeight: 4,
+                backgroundColor: AppUIConstants.surfaceMuted,
+                valueColor: AlwaysStoppedAnimation(category.color),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyCard(String message, {IconData icon = Icons.insights_rounded}) {
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 30, color: AppUIConstants.textTertiary),
+            const SizedBox(height: 8),
+            Text(
+              message,
               style: AppUIConstants.bodyMd.copyWith(
                 color: AppUIConstants.textSecondary,
               ),
             ),
-          ),
-        ),
-      );
-    }
-
-    final roles = [
-      _RoleUsage(
-        'Owner',
-        roleCounts['owner'] ?? 0,
-        Colors.blue,
-        ((roleCounts['owner'] ?? 0) / total * 100).round(),
-      ),
-      _RoleUsage(
-        'Student',
-        roleCounts['student'] ?? 0,
-        Colors.green,
-        ((roleCounts['student'] ?? 0) / total * 100).round(),
-      ),
-      _RoleUsage(
-        'Admin',
-        roleCounts['admin'] ?? 0,
-        Colors.purple,
-        ((roleCounts['admin'] ?? 0) / total * 100).round(),
-      ),
-    ];
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total Events',
-                  style: AppUIConstants.bodyMd.copyWith(
-                    color: AppUIConstants.textSecondary,
-                  ),
-                ),
-                Text(
-                  NumberFormat('#,###').format(total),
-                  style: AppUIConstants.headingSm.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppUIConstants.spacingLg),
-            ...roles.map((role) => Padding(
-              padding: const EdgeInsets.only(bottom: AppUIConstants.spacingMd),
-              child: _buildRoleItem(role),
-            )),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRoleItem(_RoleUsage role) {
+  // --------------------------------------------------------- top features
+
+  String _displayName(String eventName) => eventName
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map(
+        (word) => word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1),
+      )
+      .join(' ');
+
+  Widget _buildTopFeatures(Map<String, int> eventCounts) {
+    final sortedEntries = eventCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final topEntries = sortedEntries.take(5).toList();
+    if (topEntries.isEmpty) return _emptyCard('No data available');
+
+    final features = topEntries.map((entry) {
+      return _FeatureUsage(
+        _displayName(entry.key),
+        entry.value,
+        entry.key,
+        _getEventColor(entry.key),
+      );
+    }).toList();
+    final maxCount = features.first.count;
+
+    return PremiumCard(
+      child: Column(
+        children: [
+          for (var i = 0; i < features.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppUIConstants.spacingLg),
+            _buildFeatureRow(i + 1, features[i], maxCount),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureRow(int rank, _FeatureUsage feature, int maxCount) {
+    final fraction = maxCount > 0 ? feature.count / maxCount : 0.0;
+    final percentage = (fraction * 100).round();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: role.color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  role.name,
-                  style: AppUIConstants.bodyMd.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              '${NumberFormat('#,###').format(role.eventCount)} (${role.percentage}%)',
-              style: AppUIConstants.bodyMd.copyWith(
-                fontWeight: FontWeight.w600,
-                color: role.color,
+            Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppUIConstants.surfaceMuted,
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Text(
+                '$rank',
+                style: TextStyle(
+                  color: feature.color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    feature.name,
+                    style: AppUIConstants.bodyMd.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    feature.eventName,
+                    style: AppUIConstants.caption.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  NumberFormat('#,###').format(feature.count),
+                  style: AppUIConstants.bodyLg.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text('$percentage%', style: AppUIConstants.caption),
+              ],
             ),
           ],
         ),
         const SizedBox(height: 8),
         ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: role.percentage / 100,
-            minHeight: 8,
-            backgroundColor: role.color.withValues(alpha: 0.1),
-            valueColor: AlwaysStoppedAnimation(role.color),
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: fraction),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            builder: (_, v, _) => LinearProgressIndicator(
+              value: v,
+              minHeight: 6,
+              backgroundColor: AppUIConstants.surfaceMuted,
+              valueColor: AlwaysStoppedAnimation(feature.color),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPlatformBreakdown(Map<String, int> platformCounts) {
-    final total = platformCounts.values.fold<int>(0, (sum, count) => sum + count);
-    
-    final platforms = [
-      _PlatformUsage(
-        'Android',
-        Icons.android,
-        platformCounts['android'] ?? 0,
-        Colors.green,
-        total > 0 ? ((platformCounts['android'] ?? 0) / total * 100).round() : 0,
+  // ------------------------------------------------------------- roles
+
+  Widget _buildRoleBreakdown(Map<String, int> roleCounts) {
+    final total = roleCounts.values.fold<int>(0, (sum, count) => sum + count);
+
+    if (total == 0) return _emptyCard('No data available');
+
+    final roles = [
+      _RoleUsage(
+        'Owner',
+        roleCounts['owner'] ?? 0,
+        AppUIConstants.primaryLight,
+        ((roleCounts['owner'] ?? 0) / total * 100).round(),
       ),
-      _PlatformUsage(
-        'iOS',
-        Icons.apple,
-        platformCounts['ios'] ?? 0,
-        Colors.grey[800]!,
-        total > 0 ? ((platformCounts['ios'] ?? 0) / total * 100).round() : 0,
+      _RoleUsage(
+        'Resident',
+        roleCounts['student'] ?? 0,
+        AppUIConstants.secondary,
+        ((roleCounts['student'] ?? 0) / total * 100).round(),
       ),
-      _PlatformUsage(
-        'Web',
-        Icons.web,
-        platformCounts['web'] ?? 0,
-        Colors.blue,
-        total > 0 ? ((platformCounts['web'] ?? 0) / total * 100).round() : 0,
+      _RoleUsage(
+        'Admin',
+        roleCounts['admin'] ?? 0,
+        AppUIConstants.textTertiary,
+        ((roleCounts['admin'] ?? 0) / total * 100).round(),
       ),
     ];
 
-    if (total == 0) {
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-          side: BorderSide(color: Colors.grey[200]!),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppUIConstants.spacingXl),
-          child: Center(
-            child: Text(
-              'No data available',
-              style: AppUIConstants.bodyMd.copyWith(
-                color: AppUIConstants.textSecondary,
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('Total events', style: AppUIConstants.bodySm),
+              ),
+              Text(
+                NumberFormat('#,###').format(total),
+                style: AppUIConstants.headingSm,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          // Stacked share bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+            child: SizedBox(
+              height: 10,
+              child: Row(
+                children: [
+                  for (final r in roles)
+                    if (r.eventCount > 0)
+                      Expanded(
+                        flex: r.eventCount,
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 2),
+                          color: r.color,
+                        ),
+                      ),
+                ],
               ),
             ),
           ),
+          const SizedBox(height: AppUIConstants.spacingLg),
+          for (var i = 0; i < roles.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppUIConstants.spacingMd),
+            _buildRoleItem(roles[i]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleItem(_RoleUsage role) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: role.color, shape: BoxShape.circle),
         ),
-      );
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            role.name,
+            style: AppUIConstants.bodyMd.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        Text(
+          NumberFormat('#,###').format(role.eventCount),
+          style: AppUIConstants.bodyMd.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(width: 8),
+        PremiumStatusPill('${role.percentage}%', color: role.color),
+      ],
+    );
+  }
+
+  // ----------------------------------------------------------- platforms
+
+  Widget _buildPlatformBreakdown(Map<String, int> platformCounts) {
+    final total = platformCounts.values.fold<int>(
+      0,
+      (sum, count) => sum + count,
+    );
+
+    if (total == 0) {
+      return _emptyCard('No data available', icon: Icons.devices_rounded);
     }
 
+    int pct(String k) => ((platformCounts[k] ?? 0) / total * 100).round();
+
+    final platforms = [
+      _PlatformUsage(
+        'Android',
+        Icons.android_rounded,
+        platformCounts['android'] ?? 0,
+        AppUIConstants.primaryLight,
+        pct('android'),
+      ),
+      _PlatformUsage(
+        'iOS',
+        Icons.apple_rounded,
+        platformCounts['ios'] ?? 0,
+        AppUIConstants.secondary,
+        pct('ios'),
+      ),
+      _PlatformUsage(
+        'Web',
+        Icons.language_rounded,
+        platformCounts['web'] ?? 0,
+        AppUIConstants.textTertiary,
+        pct('web'),
+      ),
+    ];
+
     return Row(
-      children: platforms.map((platform) {
-        return Expanded(
-          child: Card(
-            elevation: 0,
-            margin: EdgeInsets.only(
-              right: platform == platforms.last ? 0 : AppUIConstants.spacingMd,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-              side: BorderSide(color: Colors.grey[200]!),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppUIConstants.spacingLg),
+      children: [
+        for (var i = 0; i < platforms.length; i++) ...[
+          if (i > 0) const SizedBox(width: AppUIConstants.spacingMd),
+          Expanded(
+            child: PremiumCard(
+              padding: const EdgeInsets.all(AppUIConstants.spacingMd),
               child: Column(
                 children: [
-                  Icon(platform.icon, size: 32, color: platform.color),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.surfaceMuted,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      platforms[i].icon,
+                      size: 22,
+                      color: platforms[i].color,
+                    ),
+                  ),
                   const SizedBox(height: AppUIConstants.spacingSm),
-                  Text(
-                    platform.name,
-                    style: AppUIConstants.bodySm.copyWith(
-                      color: AppUIConstants.textSecondary,
+                  Text(platforms[i].name, style: AppUIConstants.bodySm),
+                  const SizedBox(height: 2),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      NumberFormat.compact().format(platforms[i].eventCount),
+                      style: AppUIConstants.statValue,
                     ),
                   ),
-                  const SizedBox(height: AppUIConstants.spacingXs),
-                  Text(
-                    '${platform.eventCount}',
-                    style: AppUIConstants.headingMd.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '${platform.percentage}%',
-                    style: AppUIConstants.bodySm.copyWith(
-                      color: AppUIConstants.textSecondary,
-                    ),
+                  const SizedBox(height: 6),
+                  PremiumStatusPill(
+                    '${platforms[i].percentage}%',
+                    color: platforms[i].color,
                   ),
                 ],
               ),
             ),
           ),
-        );
-      }).toList(),
+        ],
+      ],
     );
   }
 
+  // -------------------------------------------------------- recent events
+
   Widget _buildRecentEvents(List<dynamic> recentEvents) {
     if (recentEvents.isEmpty) {
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-          side: BorderSide(color: Colors.grey[200]!),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppUIConstants.spacingXl),
-          child: Center(
-            child: Text(
-              'No recent events',
-              style: AppUIConstants.bodyMd.copyWith(
-                color: AppUIConstants.textSecondary,
-              ),
-            ),
-          ),
-        ),
-      );
+      return _emptyCard('No recent events', icon: Icons.history_rounded);
     }
 
     final events = recentEvents.take(10).map((event) {
       final eventName = event.eventName ?? 'Unknown';
-      final displayName = eventName.replaceAll('_', ' ').split(' ').map((word) => 
-        word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1)
-      ).join(' ');
-      
       return _RecentEvent(
-        displayName,
+        _displayName(eventName),
         event.role ?? 'unknown',
         event.libraryId ?? 'N/A',
         event.timestamp ?? DateTime.now(),
@@ -796,73 +794,82 @@ class _AdminFeatureAnalyticsViewState
       );
     }).toList();
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        side: BorderSide(color: Colors.grey[200]!),
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-        itemCount: events.length,
-        separatorBuilder: (_, _) => const Divider(height: 24),
-        itemBuilder: (context, index) {
-          final event = events[index];
-          return Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: event.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.circle,
-                  color: event.color,
-                  size: 12,
-                ),
-              ),
-              const SizedBox(width: AppUIConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      event.eventName,
-                      style: AppUIConstants.bodyMd.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${event.role} • ${event.libraryId}',
-                      style: AppUIConstants.bodySm.copyWith(
-                        color: AppUIConstants.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                _formatTimeAgo(event.timestamp),
-                style: AppUIConstants.bodySm.copyWith(
-                  color: AppUIConstants.textSecondary,
-                ),
-              ),
-            ],
-          );
-        },
+    return PremiumCard(
+      child: Column(
+        children: [
+          for (var i = 0; i < events.length; i++)
+            _buildEventTimelineRow(events[i], i == events.length - 1),
+        ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: AppUIConstants.headingSm.copyWith(
-        fontWeight: FontWeight.bold,
+  Widget _buildEventTimelineRow(_RecentEvent event, bool isLast) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 16,
+            child: Column(
+              children: [
+                const SizedBox(height: 5),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: event.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: AppUIConstants.border,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppUIConstants.spacingMd),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          event.eventName,
+                          style: AppUIConstants.bodyMd.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${event.role} • ${event.libraryId}',
+                          style: AppUIConstants.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatTimeAgo(event.timestamp),
+                    style: AppUIConstants.caption,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -875,16 +882,23 @@ class _AdminFeatureAnalyticsViewState
   }
 
   Color _getEventColor(String eventName) {
-    if (eventName.contains('membership')) return Colors.purple;
-    if (eventName.contains('attendance')) return Colors.green;
-    if (eventName.contains('invoice')) return Colors.orange;
-    if (eventName.contains('payment')) return Colors.blue;
-    if (eventName.contains('seat')) return Colors.teal;
-    if (eventName.contains('utility')) return Colors.indigo;
-    return Colors.grey;
+    if (eventName.contains('membership') ||
+        eventName.contains('attendance') ||
+        eventName.contains('invoice') ||
+        eventName.contains('payment') ||
+        eventName.contains('seat') ||
+        eventName.contains('utility')) {
+      return AppUIConstants.primaryLight;
+    }
+    return AppUIConstants.textSecondary;
   }
 
-  void _showCategoryDetails(_EventCategory category, Map<String, int> eventCounts) {
+  // ------------------------------------------------------------- sheets
+
+  void _showCategoryDetails(
+    _EventCategory category,
+    Map<String, int> eventCounts,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -892,22 +906,36 @@ class _AdminFeatureAnalyticsViewState
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
         decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          color: AppUIConstants.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(top: BorderSide(color: AppUIConstants.border)),
         ),
         padding: const EdgeInsets.all(AppUIConstants.spacingXl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppUIConstants.spacingLg),
+                decoration: BoxDecoration(
+                  color: AppUIConstants.border,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: category.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppUIConstants.surfaceMuted,
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusMd,
+                    ),
                   ),
-                  child: Icon(category.icon, color: category.color, size: 28),
+                  child: Icon(category.icon, color: category.color, size: 26),
                 ),
                 const SizedBox(width: AppUIConstants.spacingMd),
                 Expanded(
@@ -917,73 +945,83 @@ class _AdminFeatureAnalyticsViewState
                       Text(category.name, style: AppUIConstants.headingSm),
                       Text(
                         '${NumberFormat('#,###').format(category.totalCount)} total events',
-                        style: AppUIConstants.bodySm.copyWith(
-                          color: AppUIConstants.textSecondary,
-                        ),
+                        style: AppUIConstants.bodySm,
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppUIConstants.textSecondary,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
-            const SizedBox(height: AppUIConstants.spacingXl),
-            Text(
-              'Event Breakdown',
-              style: AppUIConstants.bodyLg.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppUIConstants.spacingMd),
+            const PremiumSectionHeader('Event breakdown'),
             Expanded(
-              child: ListView.builder(
+              child: ListView.separated(
                 itemCount: category.events.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppUIConstants.spacingSm),
                 itemBuilder: (context, index) {
                   final event = category.events[index];
                   final count = eventCounts[event] ?? 0;
-                  return Card(
-                    margin: const EdgeInsets.only(
-                      bottom: AppUIConstants.spacingSm,
+                  final share = category.totalCount > 0
+                      ? count / category.totalCount
+                      : 0.0;
+                  return Container(
+                    padding: const EdgeInsets.all(AppUIConstants.spacingMd),
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.surfaceMuted,
+                      borderRadius: BorderRadius.circular(
+                        AppUIConstants.radiusMd,
+                      ),
                     ),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: category.color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    event.replaceAll('_', ' ').toUpperCase(),
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppUIConstants.textPrimary,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Event: $event',
+                                    style: AppUIConstants.caption,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PremiumStatusPill(
+                              NumberFormat('#,###').format(count),
+                              color: category.color,
+                            ),
+                          ],
                         ),
-                        child: Icon(Icons.analytics, color: category.color, size: 20),
-                      ),
-                      title: Text(
-                        event.replaceAll('_', ' ').toUpperCase(),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text('Event: $event'),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: category.color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          NumberFormat('#,###').format(count),
-                          style: TextStyle(
-                            color: category.color,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(
+                            AppUIConstants.radiusFull,
+                          ),
+                          child: LinearProgressIndicator(
+                            value: share,
+                            minHeight: 5,
+                            backgroundColor: AppUIConstants.border,
+                            valueColor: AlwaysStoppedAnimation(category.color),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   );
                 },
@@ -1011,7 +1049,7 @@ class _AdminFeatureAnalyticsViewState
               const SizedBox(height: 16),
               _buildHelpItem(
                 'Event Categories',
-                'Grouped events by feature type (Memberships, Attendance, etc.)',
+                'Grouped events by feature type (Stays, Attendance, etc.)',
               ),
               _buildHelpItem(
                 'Top Features',
@@ -1019,7 +1057,7 @@ class _AdminFeatureAnalyticsViewState
               ),
               _buildHelpItem(
                 'Role Breakdown',
-                'Event distribution across Admin, Owner, and Student roles',
+                'Event distribution across Admin, Owner, and Resident roles',
               ),
               _buildHelpItem(
                 'Platform Distribution',
@@ -1029,12 +1067,15 @@ class _AdminFeatureAnalyticsViewState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppUIConstants.primarySoft,
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
                 ),
                 child: const Text(
-                  '💡 Tip: Use Firebase Console for detailed queries and custom reports.',
-                  style: TextStyle(fontSize: 13),
+                  'Tip: Use Firebase Console for detailed queries and custom reports.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppUIConstants.primaryLight,
+                  ),
                 ),
               ),
             ],
@@ -1056,7 +1097,11 @@ class _AdminFeatureAnalyticsViewState
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, size: 20, color: Colors.green),
+          const Icon(
+            Icons.check_circle_rounded,
+            size: 20,
+            color: AppUIConstants.primaryLight,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -1068,14 +1113,117 @@ class _AdminFeatureAnalyticsViewState
                 ),
                 Text(
                   description,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
-                    color: Colors.grey[600],
+                    color: AppUIConstants.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppUIConstants.primarySoft : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+          border: Border.all(
+            color: selected
+                ? AppUIConstants.primaryLight
+                : AppUIConstants.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: selected
+                ? AppUIConstants.primaryLight
+                : AppUIConstants.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureSkeleton extends StatefulWidget {
+  const _FeatureSkeleton();
+
+  @override
+  State<_FeatureSkeleton> createState() => _FeatureSkeletonState();
+}
+
+class _FeatureSkeletonState extends State<_FeatureSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _bone(double h) => Container(
+    height: h,
+    decoration: BoxDecoration(
+      color: AppUIConstants.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+    ),
+  );
+
+  Widget _row() => Row(
+    children: [
+      Expanded(child: _bone(104)),
+      const SizedBox(width: 12),
+      Expanded(child: _bone(104)),
+      const SizedBox(width: 12),
+      Expanded(child: _bone(104)),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1).animate(_c),
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppUIConstants.spacingLg),
+        children: [
+          _bone(120),
+          const SizedBox(height: 12),
+          _bone(96),
+          const SizedBox(height: 24),
+          _row(),
+          const SizedBox(height: 12),
+          _row(),
+          const SizedBox(height: 24),
+          _bone(200),
         ],
       ),
     );

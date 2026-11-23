@@ -11,10 +11,8 @@ import 'explore_libraries_state.dart';
 /// Cubit for exploring available libraries.
 /// Read-only: no booking or payment from this flow.
 class ExploreLibrariesCubit extends Cubit<ExploreLibrariesState> {
-  ExploreLibrariesCubit({
-    required this.getAllLibraries,
-    this.locationService,
-  }) : super(const ExploreLibrariesState());
+  ExploreLibrariesCubit({required this.getAllLibraries, this.locationService})
+    : super(const ExploreLibrariesState());
 
   final GetAllLibraries getAllLibraries;
   final LocationService? locationService;
@@ -30,8 +28,8 @@ class ExploreLibrariesCubit extends Cubit<ExploreLibrariesState> {
     );
 
     // Start location fetch in background (non-blocking)
-    if (locationService != null && 
-        state.userLatitude == null && 
+    if (locationService != null &&
+        state.userLatitude == null &&
         state.userLongitude == null) {
       _fetchUserLocation(); // Don't await - run in background
     }
@@ -45,7 +43,10 @@ class ExploreLibrariesCubit extends Cubit<ExploreLibrariesState> {
       ),
       (libraries) {
         // Calculate distances if user location is already available
-        final librariesWithDistance = _calculateDistances(libraries, shouldSort: false);
+        final librariesWithDistance = _calculateDistances(
+          libraries,
+          shouldSort: false,
+        );
 
         emit(
           state.copyWith(
@@ -108,7 +109,7 @@ class ExploreLibrariesCubit extends Cubit<ExploreLibrariesState> {
   /// Updates user location for distance calculation.
   void updateUserLocation(double latitude, double longitude) {
     final currentLibraries = state.libraries;
-    
+
     emit(
       state.copyWith(
         userLatitude: latitude,
@@ -119,7 +120,10 @@ class ExploreLibrariesCubit extends Cubit<ExploreLibrariesState> {
 
     // Recalculate distances with new location
     if (currentLibraries.isNotEmpty) {
-      final librariesWithDistance = _calculateDistances(currentLibraries, shouldSort: false);
+      final librariesWithDistance = _calculateDistances(
+        currentLibraries,
+        shouldSort: false,
+      );
       emit(state.copyWith(libraries: librariesWithDistance));
     }
   }

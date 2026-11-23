@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../domain/entities/subscription.dart';
 import '../../../../core/app_ui_constants.dart';
@@ -19,31 +19,29 @@ class SubscriptionInfoRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
           children: [
-            Flexible(
-              child: _InfoItem(
-                icon: Icons.event_seat_outlined,
-                text: '${subscription.seatCount} Seats',
-              ),
+            _Chip(
+              icon: Icons.bed_outlined,
+              text: '${subscription.seatCount} Beds',
             ),
-            const SizedBox(width: 20),
-            Flexible(
-              child: _InfoItem(
-                icon: Icons.calendar_month_outlined,
-                text: '${subscription.durationInMonths}M',
-              ),
+            _Chip(
+              icon: Icons.calendar_month_outlined,
+              text: '${subscription.durationInMonths}M',
             ),
           ],
         ),
         const SizedBox(height: 10),
         _InfoItem(
           icon: Icons.schedule_outlined,
-          text: '${dateFormat.format(subscription.startDate)} → ${dateFormat.format(subscription.endDate)}',
+          text:
+              '${dateFormat.format(subscription.startDate)} → ${dateFormat.format(subscription.endDate)}',
           isSmall: true,
         ),
         if (subscription.transactionId != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _InfoItem(
             icon: Icons.tag_outlined,
             text: subscription.transactionId!,
@@ -52,6 +50,39 @@ class SubscriptionInfoRow extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppUIConstants.textSecondary),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppUIConstants.textPrimary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -72,22 +103,18 @@ class _InfoItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: isSmall ? 13 : 15,
-          color: AppUIConstants.textSecondary.withValues(alpha: 0.7),
-        ),
+        Icon(icon, size: isSmall ? 13 : 15, color: AppUIConstants.textTertiary),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
             text,
-            style: (isSmall ? AppUIConstants.caption : AppUIConstants.bodySm).copyWith(
-              color: AppUIConstants.textPrimary,
-              fontWeight: FontWeight.w500,
-              fontFamily: isMonospace ? 'monospace' : null,
-            ),
+            style: (isSmall ? AppUIConstants.caption : AppUIConstants.bodySm)
+                .copyWith(
+                  color: AppUIConstants.textSecondary,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: isMonospace ? 'monospace' : null,
+                ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

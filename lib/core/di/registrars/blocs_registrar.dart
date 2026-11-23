@@ -4,9 +4,12 @@ import '../../../presentation/auth/cubit/phone_auth_cubit.dart';
 import '../../../presentation/owner/bloc/owner_library_bloc.dart';
 import '../../../presentation/owner/cubit/library_form_cubit.dart';
 import '../../../presentation/owner/cubit/membership_assignment_cubit.dart';
+import '../../../presentation/owner/cubit/pending_approval_cubit.dart';
+import '../../../presentation/student/cubit/bed_request_cubit.dart';
+import '../../../presentation/student/cubit/pg_invite_cubit.dart';
 import '../../../presentation/owner/cubit/occupied_seats_cubit.dart';
-import '../../../presentation/owner/cubit/expiry_reminder_cubit.dart';
-import '../../../presentation/owner/cubit/whatsapp_reminder_cubit.dart';
+import '../../../presentation/owner/cubit/reminder_template_cubit.dart';
+import '../../../domain/usecases/reminder_template_usecases.dart';
 import '../../../presentation/owner/cubit/referral_cubit.dart';
 import '../../../presentation/owner/cubit/subscription_cubit.dart';
 import '../../../presentation/owner/cubit/owner_settings_cubit.dart';
@@ -19,8 +22,6 @@ import '../../../presentation/owner/cubit/slot_management_cubit.dart';
 import '../../../presentation/owner/cubit/library_photos_cubit.dart';
 import '../../../presentation/owner/cubit/student_details_cubit.dart';
 import '../../../presentation/owner/cubit/bulk_import_cubit.dart';
-import '../../../presentation/student/cubit/attendance_cubit.dart';
-import '../../../presentation/student/cubit/attendance_history_cubit.dart';
 import '../../../presentation/student/cubit/explore_libraries_cubit.dart';
 import '../../../presentation/student/cubit/invoice_cubit.dart';
 import '../../../presentation/student/cubit/library_details_cubit.dart';
@@ -40,6 +41,7 @@ import '../../../presentation/admin/cubit/admin_library_management_cubit.dart';
 import '../../../presentation/admin/cubit/admin_invoices_cubit.dart';
 import '../../../presentation/admin/cubit/admin_intelligence_cubit.dart';
 import '../../../presentation/owner/cubit/owner_notice_cubit.dart';
+import '../../../presentation/owner/cubit/whatsapp_credits_cubit.dart';
 import '../../../presentation/student/cubit/student_notice_cubit.dart';
 import '../../../domain/repositories/admin_intelligence_repository.dart';
 import '../../../data/repositories/admin_intelligence_repository_impl.dart';
@@ -70,10 +72,15 @@ import '../../../domain/usecases/referral/referral_usecases.dart';
 import '../../../domain/usecases/validate_seat_limit.dart';
 import '../../../domain/services/location_service.dart';
 import '../../../domain/services/storage_service.dart' as domain_storage;
+import '../../../presentation/owner/cubit/library_upi_qr_cubit.dart';
+import '../../../presentation/owner/cubit/managers_cubit.dart';
 
 void registerBlocsAndFeatureModules(GetIt sl) {
   // Factory: creates new instance each time for fresh state on navigation
 
+  sl.registerFactory(
+    () => LibraryUpiQrCubit(updateLibraryUpiQr: sl(), removeLibraryUpiQr: sl()),
+  );
   sl.registerFactory(
     () => PhoneAuthCubit(
       sendOtpUseCase: sl(),
@@ -89,7 +96,6 @@ void registerBlocsAndFeatureModules(GetIt sl) {
   sl.registerFactory(
     () => StudentHomeCubit(
       getStudentMemberships: sl(),
-      validateDailyPresence: sl(),
       syncMembershipsOnLogin: sl(),
       membershipRepository: sl(),
       authRepository: sl(),
@@ -118,10 +124,11 @@ void registerBlocsAndFeatureModules(GetIt sl) {
 
   sl.registerFactory(
     () => OwnerLibraryBloc(
-      getOwnerLibrary: sl(),
+      getOwnerLibraries: sl(),
       getLibraryStats: sl(),
       createLibrary: sl(),
       updateLibrary: sl(),
+      branchSelectionService: sl(),
     ),
   );
 
@@ -134,6 +141,37 @@ void registerBlocsAndFeatureModules(GetIt sl) {
       getSlotsByLibrary: sl(),
       analyticsService: sl(),
       validateSeatLimit: sl(),
+    ),
+  );
+
+  // Owner: resident bed requests (approve / reject)
+  sl.registerFactory(
+    () => PendingApprovalCubit(
+      membershipRepository: sl(),
+      notificationService: sl(),
+      userRepository: sl(),
+      slotRepository: sl(),
+      paymentRepository: sl(),
+      generateInvoice: sl(),
+      whatsAppNotificationRepository: sl(),
+    ),
+  );
+
+  // Resident: PG QR invite + bed request
+  sl.registerFactory(
+    () => PgInviteCubit(
+      libraryRepository: sl(),
+      authRepository: sl(),
+      membershipRepository: sl(),
+      getSlotsByLibrary: sl(),
+    ),
+  );
+  sl.registerFactory(
+    () => BedRequestCubit(
+      assignMembershipWithCustomSlot: sl(),
+      getSlotsByLibrary: sl(),
+      membershipRepository: sl(),
+      notificationService: sl(),
     ),
   );
 
@@ -178,7 +216,6 @@ void registerBlocsAndFeatureModules(GetIt sl) {
   // Owner student details view
   sl.registerFactory(
     () => StudentDetailsCubit(
-      getAttendanceHistory: sl(),
       getInvoicesForStudent: sl(),
       getStudentDocuments: sl(),
       uploadDocument: sl(),
@@ -217,23 +254,6 @@ void registerBlocsAndFeatureModules(GetIt sl) {
       libraryRepository: sl(),
       membershipRepository: sl(),
       getSlotsByLibrary: sl(),
-    ),
-  );
-
-  // Student attendance
-  sl.registerFactory(
-    () => AttendanceCubit(
-      checkInUseCase: sl(),
-      checkOutUseCase: sl(),
-      getTodayAttendanceUseCase: sl(),
-    ),
-  );
-
-  // Student attendance history
-  sl.registerFactory(
-    () => AttendanceHistoryCubit(
-      getAttendanceHistoryUseCase: sl(),
-      getAttendanceStatsUseCase: sl(),
     ),
   );
 
@@ -290,12 +310,14 @@ void registerBlocsAndFeatureModules(GetIt sl) {
     () => ApproveSubscription(
       subscriptionRepository: sl(),
       referralRepository: sl(),
+      whatsAppCreditsRepository: sl(),
     ),
   );
   sl.registerLazySingleton(
     () => AutoApproveRazorpaySubscription(
       subscriptionRepository: sl(),
       referralRepository: sl(),
+      whatsAppCreditsRepository: sl(),
     ),
   );
   sl.registerLazySingleton(
@@ -457,6 +479,16 @@ void registerBlocsAndFeatureModules(GetIt sl) {
   // Owner settings
   sl.registerFactory(() => OwnerSettingsCubit(updateOwnerSettings: sl()));
 
+  // Owner: PG managers
+  sl.registerFactory(
+    () => ManagersCubit(
+      getOwnerLibraries: sl(),
+      getManagers: sl(),
+      inviteManager: sl(),
+      revokeManager: sl(),
+    ),
+  );
+
   // Device sessions
   sl.registerFactory(
     () => DeviceSessionsCubit(
@@ -466,17 +498,17 @@ void registerBlocsAndFeatureModules(GetIt sl) {
     ),
   );
 
-  // Expiry reminder
+  // Reminder message template use cases + cubit
+  sl.registerLazySingleton(() => GetReminderTemplate(repository: sl()));
+  sl.registerLazySingleton(() => SaveReminderTemplate(repository: sl()));
+  sl.registerLazySingleton(() => ClearReminderTemplate(repository: sl()));
   sl.registerFactory(
-    () => ExpiryReminderCubit(
-      sendReminder: sl(),
-      membershipRepository: sl(),
-      userRepository: sl(),
+    () => ReminderTemplateCubit(
+      getReminderTemplate: sl(),
+      saveReminderTemplate: sl(),
+      clearReminderTemplate: sl(),
     ),
   );
-
-  // WhatsApp reminder
-  sl.registerFactory(() => WhatsAppReminderCubit(repository: sl()));
 
   // Notification permission
   sl.registerLazySingleton(() => NotificationPermissionCubit(messaging: sl()));
@@ -495,6 +527,14 @@ void registerBlocsAndFeatureModules(GetIt sl) {
     ),
   );
 
+  // WhatsApp credits (wallet)
+  sl.registerFactory(
+    () => WhatsAppCreditsCubit(
+      getWhatsAppCredits: sl(),
+      addWhatsAppCredits: sl(),
+    ),
+  );
+
   // Notice management - Owner
   sl.registerFactory(
     () => OwnerNoticeCubit(
@@ -504,7 +544,8 @@ void registerBlocsAndFeatureModules(GetIt sl) {
       deleteNotice: sl(),
       publishNotice: sl(),
       getNoticeAnalytics: sl(),
-      whatsAppNotificationRepository: sl(),
+      sendNoticeWhatsApp: sl(),
+      getWhatsAppCredits: sl(),
     ),
   );
 

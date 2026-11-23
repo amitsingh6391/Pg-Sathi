@@ -23,7 +23,5 @@ abstract class AnalyticsDashboardRepository {
   });
 
   /// Get recent analytics events.
-  Stream<List<AnalyticsSummary>> getRecentEvents({
-    int limit = 10,
-  });
+  Stream<List<AnalyticsSummary>> getRecentEvents({int limit = 10});
 }

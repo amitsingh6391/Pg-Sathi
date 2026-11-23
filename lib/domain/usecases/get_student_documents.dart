@@ -20,7 +20,7 @@ class GetStudentDocuments
     try {
       final result = await repository.getStudentDocuments(params.studentId);
 
-      return result.fold((failure) => Left(failure), (documents) {
+      return await result.fold((failure) => Left(failure), (documents) {
         // Sort by upload date (newest first)
         final sorted = List<StudentDocument>.from(documents);
         sorted.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));

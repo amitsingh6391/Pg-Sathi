@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../domain/entities/subscription.dart';
 import '../../../core/app_ui_constants.dart';
@@ -19,7 +19,7 @@ class StatusBadge extends StatelessWidget {
         color = AppUIConstants.warning;
         label = 'Pending';
       case SubscriptionStatus.pendingVerification:
-        color = AppUIConstants.accent;
+        color = AppUIConstants.primaryLight;
         label = 'Verifying';
       case SubscriptionStatus.active:
         color = AppUIConstants.success;
@@ -36,19 +36,30 @@ class StatusBadge extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
-      child: Text(
-        label,
-        style: AppUIConstants.caption.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-          fontSize: 11,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
       ),
     );
   }

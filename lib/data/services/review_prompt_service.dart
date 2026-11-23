@@ -18,8 +18,8 @@ class ReviewPromptService {
   ReviewPromptService({
     required SharedPreferences sharedPreferences,
     required AppRatingService appRatingService,
-  })  : _prefs = sharedPreferences,
-        _ratingService = appRatingService;
+  }) : _prefs = sharedPreferences,
+       _ratingService = appRatingService;
 
   final SharedPreferences _prefs;
   final AppRatingService _ratingService;
@@ -99,8 +99,7 @@ class ReviewPromptService {
   }
 
   /// Whether the user has already completed a review.
-  bool get _hasCompletedReview =>
-      _prefs.getBool(_keyReviewCompleted) ?? false;
+  bool get _hasCompletedReview => _prefs.getBool(_keyReviewCompleted) ?? false;
 
   // =========================================================================
   // INTERNALS

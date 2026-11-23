@@ -16,7 +16,9 @@ import '../../../data/services/member_export_service.dart';
 import '../../../data/services/location_service_impl.dart';
 import '../../../data/services/local_notification_service.dart';
 import '../../../data/services/otp_quota_service.dart';
+import '../../../data/services/owner_branch_selection_service.dart';
 import '../../../data/services/promo_seen_service.dart';
+import '../../../data/services/registration_qr_card_preference.dart';
 import '../../../data/services/review_prompt_service.dart';
 import '../../../data/services/storage_service.dart' as data_storage;
 import '../../../data/services/user_session_service.dart';
@@ -38,7 +40,9 @@ void registerDataLayerServices(GetIt sl) {
   sl.registerLazySingleton<InvoicePdfService>(() => const InvoicePdfService());
 
   // Member Excel Export Service
-  sl.registerLazySingleton<MemberExportService>(() => const MemberExportService());
+  sl.registerLazySingleton<MemberExportService>(
+    () => const MemberExportService(),
+  );
 
   // Local Notification Service (for displaying foreground notifications)
   sl.registerLazySingleton<LocalNotificationService>(
@@ -125,12 +129,20 @@ void registerDataLayerServices(GetIt sl) {
   sl.registerLazySingleton<AppRatingService>(() => AppRatingService());
 
   // Review Prompt Service (smart timing for review requests)
+  // Owner dashboard: hide/show state of the PG registration QR card
+  sl.registerLazySingleton<RegistrationQrCardPreference>(
+    () => RegistrationQrCardPreference(sl()),
+  );
+
   sl.registerLazySingleton<ReviewPromptService>(
     () => ReviewPromptService(sharedPreferences: sl(), appRatingService: sl()),
   );
 
   // Promo Seen Service (tracks which promos owner has seen)
-  sl.registerLazySingleton<PromoSeenService>(
-    () => PromoSeenService(sl()),
+  sl.registerLazySingleton<PromoSeenService>(() => PromoSeenService(sl()));
+
+  // Owner Branch Selection Service (remembers last selected branch)
+  sl.registerLazySingleton<OwnerBranchSelectionService>(
+    () => OwnerBranchSelectionService(sl()),
   );
 }

@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/promo_offer.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
+import 'promo_ticket.dart';
 
 /// Card widget for displaying a promo offer in admin list.
 class PromoCard extends StatelessWidget {
@@ -23,208 +25,236 @@ class PromoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppUIConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        border: Border.all(
-          color: promo.isActive
-              ? AppUIConstants.success.withValues(alpha: 0.3)
-              : AppUIConstants.border,
-        ),
-        boxShadow: [AppUIConstants.shadowSm],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildImagePreview(),
-          Padding(
-            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-            child: Column(
+    final isValid = promo.isValidForDisplay;
+    final accent = isValid
+        ? AppUIConstants.primaryLight
+        : AppUIConstants.textTertiary;
+    final countdown = expiryCountdown(promo.endDate, start: promo.startDate);
+    return TicketCard(
+      accent: accent,
+      onTap: onEdit,
+      stub: _buildStub(accent),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(),
-                const SizedBox(height: AppUIConstants.spacingMd),
-                _buildInfoChips(),
-                if (promo.startDate != null || promo.endDate != null) ...[
-                  const SizedBox(height: AppUIConstants.spacingMd),
-                  _buildDateRange(),
-                ],
-                const SizedBox(height: AppUIConstants.spacingLg),
-                const Divider(height: 1),
-                const SizedBox(height: AppUIConstants.spacingMd),
-                _buildActions(),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      promo.title.isNotEmpty ? promo.title : 'Untitled promo',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppUIConstants.headingSm,
+                    ),
+                  ),
+                ),
+                _buildMenu(),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImagePreview() {
-    return ClipRRect(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppUIConstants.radiusMd),
-      ),
-      child: promo.imageUrl.isNotEmpty
-          ? Image.network(
-              promo.imageUrl,
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, error, stackTrace) =>
-                  _buildDefaultPromoPreview(promo.title),
-            )
-          : _buildDefaultPromoPreview(promo.title),
-    );
-  }
-
-  Widget _buildDefaultPromoPreview(String title) {
-    return Container(
-      height: 150,
-      width: double.infinity,
-      color: AppUIConstants.primary,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.local_offer_rounded, size: 40, color: Colors.white),
-          const SizedBox(height: 8),
-          Text(
-            title.isNotEmpty ? title : 'Default Promo',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                PremiumStatusPill(
+                  isValid ? 'Live' : (promo.isActive ? 'Scheduled' : 'Paused'),
+                  color: isValid
+                      ? AppUIConstants.success
+                      : (promo.isActive
+                            ? AppUIConstants.primaryLight
+                            : AppUIConstants.textTertiary),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.timer_outlined, size: 14, color: countdown.color),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    countdown.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppUIConstants.bodySm.copyWith(
+                      color: countdown.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'No image uploaded',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 11,
-            ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            _buildInfoChips(),
+            ..._buildScheduleProgress(accent),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Row(
+  Widget _buildStub(Color accent) {
+    final fallback = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Expanded(
-          child: Text(
-            promo.title.isNotEmpty ? promo.title : 'Untitled Promo',
-            style: AppUIConstants.headingSm,
+        Icon(Icons.local_offer_rounded, size: 30, color: accent),
+        const SizedBox(height: 6),
+        Text(
+          '#${promo.priority}',
+          style: TextStyle(
+            color: accent,
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
           ),
         ),
-        _buildStatusBadge(),
+        const Text('priority', style: AppUIConstants.caption),
+      ],
+    );
+    if (promo.imageUrl.isEmpty) return fallback;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 120),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              promo.imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, error, stackTrace) => fallback,
+              loadingBuilder: (_, child, progress) =>
+                  progress == null ? child : fallback,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenu() {
+    return PopupMenuButton<String>(
+      tooltip: 'Actions',
+      color: AppUIConstants.surfaceMuted,
+      icon: const Icon(
+        Icons.more_vert_rounded,
+        size: 20,
+        color: AppUIConstants.textSecondary,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm + 2),
+        side: const BorderSide(color: AppUIConstants.border),
+      ),
+      onSelected: (v) {
+        switch (v) {
+          case 'analytics':
+            onViewAnalytics();
+          case 'edit':
+            onEdit();
+          case 'toggle':
+            onToggle();
+          case 'delete':
+            onDelete();
+        }
+      },
+      itemBuilder: (_) => [
+        _menuItem('analytics', Icons.analytics_outlined, 'Analytics'),
+        _menuItem('edit', Icons.edit_outlined, 'Edit'),
+        _menuItem(
+          'toggle',
+          promo.isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
+          promo.isActive ? 'Pause' : 'Activate',
+        ),
+        _menuItem(
+          'delete',
+          Icons.delete_outline_rounded,
+          'Delete',
+          color: AppUIConstants.error,
+        ),
       ],
     );
   }
 
-  Widget _buildStatusBadge() {
-    final isValid = promo.isValidForDisplay;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isValid
-            ? AppUIConstants.success.withValues(alpha: 0.1)
-            : AppUIConstants.textTertiary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
-      ),
-      child: Text(
-        isValid ? 'Active' : 'Inactive',
-        style: AppUIConstants.bodySm.copyWith(
-          color: isValid ? AppUIConstants.success : AppUIConstants.textTertiary,
-          fontWeight: FontWeight.w600,
-        ),
+  PopupMenuItem<String> _menuItem(
+    String v,
+    IconData icon,
+    String label, {
+    Color? color,
+  }) {
+    final c = color ?? AppUIConstants.textPrimary;
+    return PopupMenuItem<String>(
+      value: v,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: c),
+          const SizedBox(width: 10),
+          Text(label, style: TextStyle(color: c, fontSize: 14)),
+        ],
       ),
     );
   }
 
   Widget _buildInfoChips() {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       children: [
         _buildChip(Icons.people_outline, _audienceLabel(promo.targetAudience)),
-        _buildChip(Icons.repeat_rounded, _frequencyLabel(promo.displayFrequency)),
-        _buildChip(Icons.touch_app_outlined, promo.ctaText),
-        _buildChip(Icons.low_priority_rounded, 'Priority: ${promo.priority}'),
+        _buildChip(
+          Icons.repeat_rounded,
+          _frequencyLabel(promo.displayFrequency),
+        ),
+        if (promo.ctaText.isNotEmpty)
+          _buildChip(Icons.touch_app_outlined, promo.ctaText),
       ],
     );
   }
 
   Widget _buildChip(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppUIConstants.background,
+        color: AppUIConstants.surfaceMuted,
         borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
-        border: Border.all(color: AppUIConstants.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppUIConstants.textSecondary),
+          Icon(icon, size: 12, color: AppUIConstants.textSecondary),
           const SizedBox(width: 4),
-          Text(label, style: AppUIConstants.bodySm),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: AppUIConstants.bodySm.copyWith(fontSize: 11),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDateRange() {
-    return Row(
-      children: [
-        Icon(
-          Icons.calendar_today_outlined,
-          size: 14,
-          color: AppUIConstants.textTertiary,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          _formatDateRange(promo.startDate, promo.endDate),
-          style: AppUIConstants.bodySm.copyWith(
-            color: AppUIConstants.textTertiary,
+  /// Schedule progress bar (start -> end) plus date range text.
+  List<Widget> _buildScheduleProgress(Color accent) {
+    final start = promo.startDate;
+    final end = promo.endDate;
+    if (start == null && end == null) return const [];
+    double? progress;
+    if (start != null && end != null && end.isAfter(start)) {
+      final total = end.difference(start).inSeconds;
+      final done = DateTime.now().difference(start).inSeconds;
+      progress = (done / total).clamp(0.0, 1.0);
+    }
+    return [
+      const SizedBox(height: 10),
+      if (progress != null)
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 4,
+            backgroundColor: AppUIConstants.surfaceMuted,
+            valueColor: AlwaysStoppedAnimation(accent),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildActions() {
-    return Row(
-      children: [
-        _PromoActionButton(
-          icon: Icons.analytics_outlined,
-          label: 'Analytics',
-          onTap: onViewAnalytics,
-        ),
-        _PromoActionButton(
-          icon: Icons.edit_outlined,
-          label: 'Edit',
-          onTap: onEdit,
-        ),
-        _PromoActionButton(
-          icon: promo.isActive ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          label: promo.isActive ? 'Pause' : 'Activate',
-          onTap: onToggle,
-        ),
-        _PromoActionButton(
-          icon: Icons.delete_outline,
-          label: 'Delete',
-          color: AppUIConstants.error,
-          onTap: onDelete,
-        ),
-      ],
-    );
+      const SizedBox(height: 6),
+      Text(_formatDateRange(start, end), style: AppUIConstants.caption),
+    ];
   }
 
   String _audienceLabel(PromoTargetAudience audience) {
@@ -234,7 +264,7 @@ class PromoCard extends StatelessWidget {
       case PromoTargetAudience.allOwners:
         return 'All Owners';
       case PromoTargetAudience.allStudents:
-        return 'All Students';
+        return 'All Residents';
       case PromoTargetAudience.freeTier:
         return 'Free Tier';
       case PromoTargetAudience.paid:
@@ -246,11 +276,11 @@ class PromoCard extends StatelessWidget {
       case PromoTargetAudience.newOwners:
         return 'New Owners';
       case PromoTargetAudience.activeMembership:
-        return 'Active Students';
+        return 'Active Residents';
       case PromoTargetAudience.expiredMembership:
-        return 'Expired Students';
+        return 'Expired Residents';
       case PromoTargetAudience.noMembership:
-        return 'No Membership';
+        return 'No Stay';
     }
   }
 
@@ -275,46 +305,5 @@ class PromoCard extends StatelessWidget {
       return 'Until ${formatter.format(end)}';
     }
     return '';
-  }
-}
-
-/// Action button for promo card.
-class _PromoActionButton extends StatelessWidget {
-  const _PromoActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            children: [
-              Icon(icon, size: 20, color: color ?? AppUIConstants.textSecondary),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: AppUIConstants.bodySm.copyWith(
-                  color: color ?? AppUIConstants.textSecondary,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

@@ -11,7 +11,6 @@ abstract class NoticeRepository {
   Future<Either<Failure, Notice>> createNotice({
     required String libraryId,
     required String ownerId,
-    required String title,
     required String description,
     required NoticeTargetAudience targetAudience,
     List<File> attachmentFiles = const [],
@@ -19,6 +18,7 @@ abstract class NoticeRepository {
     DateTime? scheduledFor,
     DateTime? expiresAt,
     bool sendPushNotification = true,
+    bool sendWhatsApp = false,
     List<String> targetSlotIds = const [],
     List<String> targetSeatIds = const [],
   });
@@ -26,7 +26,6 @@ abstract class NoticeRepository {
   /// Update an existing notice
   Future<Either<Failure, Notice>> updateNotice({
     required String noticeId,
-    String? title,
     String? description,
     NoticeTargetAudience? targetAudience,
     List<File>? newAttachmentFiles,
@@ -62,7 +61,8 @@ abstract class NoticeRepository {
   });
 
   /// Get read status for a student's notices
-  Future<Either<Failure, Map<String, NoticeReadStatus>>> getReadStatusForStudent({
+  Future<Either<Failure, Map<String, NoticeReadStatus>>>
+  getReadStatusForStudent({
     required String studentId,
     required String libraryId,
   });
@@ -82,9 +82,6 @@ abstract class NoticeRepository {
     DateTime? startDate,
     DateTime? endDate,
   });
-
-  /// Schedule expired notices check (background job)
-  Future<Either<Failure, void>> updateExpiredNotices();
 }
 
 /// Notice analytics data

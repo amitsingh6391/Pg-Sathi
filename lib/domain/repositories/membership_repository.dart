@@ -128,6 +128,11 @@ abstract class MembershipRepository {
     String libraryId,
   );
 
+  /// Retrieves all resident bed requests (pendingApproval) for a library.
+  Future<Either<Failure, List<Membership>>> getPendingSeatRequestMemberships(
+    String libraryId,
+  );
+
   /// Batch updates memberships to link them to a user ID.
   /// Used when student logs in and unregistered memberships need to be linked.
   Future<Either<Failure, void>> batchLinkMembershipsToUser({

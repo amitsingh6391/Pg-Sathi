@@ -4,8 +4,10 @@ import 'package:equatable/equatable.dart';
 import '../core/core.dart';
 import '../entities/subscription.dart';
 import '../failures/subscription_failures.dart';
+import '../entities/whatsapp_credits.dart';
 import '../repositories/referral_repository.dart';
 import '../repositories/subscription_repository.dart';
+import '../repositories/whatsapp_credits_repository.dart';
 
 /// Use case for approving a subscription (admin only).
 /// Activates the subscription after manual verification.
@@ -15,10 +17,12 @@ class ApproveSubscription
   const ApproveSubscription({
     required this.subscriptionRepository,
     this.referralRepository,
+    this.whatsAppCreditsRepository,
   });
 
   final SubscriptionRepository subscriptionRepository;
   final ReferralRepository? referralRepository;
+  final WhatsAppCreditsRepository? whatsAppCreditsRepository;
 
   @override
   Future<Either<Failure, Subscription>> call(
@@ -72,7 +76,8 @@ class ApproveSubscription
 
       // Determine start date: extend from existing subscription or start now
       final now = DateTime.now();
-      final isExtendingExisting = existingToExtendFrom != null &&
+      final isExtendingExisting =
+          existingToExtendFrom != null &&
           existingToExtendFrom.endDate.isAfter(now);
 
       final DateTime startDate;
@@ -128,8 +133,30 @@ class ApproveSubscription
         );
       }
 
+      // Grant the free WhatsApp credit pack that comes with the plan.
+      if (updateResult.isRight()) {
+        await _grantSubscriptionBonusCredits(approvedSubscription);
+      }
+
       return updateResult;
     });
+  }
+
+  /// 1 month → ₹49 pack, 3 months → ₹99 pack, 6/12 months → ₹199 pack.
+  /// Best-effort and idempotent per subscription: never fails the approval.
+  Future<void> _grantSubscriptionBonusCredits(Subscription subscription) async {
+    final repo = whatsAppCreditsRepository;
+    if (repo == null) return;
+    final pack = WhatsAppCreditPack.bonusForSubscriptionMonths(
+      subscription.durationInMonths,
+    );
+    if (pack == null) return;
+    await repo.grantBonusCredits(
+      ownerId: subscription.ownerId,
+      credits: pack.credits,
+      packId: pack.id,
+      grantId: 'sub_bonus_${subscription.id}',
+    );
   }
 
   /// Marks a pending referral redemption as converted when the

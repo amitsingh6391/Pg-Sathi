@@ -47,6 +47,7 @@ class GetStudentMemberships
             (m) =>
                 m.status == MembershipStatus.active ||
                 m.status == MembershipStatus.pendingPayment ||
+                m.status == MembershipStatus.pendingApproval ||
                 m.status == MembershipStatus.expired ||
                 (m.startDate.isAfter(now) &&
                     (m.status == MembershipStatus.pendingPayment ||
@@ -67,7 +68,9 @@ class GetStudentMemberships
       await Future.wait([
         ...uniqueLibraryIds.map((id) async {
           final r = await libraryRepository.getLibraryById(id);
-          r.fold((_) {}, (lib) { if (lib != null) libraryCache[id] = lib; });
+          r.fold((_) {}, (lib) {
+            if (lib != null) libraryCache[id] = lib;
+          });
         }),
         ...uniqueLibraryIdsWithSlots.map((id) async {
           final r = await slotRepository.getSlotsByLibraryId(id);
@@ -114,7 +117,8 @@ class GetStudentMemberships
                   !m.isExpired(now) &&
                   !m.startDate.isAfter(now) &&
                   (m.status == MembershipStatus.active ||
-                      m.status == MembershipStatus.pendingPayment),
+                      m.status == MembershipStatus.pendingPayment ||
+                      m.status == MembershipStatus.pendingApproval),
             )
             .toList();
 
@@ -124,6 +128,7 @@ class GetStudentMemberships
               (m) =>
                   m.startDate.isAfter(now) &&
                   (m.status == MembershipStatus.pendingPayment ||
+                      m.status == MembershipStatus.pendingApproval ||
                       m.status == MembershipStatus.active),
             )
             .toList();
@@ -146,6 +151,15 @@ class GetStudentMemberships
             }
             if (b.status == MembershipStatus.active &&
                 a.status != MembershipStatus.active) {
+              return 1;
+            }
+            // Then bed requests awaiting approval (most relevant to resident)
+            if (a.status == MembershipStatus.pendingApproval &&
+                b.status != MembershipStatus.pendingApproval) {
+              return -1;
+            }
+            if (b.status == MembershipStatus.pendingApproval &&
+                a.status != MembershipStatus.pendingApproval) {
               return 1;
             }
             return a.startDate.compareTo(b.startDate);
@@ -177,9 +191,9 @@ class GetStudentMemberships
                     (m) =>
                         m.status == MembershipStatus.active &&
                         !m.isExpired(now) &&
-                        _membershipDay(m.startDate).isAfter(
-                          _membershipDay(activePrimary.startDate),
-                        ),
+                        _membershipDay(
+                          m.startDate,
+                        ).isAfter(_membershipDay(activePrimary.startDate)),
                   )
                   .toList();
               if (laterActive.isNotEmpty) {
@@ -248,6 +262,8 @@ class GetStudentMemberships
                         : 0),
               isPendingPayment:
                   primaryMembership.status == MembershipStatus.pendingPayment,
+              isPendingApproval:
+                  primaryMembership.status == MembershipStatus.pendingApproval,
               isActive: isCurrentActive,
               isExpired: primaryMembership.isExpired(now),
               upcomingMembership: upcomingMembership,
@@ -408,11 +424,15 @@ class StudentMembershipInfo extends Equatable {
     this.libraryName,
     this.customSlot,
     this.upcomingMembership,
+    this.isPendingApproval = false,
   });
 
   final Membership membership;
   final int daysRemaining;
   final bool isPendingPayment;
+
+  /// True when the resident's bed request is awaiting owner approval.
+  final bool isPendingApproval;
   final bool isActive;
   final bool isExpired;
 
@@ -549,6 +569,7 @@ class StudentMembershipInfo extends Equatable {
     membership,
     daysRemaining,
     isPendingPayment,
+    isPendingApproval,
     isActive,
     isExpired,
     library,

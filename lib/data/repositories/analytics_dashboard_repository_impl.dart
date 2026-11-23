@@ -121,18 +121,19 @@ class AnalyticsDashboardRepositoryImpl implements AnalyticsDashboardRepository {
         .limit(limit)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return AnalyticsSummary(
-          eventName: data['event_name'] as String? ?? 'unknown',
-          userId: data['user_id'] as String?,
-          role: data['role'] as String?,
-          libraryId: data['library_id'] as String?,
-          platform: data['platform'] as String?,
-          parameters: (data['parameters'] as Map<String, dynamic>?) ?? {},
-          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        );
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return AnalyticsSummary(
+              eventName: data['event_name'] as String? ?? 'unknown',
+              userId: data['user_id'] as String?,
+              role: data['role'] as String?,
+              libraryId: data['library_id'] as String?,
+              platform: data['platform'] as String?,
+              parameters: (data['parameters'] as Map<String, dynamic>?) ?? {},
+              timestamp:
+                  (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            );
+          }).toList();
+        });
   }
 }

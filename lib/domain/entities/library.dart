@@ -25,6 +25,7 @@ class Library extends Equatable {
     this.isProfileComplete = false,
     this.ownerPhone,
     this.ownerUpiId,
+    this.ownerUpiQrUrl,
     this.customMonthlyPrice,
     this.customDiscount,
     this.createdAt,
@@ -51,6 +52,7 @@ class Library extends Equatable {
   final bool isProfileComplete;
   final String? ownerPhone;
   final String? ownerUpiId; // Owner's UPI ID for direct payments
+  final String? ownerUpiQrUrl; // Owner's UPI QR code image URL for payments
   final double? customMonthlyPrice;
   final CustomDiscount? customDiscount;
   final DateTime? createdAt;
@@ -60,6 +62,13 @@ class Library extends Equatable {
 
   /// Whether UPI payments are enabled for this library.
   bool get isUpiEnabled => ownerUpiId != null && ownerUpiId!.trim().isNotEmpty;
+
+  /// Whether the owner uploaded a UPI QR code image.
+  bool get hasUpiQr =>
+      ownerUpiQrUrl != null && ownerUpiQrUrl!.trim().isNotEmpty;
+
+  /// Whether residents can pay this PG by UPI (ID or QR code).
+  bool get acceptsUpi => isUpiEnabled || hasUpiQr;
 
   /// Whether the library has an active admin discount.
   bool get hasActiveDiscount =>
@@ -124,6 +133,7 @@ class Library extends Equatable {
     isProfileComplete,
     ownerPhone,
     ownerUpiId,
+    ownerUpiQrUrl,
     customMonthlyPrice,
     customDiscount,
     createdAt,
@@ -153,6 +163,7 @@ class Library extends Equatable {
     bool? isProfileComplete,
     String? ownerPhone,
     String? ownerUpiId,
+    Object? ownerUpiQrUrl = _undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
     List<String>? photos,
@@ -177,6 +188,9 @@ class Library extends Equatable {
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
       ownerPhone: ownerPhone ?? this.ownerPhone,
       ownerUpiId: ownerUpiId ?? this.ownerUpiId,
+      ownerUpiQrUrl: ownerUpiQrUrl == _undefined
+          ? this.ownerUpiQrUrl
+          : ownerUpiQrUrl as String?,
       customMonthlyPrice: customMonthlyPrice == _undefined
           ? this.customMonthlyPrice
           : customMonthlyPrice as double?,

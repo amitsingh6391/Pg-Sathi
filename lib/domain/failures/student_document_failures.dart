@@ -15,5 +15,3 @@ class StudentDocumentNotFoundFailure extends Failure {
   const StudentDocumentNotFoundFailure({String? message})
     : super(message: message ?? 'Student document not found');
 }
-
-

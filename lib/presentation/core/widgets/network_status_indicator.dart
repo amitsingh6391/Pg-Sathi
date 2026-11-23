@@ -1,8 +1,9 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/di/injection_container.dart';
 import '../../../data/services/connectivity_service.dart';
+import '../app_ui_constants.dart';
 
 /// Widget that displays network connectivity status.
 /// Shows a banner when device is offline.
@@ -47,50 +48,80 @@ class _NetworkStatusIndicatorState extends State<NetworkStatusIndicator> {
     return Stack(
       children: [
         widget.child,
-        if (!_isConnected)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOutBack,
+              transitionBuilder: (w, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, -1),
+                    end: Offset.zero,
+                  ).animate(anim),
+                  child: w,
                 ),
-                color: Colors.red.shade600,
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.wifi_off_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'No Internet Connection',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+              ),
+              child: _isConnected
+                  ? const SizedBox.shrink(key: ValueKey('online'))
+                  : Padding(
+                      key: const ValueKey('offline'),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+                          decoration: BoxDecoration(
+                            color: AppUIConstants.surfaceMuted,
+                            borderRadius: BorderRadius.circular(
+                              AppUIConstants.radiusFull,
+                            ),
+                            border: Border.all(color: AppUIConstants.border),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.wifi_off_rounded,
+                                color: AppUIConstants.error,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                  "You're offline",
+                                  style: TextStyle(
+                                    color: AppUIConstants.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _checkConnectivity,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppUIConstants.primaryLight,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                  ),
+                                  minimumSize: const Size(0, 32),
+                                ),
+                                child: const Text(
+                                  'Retry',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    TextButton(
-                      onPressed: _checkConnectivity,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
+        ),
       ],
     );
   }

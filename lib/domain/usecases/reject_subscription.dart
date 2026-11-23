@@ -48,8 +48,10 @@ class RejectSubscription
         reason: params.reason,
       );
 
-      final updateResult = await subscriptionRepository.updateSubscription(rejectedSubscription);
-      
+      final updateResult = await subscriptionRepository.updateSubscription(
+        rejectedSubscription,
+      );
+
       // Track subscription cancelled
       if (updateResult.isRight()) {
         await analyticsService.trackSubscriptionCancelled(
@@ -57,7 +59,7 @@ class RejectSubscription
           cancellationReason: params.reason,
         );
       }
-      
+
       return updateResult;
     });
   }

@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
-/// Small stat card widget.
+import '../../../core/app_ui_constants.dart';
+
+/// Small stat tile widget (used in a Row).
 class StatCard extends StatelessWidget {
   const StatCard({
     required this.label,
@@ -17,14 +19,24 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: AppUIConstants.surface,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              width: 22,
+              height: 3,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            const SizedBox(height: 10),
             Text(
               value,
               style: TextStyle(
@@ -33,13 +45,7 @@ class StatCard extends StatelessWidget {
                 color: color,
               ),
             ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: color.withValues(alpha: 0.8),
-              ),
-            ),
+            Text(label, style: AppUIConstants.bodySm),
           ],
         ),
       ),

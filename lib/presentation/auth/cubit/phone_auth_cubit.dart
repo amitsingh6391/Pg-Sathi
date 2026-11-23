@@ -376,7 +376,7 @@ class PhoneAuthCubit extends Cubit<PhoneAuthState> {
         deviceId: deviceId,
       );
 
-      return result.fold((failure) {
+      return await result.fold((failure) {
         debugPrint(
           'DeviceSession: Failed to check revoked status: ${failure.message}',
         );

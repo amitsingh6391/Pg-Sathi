@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +10,7 @@ import '../../../domain/entities/subscription.dart';
 import '../../../domain/entities/subscription_plan.dart';
 import '../../../domain/usecases/calculate_subscription_price.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../../core/widgets/whatsapp_support_button.dart';
 import '../cubit/subscription_cubit.dart';
 import '../widgets/upi_bottom_sheet.dart';
@@ -95,36 +97,47 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
             heroTag: 'upi_payment_support',
             contextMessage:
                 'Hi, I need help with my payment.\n\n'
-                'Library: ${widget.library.name}\n'
+                'PG: ${widget.library.name}\n'
                 'Amount: \u20b9${(widget.subscription?.finalAmount ?? widget.finalAmountWithCoupon ?? widget.priceResult?.finalAmount ?? 0).toStringAsFixed(0)}',
           ),
-          body: CustomScrollView(
-            slivers: [
-              // App Bar with Amount
-              _buildAppBar(),
-
-              // Content
-              SliverPadding(
+          body: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              _buildHero(),
+              Padding(
                 padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    if (_usesAppleInAppPurchase) ...[
-                      _buildInAppPurchaseSection(state),
-                    ] else if (!_showTransactionInput) ...[
-                      // UPI Apps Section
-                      _buildUpiAppsSection(),
-                      const SizedBox(height: AppUIConstants.spacingLg),
-                      // Already Paid Button
-                      _buildAlreadyPaidButton(),
-                    ] else ...[
-                      // Transaction Input Section
-                      _buildTransactionSection(state),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!_usesAppleInAppPurchase) ...[
+                      _buildStepper(),
+                      const SizedBox(height: AppUIConstants.spacingSm),
                     ],
-
-                    const SizedBox(height: AppUIConstants.spacingLg),
-
-                    const SizedBox(height: AppUIConstants.spacing2Xl),
-                  ]),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: KeyedSubtree(
+                        key: ValueKey(
+                          _usesAppleInAppPurchase
+                              ? 'iap'
+                              : _showTransactionInput,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_usesAppleInAppPurchase)
+                              _buildInAppPurchaseSection(state)
+                            else if (!_showTransactionInput) ...[
+                              _buildUpiAppsSection(),
+                              const SizedBox(height: AppUIConstants.spacingLg),
+                              _buildAlreadyPaidButton(),
+                            ] else
+                              _buildTransactionSection(state),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 80),
+                  ],
                 ),
               ),
             ],
@@ -134,213 +147,98 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
     );
   }
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 180,
-      pinned: true,
-      backgroundColor: AppUIConstants.primary,
-      foregroundColor: Colors.white,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          color: AppUIConstants.primary,
-          child: SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40),
-                Text(
-                  'Pay Securely',
-                  style: AppUIConstants.bodyMd.copyWith(color: Colors.white70),
-                ),
-                const SizedBox(height: AppUIConstants.spacingXs),
-                Text(
-                  '₹${(widget.subscription?.finalAmount ?? widget.finalAmountWithCoupon ?? widget.priceResult?.finalAmount ?? 0).toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -1,
-                  ),
-                ),
-                const SizedBox(height: AppUIConstants.spacingXs),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppUIConstants.spacingMd,
-                    vertical: AppUIConstants.spacingXs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(
-                      AppUIConstants.radiusFull,
-                    ),
-                  ),
-                  child: Text(
-                    '${widget.subscription?.durationInMonths ?? widget.durationInMonths ?? 0} Month${(widget.subscription?.durationInMonths ?? widget.durationInMonths ?? 0) > 1 ? 's' : ''} Plan',
-                    style: AppUIConstants.bodySm.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      title: Text(
-        _usesAppleInAppPurchase ? 'App Store Purchase' : 'Complete Payment',
-      ),
-    );
-  }
-
   Widget _buildUpiAppsSection() {
     return _buildPaymentOptions();
   }
 
-  Widget _buildAlreadyPaidButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: TextButton(
-        onPressed: () => setState(() => _showTransactionInput = true),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppUIConstants.spacingMd,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 18,
-              color: AppUIConstants.success,
-            ),
-            const SizedBox(width: AppUIConstants.spacingSm),
-            Text(
-              'I\'ve already paid',
-              style: AppUIConstants.bodyMd.copyWith(
-                color: AppUIConstants.success,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  double get _amount =>
+      widget.subscription?.finalAmount ??
+      widget.finalAmountWithCoupon ??
+      widget.priceResult?.finalAmount ??
+      0;
 
-  Widget _buildTransactionSection(SubscriptionState state) {
-    return Container(
-      padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        border: Border.all(color: AppUIConstants.border),
-      ),
+  int get _months =>
+      widget.subscription?.durationInMonths ?? widget.durationInMonths ?? 0;
+
+  Widget _buildHero() {
+    return PremiumHero(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppUIConstants.success.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.receipt_long,
-                  color: AppUIConstants.success,
-                  size: 20,
-                ),
+              IconButton(
+                onPressed: () => Navigator.maybePop(context),
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: AppUIConstants.textPrimary,
+                padding: EdgeInsets.zero,
+                alignment: Alignment.centerLeft,
+                constraints: const BoxConstraints(minWidth: 40),
               ),
-              const SizedBox(width: AppUIConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Enter Transaction ID',
-                      style: AppUIConstants.bodyLg.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      'From your UPI payment confirmation',
-                      style: AppUIConstants.bodySm.copyWith(
-                        color: AppUIConstants.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+              Text(
+                _usesAppleInAppPurchase
+                    ? 'App Store Purchase'
+                    : 'Complete Payment',
+                style: AppUIConstants.headingMd,
               ),
             ],
           ),
-          const SizedBox(height: AppUIConstants.spacingLg),
-          TextField(
-            controller: _transactionController,
-            decoration: InputDecoration(
-              hintText: 'e.g., 123456789012',
-              hintStyle: AppUIConstants.bodyMd.copyWith(
-                color: AppUIConstants.textTertiary,
-              ),
-              filled: true,
-              fillColor: AppUIConstants.background,
-              prefixIcon: Icon(Icons.tag, color: AppUIConstants.textSecondary),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppUIConstants.spacingMd,
-                vertical: AppUIConstants.spacingMd,
+          const SizedBox(height: 18),
+          const Text('Amount to pay', style: AppUIConstants.bodyMd),
+          const SizedBox(height: 4),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: _amount),
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOutCubic,
+            builder: (_, v, _) => Text(
+              '₹${v.toStringAsFixed(0)}',
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.w800,
+                color: AppUIConstants.textPrimary,
+                letterSpacing: -1.5,
               ),
             ),
-            keyboardType: TextInputType.text,
-            textCapitalization: TextCapitalization.characters,
           ),
-          const SizedBox(height: AppUIConstants.spacingLg),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: state.isLoading ? null : _markPaymentDone,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppUIConstants.success,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _heroChip(
+                Icons.event_repeat_rounded,
+                '$_months Month${_months > 1 ? 's' : ''} Plan',
               ),
-              child: state.isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      'Verify Payment',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
+              _heroChip(Icons.apartment_rounded, widget.library.name),
+            ],
           ),
-          const SizedBox(height: AppUIConstants.spacingMd),
-          Center(
-            child: TextButton(
-              onPressed: () => setState(() => _showTransactionInput = false),
-              child: Text(
-                '← Back to payment options',
-                style: AppUIConstants.bodySm.copyWith(
-                  color: AppUIConstants.textSecondary,
-                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroChip(IconData icon, String label) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppUIConstants.primaryLight),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppUIConstants.bodySm.copyWith(
+                color: AppUIConstants.textPrimary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -349,74 +247,217 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
     );
   }
 
-  Widget _buildPaymentOptions() {
-    final amount =
-        widget.subscription?.finalAmount ??
-        widget.finalAmountWithCoupon ??
-        widget.priceResult?.finalAmount ??
-        0;
-    final razorpayAmount = amount + (amount * 0.025); // Add 2.5% charges
+  Widget _buildStepper() {
+    final current = _showTransactionInput ? 1 : 0;
+    const labels = ['Pay', 'Verify', 'Active'];
+    return Row(
+      children: [
+        for (var i = 0; i < labels.length; i++) ...[
+          Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i < current
+                      ? AppUIConstants.success
+                      : i == current
+                      ? AppUIConstants.warning
+                      : AppUIConstants.surfaceMuted,
+                  border: Border.all(
+                    color: i <= current
+                        ? Colors.transparent
+                        : AppUIConstants.border,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: i < current
+                    ? const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      )
+                    : Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: i == current
+                              ? Colors.white
+                              : AppUIConstants.textTertiary,
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                labels[i],
+                style: AppUIConstants.caption.copyWith(
+                  color: i <= current
+                      ? AppUIConstants.textPrimary
+                      : AppUIConstants.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          if (i < labels.length - 1)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 18, left: 6, right: 6),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 2,
+                  color: i < current
+                      ? AppUIConstants.success
+                      : AppUIConstants.border,
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
 
+  Widget _buildAlreadyPaidButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          HapticFeedback.selectionClick();
+          setState(() => _showTransactionInput = true);
+        },
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppUIConstants.success,
+          side: BorderSide(
+            color: AppUIConstants.success.withValues(alpha: 0.5),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+          ),
+        ),
+        icon: const Icon(Icons.check_circle_outline, size: 18),
+        label: const Text(
+          'I\'ve already paid',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionSection(SubscriptionState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Payment Options Header
-        Text(
-          'Choose Payment Method',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppUIConstants.textPrimary,
-          ),
-        ),
+        const _UpiIdChip(),
         const SizedBox(height: AppUIConstants.spacingMd),
-
-        // Option 1: Manual UPI (Free)
-        _buildPaymentOptionCard(
-          title: 'Pay via UPI (Free)',
-          subtitle: 'Copy UPI ID and pay manually\nVerification: Up to 1 hour',
-          amount: amount,
-          icon: Icons.account_balance_wallet_outlined,
-          color: Colors.green,
-          onTap: () => _showManualUpiOption(),
-          badge: 'RECOMMENDED',
-        ),
-
-        const SizedBox(height: AppUIConstants.spacingMd),
-
-        // Option 2: Razorpay (2.5% charges)
-        _buildPaymentOptionCard(
-          title: 'Pay via Razorpay (Instant)',
-          subtitle: 'Credit/Debit Card, UPI, NetBanking\nInstant verification',
-          amount: razorpayAmount,
-          icon: Icons.payment,
-          color: AppUIConstants.primary,
-          onTap: () => _initiateRazorpay(),
-          badge: '+ 2.5% charges',
-          badgeColor: Colors.orange,
-        ),
-
-        const SizedBox(height: AppUIConstants.spacingMd),
-
-        // Info message for Razorpay manual flow
-        Container(
-          padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-            border: Border.all(color: Colors.blue.shade200),
-          ),
-          child: Row(
+        PremiumCard(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: AppUIConstants.spacingSm),
-              Expanded(
-                child: Text(
-                  'If paying manually via PhonePe/other UPI apps: Copy UPI ID → Make payment → Tap "I have already paid" → Enter last min 5 digits of transaction reference ID',
-                  style: AppUIConstants.bodySm.copyWith(
-                    color: Colors.blue.shade900,
-                    height: 1.4,
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.success.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.receipt_long,
+                      color: AppUIConstants.success,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: AppUIConstants.spacingMd),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Enter Transaction ID',
+                          style: AppUIConstants.bodyLg,
+                        ),
+                        Text(
+                          'Last 5+ digits of the UPI reference number',
+                          style: AppUIConstants.bodySm,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppUIConstants.spacingLg),
+              TextField(
+                controller: _transactionController,
+                style: AppUIConstants.bodyLg.copyWith(letterSpacing: 1),
+                decoration: InputDecoration(
+                  hintText: 'e.g., 123456789012',
+                  hintStyle: AppUIConstants.bodyMd.copyWith(
+                    color: AppUIConstants.textTertiary,
+                  ),
+                  filled: true,
+                  fillColor: AppUIConstants.surfaceMuted,
+                  prefixIcon: const Icon(
+                    Icons.tag,
+                    color: AppUIConstants.textSecondary,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(
+                      AppUIConstants.radiusMd,
+                    ),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppUIConstants.spacingMd,
+                    vertical: AppUIConstants.spacingMd,
+                  ),
+                ),
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.characters,
+              ),
+              const SizedBox(height: AppUIConstants.spacingLg),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: state.isLoading ? null : _markPaymentDone,
+                  style: AppUIConstants.primaryButtonStyle,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: state.isLoading
+                        ? const SizedBox(
+                            key: ValueKey('busy'),
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Verify Payment',
+                            key: ValueKey('idle'),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppUIConstants.spacingSm),
+              Center(
+                child: TextButton(
+                  onPressed: () =>
+                      setState(() => _showTransactionInput = false),
+                  child: Text(
+                    '← Back to payment options',
+                    style: AppUIConstants.bodySm.copyWith(
+                      color: AppUIConstants.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -427,39 +468,84 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
     );
   }
 
-  Widget _buildInAppPurchaseSection(SubscriptionState state) {
-    final amount =
-        widget.subscription?.finalAmount ??
-        widget.finalAmountWithCoupon ??
-        widget.priceResult?.finalAmount ??
-        0;
+  Widget _buildInfoNote(String text) {
+    return Container(
+      padding: const EdgeInsets.all(AppUIConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppUIConstants.primarySoft,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        border: Border.all(
+          color: AppUIConstants.primaryLight.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline,
+            color: AppUIConstants.primaryLight,
+            size: 20,
+          ),
+          const SizedBox(width: AppUIConstants.spacingSm),
+          Expanded(
+            child: Text(
+              text,
+              style: AppUIConstants.bodySm.copyWith(
+                color: AppUIConstants.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentOptions() {
+    final amount = _amount;
+    final razorpayAmount = amount + (amount * 0.025); // Add 2.5% charges
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Complete with App Store',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppUIConstants.textPrimary,
-          ),
+        const PremiumSectionHeader('Choose Payment Method'),
+        _buildPaymentOptionCard(
+          title: 'Pay via UPI (Free)',
+          subtitle: 'Copy UPI ID and pay manually\nVerification: Up to 1 hour',
+          amount: amount,
+          icon: Icons.account_balance_wallet_outlined,
+          color: AppUIConstants.success,
+          onTap: () => _showManualUpiOption(),
+          badge: 'RECOMMENDED',
+          highlighted: true,
         ),
         const SizedBox(height: AppUIConstants.spacingMd),
-        Container(
-          padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-          decoration: BoxDecoration(
-            color: AppUIConstants.surface,
-            borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
-            border: Border.all(color: AppUIConstants.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+        _buildPaymentOptionCard(
+          title: 'Pay via Razorpay (Instant)',
+          subtitle: 'Credit/Debit Card, UPI, NetBanking\nInstant verification',
+          amount: razorpayAmount,
+          icon: Icons.payment,
+          color: AppUIConstants.primaryLight,
+          onTap: () => _initiateRazorpay(),
+          badge: '+ 2.5% charges',
+          badgeColor: AppUIConstants.primaryLight,
+        ),
+        const SizedBox(height: AppUIConstants.spacingMd),
+        _buildInfoNote(
+          'If paying manually via PhonePe/other UPI apps: Copy UPI ID → Make payment → Tap "I have already paid" → Enter last min 5 digits of transaction reference ID',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInAppPurchaseSection(SubscriptionState state) {
+    final amount = _amount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PremiumSectionHeader('Complete with App Store'),
+        PremiumCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -469,14 +555,14 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: AppUIConstants.primary.withValues(alpha: 0.1),
+                      color: AppUIConstants.primarySoft,
                       borderRadius: BorderRadius.circular(
                         AppUIConstants.radiusMd,
                       ),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.apple,
-                      color: AppUIConstants.primary,
+                      color: AppUIConstants.primaryLight,
                       size: 30,
                     ),
                   ),
@@ -487,28 +573,22 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
                       children: [
                         const Text(
                           'In-App Purchase',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: AppUIConstants.headingSm,
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${widget.subscription?.durationInMonths ?? widget.durationInMonths ?? 0} month plan',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppUIConstants.textSecondary,
-                          ),
+                          '$_months month plan',
+                          style: AppUIConstants.bodySm,
                         ),
                       ],
                     ),
                   ),
                   Text(
                     '₹${amount.toStringAsFixed(0)}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppUIConstants.primary,
+                      color: AppUIConstants.primaryLight,
                     ),
                   ),
                 ],
@@ -519,16 +599,7 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: state.isLoading ? null : _startInAppPurchase,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppUIConstants.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppUIConstants.radiusMd,
-                      ),
-                    ),
-                  ),
+                  style: AppUIConstants.primaryButtonStyle,
                   child: state.isLoading
                       ? const SizedBox(
                           width: 24,
@@ -551,29 +622,8 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
           ),
         ),
         const SizedBox(height: AppUIConstants.spacingMd),
-        Container(
-          padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-            border: Border.all(color: Colors.blue.shade200),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: AppUIConstants.spacingSm),
-              Expanded(
-                child: Text(
-                  'On iPhone and iPad, subscription purchases are completed through Apple in-app purchase.',
-                  style: AppUIConstants.bodySm.copyWith(
-                    color: Colors.blue.shade900,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        _buildInfoNote(
+          'On iPhone and iPad, subscription purchases are completed through Apple in-app purchase.',
         ),
       ],
     );
@@ -588,113 +638,67 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
     required VoidCallback onTap,
     String? badge,
     Color? badgeColor,
+    bool highlighted = false,
   }) {
+    final badgeC = badgeColor ?? AppUIConstants.success;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
-        border: Border.all(color: AppUIConstants.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg + 2),
+        border: highlighted
+            ? Border.all(color: color.withValues(alpha: 0.7), width: 1.5)
+            : null,
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
-          child: Padding(
-            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-            child: Row(
-              children: [
-                // Icon
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(
-                      AppUIConstants.radiusMd,
+      child: PremiumCard(
+        glow: highlighted ? color : null,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppUIConstants.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+              ),
+              child: Icon(icon, color: AppUIConstants.textSecondary, size: 26),
+            ),
+            const SizedBox(width: AppUIConstants.spacingMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (badge != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: PremiumStatusPill(badge, color: badgeC),
+                    ),
+                  Text(title, style: AppUIConstants.headingSm),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: AppUIConstants.bodySm.copyWith(height: 1.3),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '₹${amount.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: color,
                     ),
                   ),
-                  child: Icon(icon, color: color, size: 28),
-                ),
-                const SizedBox(width: AppUIConstants.spacingMd),
-
-                // Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              title,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          if (badge != null) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: badgeColor ?? Colors.green,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                badge,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppUIConstants.textSecondary,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '₹${amount.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Arrow
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: AppUIConstants.textSecondary,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppUIConstants.textTertiary,
+            ),
+          ],
         ),
       ),
     );
@@ -771,7 +775,7 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
       'description':
           'Owner Subscription - ${widget.subscription?.durationInMonths ?? widget.durationInMonths ?? 0} months',
       'prefill': {'contact': widget.library.ownerPhone ?? '', 'email': ''},
-      'theme': {'color': '#2E7D32'},
+      'theme': {'color': '#0F8F8A'},
       'method': {'upi': true, 'card': true, 'netbanking': true, 'wallet': true},
     };
 
@@ -924,12 +928,12 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppUIConstants.primary.withValues(alpha: 0.1),
+                color: AppUIConstants.primaryLight.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.hourglass_top_rounded,
-                color: AppUIConstants.primary,
+                color: AppUIConstants.primaryLight,
                 size: 40,
               ),
             ),
@@ -974,16 +978,7 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
                   true,
                 ); // Return to dashboard using screen's navigator
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppUIConstants.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppUIConstants.spacingMd,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                ),
-              ),
+              style: AppUIConstants.primaryButtonStyle,
               child: const Text('Done'),
             ),
           ),
@@ -1124,6 +1119,74 @@ class _UpiPaymentScreenState extends State<UpiPaymentScreen> {
         content: Text(message),
         backgroundColor: AppUIConstants.error,
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+}
+
+/// UPI ID pill with a tap-to-copy micro-interaction.
+class _UpiIdChip extends StatefulWidget {
+  const _UpiIdChip();
+
+  @override
+  State<_UpiIdChip> createState() => _UpiIdChipState();
+}
+
+class _UpiIdChipState extends State<_UpiIdChip> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    HapticFeedback.mediumImpact();
+    await Clipboard.setData(ClipboardData(text: SubscriptionPlan.upiId));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    await Future<void>.delayed(const Duration(milliseconds: 1600));
+    if (mounted) setState(() => _copied = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _copied
+        ? AppUIConstants.success
+        : AppUIConstants.primaryLight;
+    return GestureDetector(
+      onTap: _copy,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppUIConstants.surface,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+          border: Border.all(color: color.withValues(alpha: 0.6)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.alternate_email_rounded, size: 18, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('UPI ID', style: AppUIConstants.caption),
+                  Text(
+                    SubscriptionPlan.upiId,
+                    style: AppUIConstants.bodyLg,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                _copied ? Icons.check_circle_rounded : Icons.copy_rounded,
+                key: ValueKey(_copied),
+                size: 20,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

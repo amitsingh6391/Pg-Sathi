@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:firebase_remote_config/firebase_remote_config.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -13,10 +13,7 @@ import '../../core/app_ui_constants.dart';
 ///   1. Remote Config key [AppConstants.tutorialVideosConfigKey] (JSON array)
 ///   2. Single fallback [AppConstants.defaultTutorialVideo]
 class TutorialVideosBanner extends StatefulWidget {
-  const TutorialVideosBanner({
-    super.key,
-    required this.remoteConfig,
-  });
+  const TutorialVideosBanner({super.key, required this.remoteConfig});
 
   final FirebaseRemoteConfig remoteConfig;
 
@@ -77,10 +74,8 @@ class _TutorialVideosBannerState extends State<TutorialVideosBanner> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildHeader(),
-        const SizedBox(height: AppUIConstants.spacingMd),
         SizedBox(
-          height: 140,
+          height: 128,
           child: PageView.builder(
             controller: _pageController,
             itemCount: _videos.length,
@@ -95,28 +90,6 @@ class _TutorialVideosBannerState extends State<TutorialVideosBanner> {
           const SizedBox(height: AppUIConstants.spacingSm),
           _buildPageIndicator(),
         ],
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        Icon(
-          Icons.play_circle_outline_rounded,
-          size: 18,
-          color: AppUIConstants.textSecondary,
-        ),
-        const SizedBox(width: 6),
-        Text(
-          'Video Tutorials',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppUIConstants.textPrimary,
-          ),
-        ),
       ],
     );
   }
@@ -132,7 +105,9 @@ class _TutorialVideosBannerState extends State<TutorialVideosBanner> {
           width: isActive ? 20 : 6,
           height: 6,
           decoration: BoxDecoration(
-            color: isActive ? AppUIConstants.primary : AppUIConstants.border,
+            color: isActive
+                ? AppUIConstants.primaryLight
+                : AppUIConstants.border,
             borderRadius: BorderRadius.circular(3),
           ),
         );
@@ -155,7 +130,10 @@ class _VideoCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Material(
         color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+          side: const BorderSide(color: AppUIConstants.border),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -173,9 +151,7 @@ class _VideoCard extends StatelessWidget {
   Widget _buildThumbnail(String? thumbnail) {
     return Container(
       width: 150,
-      decoration: BoxDecoration(
-        color: AppUIConstants.primary.withValues(alpha: 0.08),
-      ),
+      decoration: BoxDecoration(color: AppUIConstants.primarySoft),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -191,8 +167,14 @@ class _VideoCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
+                color: AppUIConstants.primaryLight.withValues(alpha: 0.92),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppUIConstants.primaryLight.withValues(alpha: 0.5),
+                    blurRadius: 14,
+                  ),
+                ],
               ),
               child: const Icon(
                 Icons.play_arrow_rounded,
@@ -226,21 +208,24 @@ class _VideoCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: Colors.red.shade50,
+              color: AppUIConstants.error.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.smart_display_rounded,
-                    size: 12, color: Colors.red.shade600),
+                Icon(
+                  Icons.smart_display_rounded,
+                  size: 12,
+                  color: AppUIConstants.error,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   'YouTube',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.red.shade600,
+                    color: AppUIConstants.error,
                   ),
                 ),
               ],
@@ -266,14 +251,14 @@ class _VideoCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppUIConstants.accent,
+                  color: AppUIConstants.primaryLight,
                 ),
               ),
               const SizedBox(width: 4),
               Icon(
                 Icons.arrow_forward_rounded,
                 size: 14,
-                color: AppUIConstants.accent,
+                color: AppUIConstants.primaryLight,
               ),
             ],
           ),

@@ -63,7 +63,15 @@ Thank you!''';
         final endDate = seatInfo.membership.endDate;
         final formattedDate = '${endDate.day}/${endDate.month}/${endDate.year}';
 
-        if (daysRemaining == 0) {
+        if (seatInfo.isExpired) {
+          return '''Hi $tenantName,
+
+Your stay at *$pgName* expired on *$formattedDate*.
+
+Please renew to continue your bed.
+
+Thank you!''';
+        } else if (daysRemaining == 0) {
           return '''Hi $tenantName,
 
 Your stay at *$pgName* expires *today* ($formattedDate).
@@ -91,6 +99,27 @@ Thank you!''';
     }
   }
 
+  /// Full reminder text, with the owner's UPI ID added when one is set.
+  static String buildReminderMessage({
+    required OccupiedSeatInfo seatInfo,
+    required Library library,
+    required ReminderType type,
+    double? amount,
+    String? customMessage,
+  }) {
+    final base = customMessage?.trim().isNotEmpty == true
+        ? customMessage!
+        : generateReminderMessage(
+            seatInfo: seatInfo,
+            library: library,
+            type: type,
+            amount: amount,
+          );
+    final upiId = library.ownerUpiId?.trim();
+    if (upiId == null || upiId.isEmpty || base.contains(upiId)) return base;
+    return '$base\n\n💳 Pay via UPI: $upiId';
+  }
+
   /// Builds complete WhatsApp URL for reminder.
   static String? buildReminderWhatsAppUrl({
     required OccupiedSeatInfo seatInfo,
@@ -102,14 +131,13 @@ Thank you!''';
     final phone = seatInfo.studentPhone ?? seatInfo.membership.phoneNumber;
     if (phone.isEmpty) return null;
 
-    final message = customMessage?.trim().isNotEmpty == true
-        ? customMessage!
-        : generateReminderMessage(
-            seatInfo: seatInfo,
-            library: library,
-            type: type,
-            amount: amount,
-          );
+    final message = buildReminderMessage(
+      seatInfo: seatInfo,
+      library: library,
+      type: type,
+      amount: amount,
+      customMessage: customMessage,
+    );
 
     return buildWhatsAppUrl(phone: phone, message: message);
   }

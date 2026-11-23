@@ -37,11 +37,11 @@ class FeatureAnalyticsState extends Equatable {
 
   @override
   List<Object?> get props => [
-        isLoading,
-        errorMessage,
-        eventCounts,
-        platformCounts,
-        roleCounts,
-        recentEvents,
-      ];
+    isLoading,
+    errorMessage,
+    eventCounts,
+    platformCounts,
+    roleCounts,
+    recentEvents,
+  ];
 }

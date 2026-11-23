@@ -3,16 +3,19 @@ import 'dart:async';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:firebase_remote_config/firebase_remote_config.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../../../core/di/injection_container.dart';
+import '../../../core/services/app_store_purchase_service.dart';
 import '../../../domain/entities/library.dart';
 import '../../../domain/entities/subscription_plan.dart';
 import '../../core/app_ui_constants.dart';
 import '../../core/screens/privacy_policy_screen.dart';
 import '../../core/screens/terms_of_service_screen.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/subscription_cubit.dart';
 
 class OwnerInAppPurchaseScreen extends StatefulWidget {
@@ -28,8 +31,7 @@ class OwnerInAppPurchaseScreen extends StatefulWidget {
 class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   late final SubscriptionCubit _subscriptionCubit;
-  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
-  final Set<String> _handledPurchaseIds = {};
+  StreamSubscription<AppStorePurchaseEvent>? _purchaseSubscription;
   Razorpay? _razorpay;
 
   bool get _isIos => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
@@ -52,38 +54,9 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
   String? _errorMessage;
   Map<String, ProductDetails> _productsById = {};
 
-  late final List<_InAppPlan> _plans = [
-    const _InAppPlan(
-      title: 'Monthly',
-      months: 1,
-      price: 499,
-      badge: 'Flexible',
-      productId: 'pg_sathi_pro_monthly',
-    ),
-    const _InAppPlan(
-      title: '3 Months',
-      months: 3,
-      price: 1499,
-      badge: 'Quarterly',
-      productId: 'pg_sathi_pro_3month',
-    ),
-    const _InAppPlan(
-      title: '6 Months',
-      months: 6,
-      price: 2999,
-      badge: 'Half Yearly',
-      productId: 'pg_sathi_pro_6month',
-    ),
-    const _InAppPlan(
-      title: '1 Year',
-      months: 12,
-      price: 4999,
-      badge: 'Best Value',
-      productId: 'pg_sathi_pro_yearly',
-    ),
-  ];
+  final List<AppStorePlan> _plans = AppStorePlan.all;
 
-  _InAppPlan get _selectedPlan => _plans[_selectedIndex];
+  AppStorePlan get _selectedPlan => _plans[_selectedIndex];
 
   @override
   void initState() {
@@ -109,9 +82,10 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
     }
 
     if (_useAppleIap) {
-      _purchaseSubscription = _inAppPurchase.purchaseStream.listen(
-        _handlePurchaseUpdates,
-        onError: (_) => _showError('Unable to process purchase update.'),
+      // Recording happens in the app-wide AppStorePurchaseService; this
+      // screen only reflects progress.
+      _purchaseSubscription = sl<AppStorePurchaseService>().events.listen(
+        _onPurchaseEvent,
       );
       _loadProducts();
     } else {
@@ -158,9 +132,10 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
       appBar: AppBar(
         title: const Text('Choose Plan'),
         centerTitle: true,
-        backgroundColor: AppUIConstants.surface,
+        backgroundColor: AppUIConstants.background,
         foregroundColor: AppUIConstants.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: SafeArea(
         child: Column(
@@ -170,31 +145,41 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
                 padding: const EdgeInsets.all(AppUIConstants.spacingXl),
                 children: [
                   _buildHeader(),
-                  const SizedBox(height: AppUIConstants.spacingXl),
-                  if (_errorMessage != null) ...[
-                    _buildStatusMessage(_errorMessage!, isError: true),
-                    const SizedBox(height: AppUIConstants.spacingMd),
-                  ] else if (_isLoadingProducts) ...[
-                    _buildStatusMessage(
-                      _useAppleIap
-                          ? 'Loading App Store products...'
-                          : 'Loading plans...',
-                    ),
-                    const SizedBox(height: AppUIConstants.spacingMd),
-                  ],
-                  ..._plans.asMap().entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppUIConstants.spacingMd,
-                      ),
-                      child: _PlanCard(
-                        plan: entry.value,
-                        product: _productsById[entry.value.productId],
-                        isSelected: entry.key == _selectedIndex,
-                        onTap: () => setState(() => _selectedIndex = entry.key),
-                      ),
-                    ),
+                  const SizedBox(height: AppUIConstants.spacingMd),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    alignment: Alignment.topCenter,
+                    child: _errorMessage != null
+                        ? Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppUIConstants.spacingMd,
+                            ),
+                            child: _buildStatusMessage(
+                              _errorMessage!,
+                              isError: true,
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity),
                   ),
+                  if (_isLoadingProducts && _errorMessage == null)
+                    ..._buildSkeletons()
+                  else
+                    ..._plans.asMap().entries.map(
+                      (entry) => Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: AppUIConstants.spacingMd,
+                        ),
+                        child: _PlanCard(
+                          plan: entry.value,
+                          product: _productsById[entry.value.productId],
+                          isSelected: entry.key == _selectedIndex,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selectedIndex = entry.key);
+                          },
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: AppUIConstants.spacingSm),
                   _buildLegalLinks(),
                 ],
@@ -205,6 +190,30 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildSkeletons() {
+    return [
+      for (var i = 0; i < 4; i++)
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppUIConstants.spacingMd),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.3, end: 0.9),
+            duration: Duration(milliseconds: 700 + i * 120),
+            curve: Curves.easeInOut,
+            builder: (_, v, _) => Opacity(
+              opacity: v,
+              child: Container(
+                height: 96,
+                decoration: BoxDecoration(
+                  color: AppUIConstants.surfaceMuted,
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ];
   }
 
   Widget _buildLegalLinks() {
@@ -241,24 +250,53 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'PG Sathi Pro',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: AppUIConstants.textPrimary,
+        PremiumCard(
+          glow: AppUIConstants.primaryLight,
+          padding: const EdgeInsets.all(AppUIConstants.spacingXl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppUIConstants.surfaceMuted,
+                      borderRadius: BorderRadius.circular(
+                        AppUIConstants.radiusSm,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: AppUIConstants.primaryLight,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: AppUIConstants.spacingMd),
+                  const Expanded(
+                    child: Text(
+                      'PG Sathi Pro',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: AppUIConstants.textPrimary,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppUIConstants.spacingSm),
+              const Text(
+                'Unlock unlimited beds and everything you need to run your PG',
+                style: AppUIConstants.bodyMd,
+              ),
+              const SizedBox(height: AppUIConstants.spacingLg),
+              _buildFeatureList(),
+            ],
           ),
         ),
-        const SizedBox(height: AppUIConstants.spacingXs),
-        Text(
-          'Unlock unlimited beds and everything you need to run your PG:',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppUIConstants.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppUIConstants.spacingLg),
-        _buildFeatureList(),
+        const PremiumSectionHeader('Pick your plan'),
       ],
     );
   }
@@ -266,61 +304,53 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
   Widget _buildFeatureList() {
     const features = [
       'Unlimited beds and tenants (free plan is capped at 7 beds)',
-      'Tenant and room/bed management',
+      'Tenant, room type and bed management',
       'UPI payment collection with auto-generated invoices',
       'Notices and reminders to tenants',
       'Revenue and occupancy analytics dashboard',
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
-        border: Border.all(color: AppUIConstants.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final feature in features)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppUIConstants.spacingSm),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    size: 18,
-                    color: AppUIConstants.success,
-                  ),
-                  const SizedBox(width: AppUIConstants.spacingSm),
-                  Expanded(
-                    child: Text(
-                      feature,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        height: 1.35,
-                        color: AppUIConstants.textPrimary,
-                      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final feature in features)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppUIConstants.spacingSm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 18,
+                  color: AppUIConstants.success,
+                ),
+                const SizedBox(width: AppUIConstants.spacingSm),
+                Expanded(
+                  child: Text(
+                    feature,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      height: 1.35,
+                      color: AppUIConstants.textPrimary,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
   Widget _buildStatusMessage(String message, {bool isError = false}) {
-    final color = isError ? AppUIConstants.error : AppUIConstants.primary;
+    final color = isError ? AppUIConstants.error : AppUIConstants.primaryLight;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppUIConstants.spacingMd),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         message,
@@ -363,45 +393,82 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
     return Container(
       padding: EdgeInsets.fromLTRB(
         AppUIConstants.spacingXl,
-        AppUIConstants.spacingLg,
+        AppUIConstants.spacingMd,
         AppUIConstants.spacingXl,
         AppUIConstants.spacingLg + MediaQuery.of(context).padding.bottom,
       ),
       decoration: BoxDecoration(
         color: AppUIConstants.surface,
-        border: Border(top: BorderSide(color: AppUIConstants.border)),
+        border: const Border(top: BorderSide(color: AppUIConstants.border)),
+        boxShadow: [AppUIConstants.shadowLg],
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: ElevatedButton(
-          onPressed: canPurchase ? _startPurchase : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppUIConstants.primary,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: AppUIConstants.disabled,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-            ),
-          ),
-          child: _isPurchasing
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  buttonLabel,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    '${plan.title} plan',
+                    key: ValueKey(plan.productId),
+                    style: AppUIConstants.bodyMd,
                   ),
                 ),
-        ),
+              ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  '₹${plan.price}',
+                  key: ValueKey(plan.price),
+                  style: AppUIConstants.headingMd,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: canPurchase
+                  ? () {
+                      HapticFeedback.mediumImpact();
+                      _startPurchase();
+                    }
+                  : null,
+              style: AppUIConstants.primaryButtonStyle.copyWith(
+                backgroundColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.disabled)
+                      ? AppUIConstants.disabled
+                      : AppUIConstants.primaryLight,
+                ),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isPurchasing
+                    ? const SizedBox(
+                        key: ValueKey('busy'),
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        buttonLabel,
+                        key: ValueKey(buttonLabel),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -511,7 +578,7 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
       'name': SubscriptionPlan.appName,
       'description': 'PG Sathi Pro - ${plan.title}',
       'prefill': {'contact': widget.library.ownerPhone ?? '', 'email': ''},
-      'theme': {'color': '#2E7D32'},
+      'theme': {'color': '#0F8F8A'},
       'method': {'upi': true, 'card': true, 'netbanking': true, 'wallet': true},
     };
 
@@ -562,89 +629,19 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
     setState(() => _isPurchasing = false);
   }
 
-  Future<void> _handlePurchaseUpdates(
-    List<PurchaseDetails> purchaseDetailsList,
-  ) async {
-    for (final purchaseDetails in purchaseDetailsList) {
-      if (!_plans.any((plan) => plan.productId == purchaseDetails.productID)) {
-        continue;
-      }
-
-      switch (purchaseDetails.status) {
-        case PurchaseStatus.pending:
-          if (mounted) setState(() => _isPurchasing = true);
-        case PurchaseStatus.error:
-          if (mounted) setState(() => _isPurchasing = false);
-          _showError(
-            purchaseDetails.error?.message ?? 'App Store purchase failed.',
-          );
-        case PurchaseStatus.purchased:
-        case PurchaseStatus.restored:
-          await _completeSuccessfulPurchase(purchaseDetails);
-        case PurchaseStatus.canceled:
-          if (mounted) setState(() => _isPurchasing = false);
-      }
-
-      if (purchaseDetails.pendingCompletePurchase) {
-        await _inAppPurchase.completePurchase(purchaseDetails);
-      }
-    }
-  }
-
-  Future<void> _completeSuccessfulPurchase(
-    PurchaseDetails purchaseDetails,
-  ) async {
-    final purchaseKey =
-        purchaseDetails.purchaseID ??
-        '${purchaseDetails.productID}_${purchaseDetails.transactionDate ?? DateTime.now().millisecondsSinceEpoch}';
-
-    if (_handledPurchaseIds.contains(purchaseKey)) return;
-    _handledPurchaseIds.add(purchaseKey);
-
-    final plan = _plans.firstWhere(
-      (plan) => plan.productId == purchaseDetails.productID,
-    );
-
-    await _subscriptionCubit.initiatePayment(
-      ownerId: widget.library.ownerId,
-      libraryId: widget.library.id,
-      seatCount: _seatCountForSubscription,
-      durationInMonths: plan.months,
-      planIdOverride: plan.productId,
-      baseMonthlyPriceOverride: plan.price / plan.months,
-      finalAmountOverride: plan.price.toDouble(),
-      discountPercentOverride: 0,
-      seatLimitOverride: 999999,
-    );
-
-    final createdSubscription = _subscriptionCubit.state.createdSubscription;
-    if (createdSubscription == null) {
-      if (mounted) setState(() => _isPurchasing = false);
-      _showError(
-        _subscriptionCubit.state.errorMessage ??
-            'Purchase completed, but subscription could not be created.',
-      );
-      return;
-    }
-
-    await _subscriptionCubit.approveInAppPurchasePayment(
-      subscriptionId: createdSubscription.id,
-      transactionId: purchaseKey,
-      amount: plan.price.toDouble(),
-      durationMonths: plan.months,
-    );
-
+  void _onPurchaseEvent(AppStorePurchaseEvent event) {
     if (!mounted) return;
-
-    setState(() => _isPurchasing = false);
-
-    if (_subscriptionCubit.state.isSuccess) {
-      _showSuccessDialog(plan);
-    } else {
-      _showError(
-        _subscriptionCubit.state.errorMessage ??
-            'Purchase completed, but subscription activation failed.',
-      );
+    switch (event.type) {
+      case AppStorePurchaseEventType.pending:
+        setState(() => _isPurchasing = true);
+      case AppStorePurchaseEventType.cancelled:
+        setState(() => _isPurchasing = false);
+      case AppStorePurchaseEventType.failed:
+        setState(() => _isPurchasing = false);
+        _showError(event.message ?? 'App Store purchase failed.');
+      case AppStorePurchaseEventType.recorded:
+        setState(() => _isPurchasing = false);
+        if (event.plan != null) _showSuccessDialog(event.plan!);
     }
   }
 
@@ -653,7 +650,7 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
         (widget.library.capacity > 0 ? widget.library.capacity : 1);
   }
 
-  void _showSuccessDialog(_InAppPlan plan) {
+  void _showSuccessDialog(AppStorePlan plan) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -662,9 +659,16 @@ class _OwnerInAppPurchaseScreenState extends State<OwnerInAppPurchaseScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
         ),
-        title: const Text('Subscription Active'),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppUIConstants.success),
+            SizedBox(width: 10),
+            Text('Subscription Active'),
+          ],
+        ),
         content: Text(
           'Your ${plan.title} PG Sathi Pro subscription is now active.',
+          style: AppUIConstants.bodyMd,
         ),
         actions: [
           ElevatedButton(
@@ -700,14 +704,19 @@ class _PlanCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final _InAppPlan plan;
+  final AppStorePlan plan;
   final ProductDetails? product;
   final bool isSelected;
   final VoidCallback onTap;
 
+  bool get _recommended => plan.months == 12;
+
   @override
   Widget build(BuildContext context) {
     final monthlyEquivalent = (plan.price / plan.months).round();
+    final accent = _recommended
+        ? AppUIConstants.primaryLight
+        : AppUIConstants.primaryLight;
 
     return Material(
       color: Colors.transparent,
@@ -715,20 +724,30 @@ class _PlanCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
           padding: const EdgeInsets.all(AppUIConstants.spacingLg),
           decoration: BoxDecoration(
             color: isSelected
-                ? AppUIConstants.primary.withValues(alpha: 0.06)
+                ? (_recommended
+                      ? AppUIConstants.surfaceMuted
+                      : AppUIConstants.primarySoft)
                 : AppUIConstants.surface,
             borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
             border: Border.all(
-              color: isSelected
-                  ? AppUIConstants.primary
-                  : AppUIConstants.border,
+              color: isSelected ? accent : AppUIConstants.border,
               width: isSelected ? 2 : 1,
             ),
-            boxShadow: [AppUIConstants.shadowSm],
+            boxShadow: [
+              if (isSelected)
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.22),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                )
+              else
+                AppUIConstants.shadowSm,
+            ],
           ),
           child: Row(
             children: [
@@ -741,7 +760,7 @@ class _PlanCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             plan.title,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: AppUIConstants.textPrimary,
@@ -749,18 +768,17 @@ class _PlanCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: AppUIConstants.spacingSm),
-                        _Badge(label: plan.badge, isSelected: isSelected),
+                        _Badge(label: plan.badge, recommended: _recommended),
                       ],
                     ),
                     const SizedBox(height: AppUIConstants.spacingMd),
                     Text(
                       '₹${plan.price}',
                       style: TextStyle(
-                        fontSize: 26,
+                        fontSize: 28,
                         fontWeight: FontWeight.w900,
-                        color: isSelected
-                            ? AppUIConstants.primary
-                            : AppUIConstants.textPrimary,
+                        letterSpacing: -0.5,
+                        color: isSelected ? accent : AppUIConstants.textPrimary,
                       ),
                     ),
                     const SizedBox(height: AppUIConstants.spacingXs),
@@ -768,23 +786,22 @@ class _PlanCard extends StatelessWidget {
                       plan.months == 1
                           ? 'per month'
                           : '₹$monthlyEquivalent/month billed every ${plan.months} months',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppUIConstants.textSecondary,
-                      ),
+                      style: AppUIConstants.bodySm,
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: AppUIConstants.spacingMd),
-              Icon(
-                isSelected
-                    ? Icons.check_circle_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                color: isSelected
-                    ? AppUIConstants.primary
-                    : AppUIConstants.textTertiary,
-                size: 24,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  isSelected
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  key: ValueKey(isSelected),
+                  color: isSelected ? accent : AppUIConstants.textTertiary,
+                  size: 26,
+                ),
               ),
             ],
           ),
@@ -795,45 +812,39 @@ class _PlanCard extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.label, required this.isSelected});
+  const _Badge({required this.label, required this.recommended});
 
   final String label;
-  final bool isSelected;
+  final bool recommended;
 
   @override
   Widget build(BuildContext context) {
+    final color = recommended
+        ? AppUIConstants.primaryLight
+        : AppUIConstants.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isSelected
-            ? AppUIConstants.primary
-            : AppUIConstants.success.withValues(alpha: 0.1),
+        color: recommended ? color : color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: isSelected ? Colors.white : AppUIConstants.success,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (recommended) ...[
+            const Icon(Icons.star_rounded, size: 12, color: Colors.white),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: recommended ? Colors.white : color,
+            ),
+          ),
+        ],
       ),
     );
   }
-}
-
-class _InAppPlan {
-  const _InAppPlan({
-    required this.title,
-    required this.months,
-    required this.price,
-    required this.badge,
-    required this.productId,
-  });
-
-  final String title;
-  final int months;
-  final int price;
-  final String badge;
-  final String productId;
 }

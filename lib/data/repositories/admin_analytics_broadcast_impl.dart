@@ -19,8 +19,7 @@ class _BroadcastTargetResolver {
 
   Future<Either<Failure, List<String>>> getAllOwnerIds() async {
     try {
-      final snapshot =
-          await _usersRef.where('role', isEqualTo: 'owner').get();
+      final snapshot = await _usersRef.where('role', isEqualTo: 'owner').get();
       return Right(snapshot.docs.map((doc) => doc.id).toList());
     } catch (e) {
       return Left(ServerFailure(message: 'Failed to get owner IDs: $e'));
@@ -29,8 +28,9 @@ class _BroadcastTargetResolver {
 
   Future<Either<Failure, List<String>>> getAllStudentIds() async {
     try {
-      final snapshot =
-          await _usersRef.where('role', isEqualTo: 'student').get();
+      final snapshot = await _usersRef
+          .where('role', isEqualTo: 'student')
+          .get();
       return Right(snapshot.docs.map((doc) => doc.id).toList());
     } catch (e) {
       return Left(ServerFailure(message: 'Failed to get student IDs: $e'));
@@ -107,10 +107,11 @@ class _BroadcastTargetResolver {
   }
 
   Future<Either<Failure, List<String>>>
-      getStudentIdsWithActiveMembership() async {
+  getStudentIdsWithActiveMembership() async {
     try {
-      final snapshot =
-          await _membershipsRef.where('status', isEqualTo: 'active').get();
+      final snapshot = await _membershipsRef
+          .where('status', isEqualTo: 'active')
+          .get();
       final studentIds = <String>{};
       for (final doc in snapshot.docs) {
         final data = doc.data();
@@ -151,8 +152,9 @@ class _BroadcastTargetResolver {
             final sessionCheckIn = session['checkInAt'] as Timestamp?;
             if (sessionCheckIn == null) continue;
             if (sessionCheckIn.toDate().isBefore(since)) continue;
-            final id = (session['userId'] ?? session['studentId'] ?? legacyId)
-                as String?;
+            final id =
+                (session['userId'] ?? session['studentId'] ?? legacyId)
+                    as String?;
             if (id != null && id.isNotEmpty) studentIds.add(id);
           }
         } else if (legacyId != null && legacyId.isNotEmpty) {
@@ -162,9 +164,7 @@ class _BroadcastTargetResolver {
 
       return Right(studentIds.toList());
     } catch (e) {
-      return Left(
-        ServerFailure(message: 'Failed to get active students: $e'),
-      );
+      return Left(ServerFailure(message: 'Failed to get active students: $e'));
     }
   }
 
@@ -177,8 +177,9 @@ class _BroadcastTargetResolver {
       final studentIds = <String>{};
       for (var i = 0; i < libraryIds.length; i += 10) {
         final batch = libraryIds.skip(i).take(10).toList();
-        final snapshot =
-            await _membershipsRef.where('libraryId', whereIn: batch).get();
+        final snapshot = await _membershipsRef
+            .where('libraryId', whereIn: batch)
+            .get();
 
         for (final doc in snapshot.docs) {
           final data = doc.data();
@@ -190,9 +191,7 @@ class _BroadcastTargetResolver {
       return Right(studentIds.toList());
     } catch (e) {
       return Left(
-        ServerFailure(
-          message: 'Failed to get student IDs for libraries: $e',
-        ),
+        ServerFailure(message: 'Failed to get student IDs for libraries: $e'),
       );
     }
   }

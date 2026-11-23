@@ -88,20 +88,20 @@ class DeviceSession extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        userId,
-        deviceId,
-        deviceName,
-        platform,
-        loginTime,
-        lastActiveTime,
-        isRevoked,
-        ipAddress,
-        location,
-        browser,
-        osVersion,
-        fcmToken,
-      ];
+    id,
+    userId,
+    deviceId,
+    deviceName,
+    platform,
+    loginTime,
+    lastActiveTime,
+    isRevoked,
+    ipAddress,
+    location,
+    browser,
+    osVersion,
+    fcmToken,
+  ];
 
   DeviceSession copyWith({
     String? id,

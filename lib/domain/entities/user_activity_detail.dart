@@ -92,15 +92,15 @@ class UserActivityDetail extends Equatable {
 
   @override
   List<Object?> get props => [
-        userId,
-        userName,
-        role,
-        checkInTime,
-        checkOutTime,
-        libraryName,
-        libraryId,
-        sessionCount,
-      ];
+    userId,
+    userName,
+    role,
+    checkInTime,
+    checkOutTime,
+    libraryName,
+    libraryId,
+    sessionCount,
+  ];
 
   UserActivityDetail copyWith({
     String? userId,
@@ -156,7 +156,7 @@ class UserActivityTimeline extends Equatable {
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }

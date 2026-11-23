@@ -8,7 +8,6 @@ import '../repositories/library_repository.dart';
 import '../repositories/seat_repository.dart';
 
 /// Use case for creating a library.
-/// V1: Owner can create only ONE library.
 /// Also creates seat records for the library capacity.
 class CreateLibrary implements UseCase<Library, CreateLibraryParams> {
   const CreateLibrary({
@@ -29,48 +28,29 @@ class CreateLibrary implements UseCase<Library, CreateLibraryParams> {
       return Left(InvalidLibraryDataFailure(message: validation.errors.first));
     }
 
-    // Check if owner already has a library
-    final hasLibraryResult = await libraryRepository.ownerHasLibrary(
-      library.ownerId,
+    // Create the library with createdAt
+    final libraryToCreate = library.copyWith(
+      createdAt: DateTime.now(),
+      isProfileComplete: library.shouldBeProfileComplete,
     );
 
-    return hasLibraryResult.fold((failure) => Left(failure), (
-      hasLibrary,
+    // Create the library
+    final createResult = await libraryRepository.createLibrary(libraryToCreate);
+
+    return createResult.fold((failure) => Left(failure), (
+      createdLibrary,
     ) async {
-      if (hasLibrary) {
-        return const Left(
-          LibraryAlreadyExistsFailure(
-            message: 'You already have a library. Update it instead.',
-          ),
-        );
-      }
-
-      // Create the library with createdAt
-      final libraryToCreate = library.copyWith(
-        createdAt: DateTime.now(),
-        isProfileComplete: library.shouldBeProfileComplete,
+      // Create seat records for the library
+      final seatsResult = await seatRepository.createSeats(
+        libraryId: createdLibrary.id,
+        count: library.capacity,
       );
 
-      // Create the library
-      final createResult = await libraryRepository.createLibrary(
-        libraryToCreate,
+      return seatsResult.fold(
+        // If seat creation fails, still return the library but log the error
+        (failure) => Right(createdLibrary),
+        (seats) => Right(createdLibrary),
       );
-
-      return createResult.fold((failure) => Left(failure), (
-        createdLibrary,
-      ) async {
-        // Create seat records for the library
-        final seatsResult = await seatRepository.createSeats(
-          libraryId: createdLibrary.id,
-          count: library.capacity,
-        );
-
-        return seatsResult.fold(
-          // If seat creation fails, still return the library but log the error
-          (failure) => Right(createdLibrary),
-          (seats) => Right(createdLibrary),
-        );
-      });
     });
   }
 }

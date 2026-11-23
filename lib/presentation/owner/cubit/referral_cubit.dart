@@ -80,24 +80,24 @@ class ReferralCubit extends Cubit<ReferralState> {
   final SubscriptionNotificationService notificationService;
 
   Future<void> loadStats(String ownerId) async {
-    emit(state.copyWith(
-      status: ReferralScreenStatus.loading,
-      clearMessages: true,
-    ));
+    emit(
+      state.copyWith(status: ReferralScreenStatus.loading, clearMessages: true),
+    );
 
     final result = await getReferralStats(
       GetReferralStatsParams(ownerId: ownerId),
     );
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        status: ReferralScreenStatus.error,
-        errorMessage: failure.message ?? 'Failed to load referral data',
-      )),
-      (stats) => emit(state.copyWith(
-        status: ReferralScreenStatus.loaded,
-        stats: stats,
-      )),
+      (failure) => emit(
+        state.copyWith(
+          status: ReferralScreenStatus.error,
+          errorMessage: failure.message ?? 'Failed to load referral data',
+        ),
+      ),
+      (stats) => emit(
+        state.copyWith(status: ReferralScreenStatus.loaded, stats: stats),
+      ),
     );
   }
 
@@ -105,20 +105,24 @@ class ReferralCubit extends Cubit<ReferralState> {
     required String ownerId,
     String? ownerName,
   }) async {
-    emit(state.copyWith(
-      status: ReferralScreenStatus.creating,
-      clearMessages: true,
-    ));
+    emit(
+      state.copyWith(
+        status: ReferralScreenStatus.creating,
+        clearMessages: true,
+      ),
+    );
 
     final result = await createReferralCode(
       CreateReferralCodeParams(ownerId: ownerId, ownerName: ownerName),
     );
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        status: ReferralScreenStatus.error,
-        errorMessage: failure.message ?? 'Failed to create referral code',
-      )),
+      (failure) => emit(
+        state.copyWith(
+          status: ReferralScreenStatus.error,
+          errorMessage: failure.message ?? 'Failed to create referral code',
+        ),
+      ),
       (_) => loadStats(ownerId),
     );
   }
@@ -128,10 +132,12 @@ class ReferralCubit extends Cubit<ReferralState> {
     required String redemptionId,
     required ReferralRewardType rewardType,
   }) async {
-    emit(state.copyWith(
-      status: ReferralScreenStatus.claimingReward,
-      clearMessages: true,
-    ));
+    emit(
+      state.copyWith(
+        status: ReferralScreenStatus.claimingReward,
+        clearMessages: true,
+      ),
+    );
 
     final result = await claimReferralReward(
       ClaimReferralRewardParams(
@@ -142,18 +148,22 @@ class ReferralCubit extends Cubit<ReferralState> {
     );
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        status: ReferralScreenStatus.error,
-        errorMessage: failure.message ?? 'Failed to claim reward',
-      )),
+      (failure) => emit(
+        state.copyWith(
+          status: ReferralScreenStatus.error,
+          errorMessage: failure.message ?? 'Failed to claim reward',
+        ),
+      ),
       (_) {
         final label = rewardType == ReferralRewardType.freeMonth
             ? 'Subscription extended by 1 month!'
             : '₹149 added to your wallet!';
-        emit(state.copyWith(
-          status: ReferralScreenStatus.success,
-          successMessage: label,
-        ));
+        emit(
+          state.copyWith(
+            status: ReferralScreenStatus.success,
+            successMessage: label,
+          ),
+        );
         loadStats(ownerId);
       },
     );
@@ -164,10 +174,12 @@ class ReferralCubit extends Cubit<ReferralState> {
     required double amount,
     String? upiId,
   }) async {
-    emit(state.copyWith(
-      status: ReferralScreenStatus.requestingWithdrawal,
-      clearMessages: true,
-    ));
+    emit(
+      state.copyWith(
+        status: ReferralScreenStatus.requestingWithdrawal,
+        clearMessages: true,
+      ),
+    );
 
     final result = await requestWalletWithdrawal(
       RequestWalletWithdrawalParams(
@@ -178,20 +190,24 @@ class ReferralCubit extends Cubit<ReferralState> {
     );
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        status: ReferralScreenStatus.error,
-        errorMessage: failure.message ?? 'Failed to request withdrawal',
-      )),
+      (failure) => emit(
+        state.copyWith(
+          status: ReferralScreenStatus.error,
+          errorMessage: failure.message ?? 'Failed to request withdrawal',
+        ),
+      ),
       (_) {
         notificationService.notifyAdminWithdrawalRequested(
           ownerId: ownerId,
           amount: amount,
           upiId: upiId,
         );
-        emit(state.copyWith(
-          status: ReferralScreenStatus.success,
-          successMessage: 'Withdrawal request submitted',
-        ));
+        emit(
+          state.copyWith(
+            status: ReferralScreenStatus.success,
+            successMessage: 'Withdrawal request submitted',
+          ),
+        );
         loadStats(ownerId);
       },
     );

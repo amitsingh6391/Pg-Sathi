@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -7,7 +7,9 @@ import '../../../data/services/invoice_pdf_service.dart';
 import '../../../domain/entities/invoice.dart';
 import '../../core/app_ui_constants.dart';
 import '../cubit/admin_analytics_cubit.dart';
+import '../../core/widgets/premium_kit.dart';
 import '../cubit/admin_invoices_cubit.dart';
+import '../widgets/subscription_widgets/shimmer_box.dart';
 
 /// Admin screen for viewing and managing all invoices.
 class AdminInvoicesScreen extends StatelessWidget {
@@ -52,13 +54,18 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        title: const Text('Invoices'),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Invoices',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        backgroundColor: AppUIConstants.background,
+        foregroundColor: AppUIConstants.textPrimary,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.tune_rounded),
             onPressed: () => _showFilterSheet(context),
             tooltip: 'Filter',
           ),
@@ -66,102 +73,148 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
       ),
       body: BlocBuilder<AdminInvoicesCubit, AdminInvoicesState>(
         builder: (context, state) {
+          final Widget child;
           if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            child = ListView(
+              key: const ValueKey('loading'),
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 16),
+              children: List.generate(5, (_) => const ShimmerCardRow()),
+            );
+          } else if (state.hasError) {
+            child = KeyedSubtree(
+              key: const ValueKey('error'),
+              child: _buildErrorView(context, state.errorMessage),
+            );
+          } else {
+            child = Column(
+              key: const ValueKey('content'),
+              children: [
+                _buildHeader(context, state),
+                Expanded(
+                  child: state.searchedInvoices.isEmpty
+                      ? _buildEmptyState(state)
+                      : _buildInvoiceList(state.searchedInvoices),
+                ),
+              ],
+            );
           }
-
-          if (state.hasError) {
-            return _buildErrorView(context, state.errorMessage);
-          }
-
-          return Column(
-            children: [
-              // Search and Summary
-              _buildHeader(context, state),
-
-              // Invoice List
-              Expanded(
-                child: state.searchedInvoices.isEmpty
-                    ? _buildEmptyState()
-                    : _buildInvoiceList(state.searchedInvoices),
-              ),
-            ],
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: child,
           );
         },
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, AdminInvoicesState state) {
-    return Container(
-      padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-      color: AppUIConstants.surface,
-      child: Column(
-        children: [
-          // Search
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search by invoice #, name, or phone...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        context.read<AdminInvoicesCubit>().searchInvoices('');
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                borderSide: BorderSide(color: AppUIConstants.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-                borderSide: BorderSide(color: AppUIConstants.border),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppUIConstants.spacingMd,
-                vertical: AppUIConstants.spacingMd,
-              ),
-            ),
-            onChanged: (value) {
-              context.read<AdminInvoicesCubit>().searchInvoices(value);
-            },
-          ),
-          const SizedBox(height: AppUIConstants.spacingMd),
+  bool _hasFilters(AdminInvoicesState state) =>
+      state.selectedLibraryId != null ||
+      state.startDate != null ||
+      state.endDate != null;
 
-          // Summary
-          Row(
+  Widget _buildHeader(BuildContext context, AdminInvoicesState state) {
+    return Column(
+      children: [
+        PremiumHero(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _SummaryCard(
-                  label: 'Total Invoices',
-                  value: '${state.filteredInvoices.length}',
+              const Text(
+                'TOTAL BILLED',
+                style: TextStyle(
+                  color: AppUIConstants.textSecondary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(width: AppUIConstants.spacingMd),
-              Expanded(
-                child: _SummaryCard(
-                  label: 'Total Amount',
-                  value: '₹${state.totalAmount.toStringAsFixed(0)}',
-                  color: AppUIConstants.success,
+              const SizedBox(height: 6),
+              Text(
+                '₹${NumberFormat('#,##,##0', 'en_IN').format(state.totalAmount)}',
+                style: const TextStyle(
+                  color: AppUIConstants.textPrimary,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
                 ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  PremiumStatusPill(
+                    '${state.filteredInvoices.length} invoices',
+                    color: AppUIConstants.primaryLight,
+                  ),
+                  if (_hasFilters(state)) ...[
+                    const SizedBox(width: 8),
+                    const PremiumStatusPill(
+                      'Filtered',
+                      color: AppUIConstants.warning,
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
-
-          // Active Filters
-          if (state.selectedLibraryId != null ||
-              state.startDate != null ||
-              state.endDate != null)
-            Padding(
-              padding: const EdgeInsets.only(top: AppUIConstants.spacingMd),
-              child: _buildActiveFilters(context, state),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppUIConstants.surface,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+              border: Border.all(color: AppUIConstants.border),
             ),
-        ],
-      ),
+            child: TextField(
+              controller: _searchController,
+              style: AppUIConstants.bodyMd,
+              cursorColor: AppUIConstants.primaryLight,
+              decoration: InputDecoration(
+                hintText: 'Search invoice #, name or phone',
+                hintStyle: AppUIConstants.bodySm.copyWith(
+                  color: AppUIConstants.textTertiary,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppUIConstants.textTertiary,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: AppUIConstants.textSecondary,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          context.read<AdminInvoicesCubit>().searchInvoices('');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onChanged: (value) {
+                context.read<AdminInvoicesCubit>().searchInvoices(value);
+              },
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          child: _hasFilters(state)
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: _buildActiveFilters(context, state),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+      ],
     );
   }
 
@@ -199,6 +252,9 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
               });
               context.read<AdminInvoicesCubit>().clearFilters();
             },
+            style: TextButton.styleFrom(
+              foregroundColor: AppUIConstants.primaryLight,
+            ),
             child: const Text('Clear All'),
           ),
         ],
@@ -208,7 +264,7 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
 
   Widget _buildInvoiceList(List<Invoice> invoices) {
     return ListView.builder(
-      padding: const EdgeInsets.all(AppUIConstants.spacingMd),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: invoices.length,
       itemBuilder: (context, index) {
         final invoice = invoices[index];
@@ -221,48 +277,31 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 64,
-            color: AppUIConstants.textTertiary,
-          ),
-          const SizedBox(height: AppUIConstants.spacingMd),
-          Text('No invoices found', style: AppUIConstants.bodyMd),
-          const SizedBox(height: AppUIConstants.spacingSm),
-          Text(
-            'Try adjusting your filters',
-            style: AppUIConstants.bodySm.copyWith(
-              color: AppUIConstants.textTertiary,
-            ),
-          ),
-        ],
-      ),
+  Widget _buildEmptyState(AdminInvoicesState state) {
+    return AdminEmptyState(
+      icon: Icons.receipt_long_outlined,
+      title: 'No invoices found',
+      message: 'Try adjusting your search or filters',
+      actionLabel: _hasFilters(state) ? 'Clear filters' : null,
+      onAction: _hasFilters(state)
+          ? () {
+              setState(() {
+                _startDate = null;
+                _endDate = null;
+              });
+              context.read<AdminInvoicesCubit>().clearFilters();
+            }
+          : null,
     );
   }
 
   Widget _buildErrorView(BuildContext context, String? message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, color: AppUIConstants.error, size: 48),
-          const SizedBox(height: AppUIConstants.spacingMd),
-          Text(
-            message ?? 'Failed to load invoices',
-            style: AppUIConstants.bodyMd,
-          ),
-          const SizedBox(height: AppUIConstants.spacingLg),
-          ElevatedButton(
-            onPressed: () => context.read<AdminInvoicesCubit>().loadInvoices(),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
+    return AdminEmptyState(
+      icon: Icons.cloud_off_rounded,
+      color: AppUIConstants.error,
+      title: message ?? 'Failed to load invoices',
+      actionLabel: 'Retry',
+      onAction: () => context.read<AdminInvoicesCubit>().loadInvoices(),
     );
   }
 
@@ -311,7 +350,7 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
                       const SizedBox(height: AppUIConstants.spacingLg),
 
                       // Library Filter
-                      Text('Library', style: AppUIConstants.bodyLg),
+                      Text('PG', style: AppUIConstants.bodyLg),
                       const SizedBox(height: AppUIConstants.spacingSm),
                       DropdownButtonFormField<String>(
                         initialValue: state.selectedLibraryId,
@@ -325,11 +364,12 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
                             horizontal: AppUIConstants.spacingMd,
                           ),
                         ),
-                        hint: const Text('All Libraries'),
+                        dropdownColor: AppUIConstants.surfaceMuted,
+                        hint: const Text('All PGs'),
                         items: [
                           const DropdownMenuItem<String>(
                             value: null,
-                            child: Text('All Libraries'),
+                            child: Text('All PGs'),
                           ),
                           ...state.availableLibraries.map((lib) {
                             return DropdownMenuItem<String>(
@@ -442,38 +482,6 @@ class _AdminInvoicesViewState extends State<_AdminInvoicesView> {
 // Supporting Widgets
 // ============================================================================
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.label, required this.value, this.color});
-
-  final String label;
-  final String value;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-      decoration: BoxDecoration(
-        color: (color ?? AppUIConstants.primary).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: AppUIConstants.caption),
-          const SizedBox(height: AppUIConstants.spacingXs),
-          Text(
-            value,
-            style: AppUIConstants.headingSm.copyWith(
-              color: color ?? AppUIConstants.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _FilterChip extends StatelessWidget {
   const _FilterChip({required this.label, required this.onRemove});
 
@@ -486,13 +494,14 @@ class _FilterChip extends StatelessWidget {
       margin: const EdgeInsets.only(right: AppUIConstants.spacingSm),
       child: Chip(
         label: Text(label),
-        deleteIcon: const Icon(Icons.close, size: 16),
+        deleteIcon: const Icon(Icons.close_rounded, size: 16),
         onDeleted: onRemove,
-        backgroundColor: AppUIConstants.primary.withValues(alpha: 0.1),
+        backgroundColor: AppUIConstants.primarySoft,
         labelStyle: AppUIConstants.bodySm.copyWith(
-          color: AppUIConstants.primary,
+          color: AppUIConstants.primaryLight,
+          fontWeight: FontWeight.w600,
         ),
-        deleteIconColor: AppUIConstants.primary,
+        deleteIconColor: AppUIConstants.primaryLight,
         side: BorderSide.none,
       ),
     );
@@ -571,95 +580,111 @@ class _InvoiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return PremiumCard(
       margin: const EdgeInsets.only(bottom: AppUIConstants.spacingMd),
-      padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-      decoration: AppUIConstants.cardDecoration,
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppUIConstants.spacingSm,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: AppUIConstants.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(
-                    AppUIConstants.radiusFull,
-                  ),
-                ),
-                child: Text(
-                  invoice.invoiceNumber,
-                  style: AppUIConstants.caption.copyWith(
-                    color: AppUIConstants.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              PremiumStatusPill(
+                invoice.invoiceNumber,
+                color: AppUIConstants.primaryLight,
               ),
               const Spacer(),
               Text(
                 invoice.formattedAmount,
                 style: AppUIConstants.headingSm.copyWith(
-                  color: AppUIConstants.success,
+                  color: AppUIConstants.textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppUIConstants.spacingMd),
-
-          // Details
           _DetailRow(
-            icon: Icons.person_outline,
+            icon: Icons.person_outline_rounded,
             label: invoice.studentName,
             subtitle: invoice.studentPhone,
           ),
           const SizedBox(height: AppUIConstants.spacingSm),
           _DetailRow(
-            icon: Icons.business,
+            icon: Icons.apartment_rounded,
             label: invoice.libraryName,
             subtitle: invoice.formattedBillingMonth,
           ),
           const SizedBox(height: AppUIConstants.spacingSm),
           _DetailRow(
-            icon: Icons.event_seat,
-            label: 'Seat ${invoice.seatNumber}',
+            icon: Icons.bed_outlined,
+            label: 'Bed ${invoice.seatNumber}',
             subtitle: invoice.sessionTiming,
           ),
-
           const SizedBox(height: AppUIConstants.spacingMd),
-          Divider(color: AppUIConstants.divider),
+          const Divider(color: AppUIConstants.divider, height: 1),
           const SizedBox(height: AppUIConstants.spacingSm),
-
-          // Actions
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              const Icon(
+                Icons.schedule_rounded,
+                size: 14,
+                color: AppUIConstants.textTertiary,
+              ),
+              const SizedBox(width: 6),
               Text(
                 DateFormat('MMM d, yyyy').format(invoice.generatedAt),
                 style: AppUIConstants.caption,
               ),
               const Spacer(),
-              IconButton(
-                icon: Icon(
-                  Icons.download,
-                  color: AppUIConstants.primary,
-                  size: 20,
-                ),
-                onPressed: onDownload,
+              _RoundAction(
+                icon: Icons.download_rounded,
+                color: AppUIConstants.primaryLight,
                 tooltip: 'Download',
+                onTap: onDownload,
               ),
-              IconButton(
-                icon: Icon(Icons.share, color: AppUIConstants.accent, size: 20),
-                onPressed: onShare,
+              const SizedBox(width: 8),
+              _RoundAction(
+                icon: Icons.share_rounded,
+                color: AppUIConstants.primaryLight,
                 tooltip: 'Share',
+                onTap: onShare,
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RoundAction extends StatelessWidget {
+  const _RoundAction({
+    required this.icon,
+    required this.color,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+          child: SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(icon, color: color, size: 19),
+          ),
+        ),
       ),
     );
   }

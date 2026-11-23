@@ -45,10 +45,7 @@ class CreateReferralCode
 
     final alreadyExists = existing.fold((_) => false, (r) => r != null);
     if (alreadyExists) {
-      return existing.fold(
-        (f) => Left(f),
-        (r) => Right(r!),
-      );
+      return existing.fold((f) => Left(f), (r) => Right(r!));
     }
 
     final code = _generateCode(params.ownerName);
@@ -70,8 +67,10 @@ class CreateReferralCode
   String _generateCode(String? ownerName) {
     final rng = Random.secure();
     final chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final suffix = List.generate(4, (_) => chars[rng.nextInt(chars.length)])
-        .join();
+    final suffix = List.generate(
+      4,
+      (_) => chars[rng.nextInt(chars.length)],
+    ).join();
 
     final namePrefix = (ownerName ?? 'REF')
         .toUpperCase()
@@ -84,10 +83,7 @@ class CreateReferralCode
 }
 
 class CreateReferralCodeParams extends Equatable {
-  const CreateReferralCodeParams({
-    required this.ownerId,
-    this.ownerName,
-  });
+  const CreateReferralCodeParams({required this.ownerId, this.ownerName});
 
   final String ownerId;
   final String? ownerName;

@@ -6,8 +6,6 @@ import '../../../domain/usecases/delete_slot.dart';
 import '../../../domain/usecases/delete_invoice.dart';
 import '../../../domain/usecases/delete_account.dart';
 import '../../../domain/usecases/check_auth_status.dart';
-import '../../../domain/usecases/check_in.dart';
-import '../../../domain/usecases/check_out.dart';
 import '../../../domain/usecases/check_version_update.dart';
 import '../../../domain/usecases/create_library.dart';
 import '../../../domain/usecases/deactivate_membership.dart';
@@ -18,10 +16,10 @@ import '../../../domain/usecases/get_library_stats.dart';
 import '../../../domain/usecases/get_occupied_seats.dart';
 import '../../../domain/usecases/get_expired_seats.dart';
 import '../../../domain/usecases/renew_membership.dart';
+import '../../../domain/usecases/get_owner_libraries.dart';
 import '../../../domain/usecases/get_owner_library.dart';
 import '../../../domain/usecases/get_slots_by_library.dart';
 import '../../../domain/usecases/get_student_memberships.dart';
-import '../../../domain/usecases/get_today_attendance.dart';
 import '../../../domain/usecases/handle_payment_failure.dart';
 import '../../../domain/usecases/reassign_seat.dart';
 import '../../../domain/usecases/send_otp.dart';
@@ -32,16 +30,12 @@ import '../../../domain/usecases/delete_library_photo.dart';
 import '../../../domain/usecases/upload_student_document.dart';
 import '../../../domain/usecases/get_student_documents.dart';
 import '../../../domain/usecases/approve_student_document.dart';
-import '../../../domain/usecases/send_membership_expiry_reminder.dart';
 import '../../../domain/usecases/send_payment_reminder.dart';
 import '../../../domain/usecases/update_membership.dart';
 import '../../../domain/usecases/update_owner_settings.dart';
 import '../../../domain/usecases/update_slot.dart';
 import '../../../domain/usecases/update_user_profile.dart';
-import '../../../domain/usecases/validate_daily_presence.dart';
 import '../../../domain/usecases/generate_invoice.dart';
-import '../../../domain/usecases/get_attendance_history.dart';
-import '../../../domain/usecases/get_attendance_stats.dart';
 import '../../../domain/usecases/get_invoices_for_owner.dart';
 import '../../../domain/usecases/get_invoices_for_student.dart';
 import '../../../domain/usecases/approve_cash_payment.dart';
@@ -57,12 +51,17 @@ import '../../../domain/usecases/sync_memberships_on_login.dart';
 import '../../../domain/usecases/mark_payment_received.dart';
 import '../../../domain/usecases/send_whatsapp_invoice.dart';
 import '../../../domain/usecases/notice_usecases.dart';
+import '../../../domain/usecases/send_notice_whatsapp.dart';
+import '../../../domain/usecases/whatsapp_credits_usecases.dart';
 import '../../../domain/usecases/promo/promo_usecases.dart';
 import '../../../domain/usecases/get_user_device_sessions.dart';
 import '../../../domain/usecases/logout_device_session.dart';
 import '../../../domain/usecases/logout_all_other_devices.dart';
 import '../../../domain/usecases/get_expiring_trials.dart';
 import '../../../domain/services/storage_service.dart' as domain_storage;
+import '../../../domain/usecases/remove_library_upi_qr.dart';
+import '../../../domain/usecases/update_library_upi_qr.dart';
+import '../../../domain/usecases/manager_usecases.dart';
 
 import 'package:get_it/get_it.dart';
 
@@ -87,7 +86,20 @@ void registerUseCases(GetIt sl) {
   sl.registerLazySingleton(
     () => UpdateLibrary(libraryRepository: sl(), seatRepository: sl()),
   );
+  sl.registerLazySingleton(
+    () => UpdateLibraryUpiQr(
+      libraryRepository: sl(),
+      storageService: sl<domain_storage.StorageService>(),
+    ),
+  );
+  sl.registerLazySingleton(
+    () => RemoveLibraryUpiQr(
+      libraryRepository: sl(),
+      storageService: sl<domain_storage.StorageService>(),
+    ),
+  );
   sl.registerLazySingleton(() => GetOwnerLibrary(libraryRepository: sl()));
+  sl.registerLazySingleton(() => GetOwnerLibraries(libraryRepository: sl()));
   sl.registerLazySingleton(
     () => GetLibraryStats(membershipRepository: sl(), slotRepository: sl()),
   );
@@ -242,9 +254,7 @@ void registerUseCases(GetIt sl) {
   );
 
   sl.registerLazySingleton(
-    () => SendWhatsAppInvoice(
-      whatsAppNotificationRepository: sl(),
-    ),
+    () => SendWhatsAppInvoice(whatsAppNotificationRepository: sl()),
   );
 
   sl.registerLazySingleton(
@@ -302,44 +312,6 @@ void registerUseCases(GetIt sl) {
     ),
   );
 
-  // Presence use cases
-  sl.registerLazySingleton(
-    () => ValidateDailyPresence(
-      presenceRepository: sl(),
-      membershipRepository: sl(),
-    ),
-  );
-
-  // Attendance use cases
-  sl.registerLazySingleton(
-    () => CheckIn(
-      attendanceRepository: sl(),
-      membershipRepository: sl(),
-      libraryRepository: sl(),
-      locationService: sl(),
-    ),
-  );
-
-  sl.registerLazySingleton(
-    () => CheckOut(
-      attendanceRepository: sl(),
-      libraryRepository: sl(),
-      locationService: sl(),
-    ),
-  );
-
-  sl.registerLazySingleton(
-    () => GetTodayAttendance(attendanceRepository: sl()),
-  );
-
-  sl.registerLazySingleton(
-    () => GetAttendanceHistory(attendanceRepository: sl()),
-  );
-
-  sl.registerLazySingleton(
-    () => GetAttendanceStats(attendanceRepository: sl()),
-  );
-
   // Invoice use cases
   sl.registerLazySingleton(
     () => GenerateInvoice(
@@ -367,13 +339,6 @@ void registerUseCases(GetIt sl) {
 
   // Reminder use cases
   sl.registerLazySingleton(
-    () => SendMembershipExpiryReminder(
-      membershipRepository: sl(),
-      notificationRepository: sl(),
-    ),
-  );
-
-  sl.registerLazySingleton(
     () => SendPaymentReminder(
       membershipRepository: sl(),
       notificationRepository: sl(),
@@ -392,6 +357,11 @@ void registerUseCases(GetIt sl) {
   sl.registerLazySingleton(() => GetNoticeById(sl()));
   sl.registerLazySingleton(() => IncrementNoticeViewCount(sl()));
   sl.registerLazySingleton(() => GetNoticeAnalytics(sl()));
+  sl.registerLazySingleton(() => SendNoticeWhatsApp(repository: sl()));
+
+  // WhatsApp credits (wallet)
+  sl.registerLazySingleton(() => GetWhatsAppCredits(repository: sl()));
+  sl.registerLazySingleton(() => AddWhatsAppCredits(repository: sl()));
 
   // Device session use cases
   sl.registerLazySingleton(() => GetUserDeviceSessions(sl()));
@@ -416,4 +386,9 @@ void registerUseCases(GetIt sl) {
       userRepository: sl(),
     ),
   );
+
+  // PG managers
+  sl.registerLazySingleton(() => InviteManager(managerRepository: sl()));
+  sl.registerLazySingleton(() => GetManagers(managerRepository: sl()));
+  sl.registerLazySingleton(() => RevokeManager(managerRepository: sl()));
 }

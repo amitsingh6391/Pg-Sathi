@@ -70,11 +70,11 @@ class SyncMembershipsOnLogin
         );
 
         // Sync documents that were uploaded with phone number as studentId
-        final documentSyncResult =
-            await documentRepository.batchLinkDocumentsToUser(
-          phoneNumber: params.phoneNumber,
-          userId: params.userId,
-        );
+        final documentSyncResult = await documentRepository
+            .batchLinkDocumentsToUser(
+              phoneNumber: params.phoneNumber,
+              userId: params.userId,
+            );
 
         documentSyncResult.fold(
           (failure) {
@@ -95,9 +95,7 @@ class SyncMembershipsOnLogin
         // from Firestore since we already have the unregistered list and
         // know the userId that was just assigned.
         final linkedMemberships = unregisteredMemberships
-            .map(
-              (m) => m.copyWith(userId: params.userId),
-            )
+            .map((m) => m.copyWith(userId: params.userId))
             .toList();
         return Right(linkedMemberships);
       });

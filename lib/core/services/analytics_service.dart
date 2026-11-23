@@ -1,6 +1,6 @@
 /// Abstract analytics service interface.
 /// Defines contract for tracking user events and behavior across the platform.
-/// 
+///
 /// All events automatically include:
 /// - user_id: Current user identifier
 /// - user_role: User role (admin/owner/student)
@@ -9,9 +9,9 @@
 /// - timestamp: Event timestamp
 abstract class AnalyticsService {
   /// Tracks a custom event with parameters.
-  /// 
+  ///
   /// Use this for any event not covered by helper methods.
-  /// 
+  ///
   /// Example:
   /// ```dart
   /// await analyticsService.trackEvent(
@@ -19,13 +19,10 @@ abstract class AnalyticsService {
   ///   parameters: {'action_type': 'button_tap'},
   /// );
   /// ```
-  Future<void> trackEvent(
-    String eventName, {
-    Map<String, dynamic>? parameters,
-  });
+  Future<void> trackEvent(String eventName, {Map<String, dynamic>? parameters});
 
   /// Sets user properties for analytics context.
-  /// 
+  ///
   /// Called when user signs in or role changes.
   /// Automatically included in all subsequent events.
   Future<void> setUserContext({
@@ -181,7 +178,6 @@ abstract class AnalyticsService {
     required String cancellationReason,
     Map<String, dynamic>? additionalParams,
   });
-
 }
 
 /// Analytics event names constants.

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/subscription.dart';
 import '../../core/app_ui_constants.dart';
@@ -66,12 +66,12 @@ class AdminPendingApprovals extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: AppUIConstants.warning.withValues(alpha: 0.1),
+            color: AppUIConstants.surfaceMuted,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             Icons.pending_actions,
-            color: AppUIConstants.warning,
+            color: AppUIConstants.primaryLight,
             size: 18,
           ),
         ),
@@ -126,12 +126,12 @@ class _PendingApprovalTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppUIConstants.warning.withValues(alpha: 0.1),
+                  color: AppUIConstants.surfaceMuted,
                   borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
                 ),
                 child: Icon(
                   Icons.pending_actions,
-                  color: AppUIConstants.warning,
+                  color: AppUIConstants.primaryLight,
                   size: 20,
                 ),
               ),
@@ -141,7 +141,7 @@ class _PendingApprovalTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${subscription.seatCount} seats • ${subscription.durationInMonths} mo',
+                      '${subscription.seatCount} beds • ${subscription.durationInMonths} mo',
                       style: AppUIConstants.bodyMd.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -185,7 +185,7 @@ class _PendingApprovalTile extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onApprove,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppUIConstants.success,
+                    backgroundColor: AppUIConstants.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),

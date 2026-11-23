@@ -26,6 +26,7 @@ class Membership extends Equatable {
     this.paymentMethod,
     this.paymentStatus = MembershipPaymentStatus.pending,
     this.paymentBreakdown,
+    this.upiTransactionId,
     this.assignedByOwner = false,
     this.customDurationDays,
     this.customDurationMonths,
@@ -73,6 +74,9 @@ class Membership extends Equatable {
   /// If null, full payment is expected/assumed.
   final PaymentBreakdown? paymentBreakdown;
 
+  /// UPI reference (UTR) the resident entered when requesting a bed.
+  final String? upiTransactionId;
+
   /// Whether this membership was assigned by owner without student login.
   final bool assignedByOwner;
 
@@ -88,11 +92,7 @@ class Membership extends Equatable {
       startDate.month,
       startDate.day,
     );
-    final endDateOnly = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-    );
+    final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
     return status == MembershipStatus.active &&
         !currentDateOnly.isBefore(startDateOnly) &&
         !currentDateOnly.isAfter(endDateOnly);
@@ -107,18 +107,18 @@ class Membership extends Equatable {
       currentDate.month,
       currentDate.day,
     );
-    final endDateOnly = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-    );
+    final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
     return currentDateOnly.isAfter(endDateOnly);
   }
 
   /// Days remaining in membership.
   int daysRemaining(DateTime currentDate) {
     if (isExpired(currentDate)) return 0;
-    final currentDateOnly = DateTime(currentDate.year, currentDate.month, currentDate.day);
+    final currentDateOnly = DateTime(
+      currentDate.year,
+      currentDate.month,
+      currentDate.day,
+    );
     final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
     return endDateOnly.difference(currentDateOnly).inDays;
   }
@@ -189,6 +189,7 @@ class Membership extends Equatable {
     paymentMethod,
     paymentStatus,
     paymentBreakdown,
+    upiTransactionId,
     assignedByOwner,
     customDurationDays,
     customDurationMonths,
@@ -211,6 +212,7 @@ class Membership extends Equatable {
     PaymentMode? paymentMethod,
     MembershipPaymentStatus? paymentStatus,
     PaymentBreakdown? paymentBreakdown,
+    String? upiTransactionId,
     bool? assignedByOwner,
     int? customDurationDays,
     int? customDurationMonths,
@@ -232,6 +234,7 @@ class Membership extends Equatable {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       paymentBreakdown: paymentBreakdown ?? this.paymentBreakdown,
+      upiTransactionId: upiTransactionId ?? this.upiTransactionId,
       assignedByOwner: assignedByOwner ?? this.assignedByOwner,
       customDurationDays: customDurationDays ?? this.customDurationDays,
       customDurationMonths: customDurationMonths ?? this.customDurationMonths,
@@ -266,6 +269,7 @@ class Membership extends Equatable {
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       paymentBreakdown: null,
+      upiTransactionId: upiTransactionId,
       assignedByOwner: assignedByOwner,
     );
   }
@@ -288,6 +292,7 @@ class Membership extends Equatable {
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       paymentBreakdown: paymentBreakdown,
+      upiTransactionId: upiTransactionId,
       assignedByOwner: assignedByOwner,
     );
   }
@@ -313,6 +318,7 @@ class Membership extends Equatable {
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       paymentBreakdown: paymentBreakdown,
+      upiTransactionId: upiTransactionId,
       assignedByOwner: assignedByOwner,
     );
   }
@@ -335,6 +341,7 @@ class Membership extends Equatable {
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       paymentBreakdown: null,
+      upiTransactionId: upiTransactionId,
       assignedByOwner: assignedByOwner,
     );
   }
@@ -357,7 +364,14 @@ class Membership extends Equatable {
   /// renew or reassign instead of mutate in place.
   bool get isEditable =>
       status == MembershipStatus.active ||
-      status == MembershipStatus.pendingPayment;
+      status == MembershipStatus.pendingPayment ||
+      status == MembershipStatus.pendingApproval;
+
+  /// Approves a resident's bed request (pendingApproval -> active).
+  Membership approve() => copyWith(status: MembershipStatus.active);
+
+  /// Whether this is a resident bed request awaiting owner approval.
+  bool get isPendingApproval => status == MembershipStatus.pendingApproval;
 
   /// Checks if seat is reserved (pending payment).
   bool get hasSeatReserved =>
@@ -419,11 +433,21 @@ enum MembershipPlan { daily, weekly, monthly, quarterly, yearly }
 
 /// Membership status.
 /// - pendingPayment: Seat reserved, awaiting payment
+/// - pendingApproval: Resident-submitted bed request awaiting owner approval
 /// - active: Payment complete, membership active
 /// - expired: Membership period ended
 /// - cancelled: Cancelled by owner/student
 /// - suspended: Temporarily suspended (e.g., for payment issues)
-enum MembershipStatus { pendingPayment, active, expired, cancelled, suspended }
+enum MembershipStatus {
+  pendingPayment,
+  active,
+  expired,
+  cancelled,
+  suspended,
+
+  /// Resident requested a bed (e.g. via the PG QR); owner must approve/reject.
+  pendingApproval,
+}
 
 /// Extension for plan duration calculation.
 extension MembershipPlanExtension on MembershipPlan {

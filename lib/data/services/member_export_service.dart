@@ -46,21 +46,23 @@ class MemberExportService {
 
     // Write headers
     for (int col = 0; col < headers.length; col++) {
-      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
+      final cell = sheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0),
+      );
       cell.value = TextCellValue(headers[col]);
       cell.cellStyle = headerStyle;
     }
 
     // Set column widths
-    sheet.setColumnWidth(0, 6);   // S.No
-    sheet.setColumnWidth(1, 24);  // Student Name
-    sheet.setColumnWidth(2, 16);  // Phone
-    sheet.setColumnWidth(3, 14);  // Plan
-    sheet.setColumnWidth(4, 14);  // Start Date
-    sheet.setColumnWidth(5, 14);  // End Date
-    sheet.setColumnWidth(6, 12);  // Seat No
-    sheet.setColumnWidth(7, 18);  // Slot/Branch
-    sheet.setColumnWidth(8, 14);  // Status
+    sheet.setColumnWidth(0, 6); // S.No
+    sheet.setColumnWidth(1, 24); // Student Name
+    sheet.setColumnWidth(2, 16); // Phone
+    sheet.setColumnWidth(3, 14); // Plan
+    sheet.setColumnWidth(4, 14); // Start Date
+    sheet.setColumnWidth(5, 14); // End Date
+    sheet.setColumnWidth(6, 12); // Seat No
+    sheet.setColumnWidth(7, 18); // Slot/Branch
+    sheet.setColumnWidth(8, 14); // Status
 
     // Alternating row styles
     final evenRowStyle = CellStyle(
@@ -92,14 +94,21 @@ class MemberExportService {
       final statusLabel = _statusLabel(seat);
 
       void writeCell(int col, CellValue value, [CellStyle? style]) {
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
+        final cell = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex),
+        );
         cell.value = value;
         cell.cellStyle = style ?? basStyle;
       }
 
       writeCell(0, IntCellValue(i + 1));
       writeCell(1, TextCellValue(seat.displayName), nStyle);
-      writeCell(2, TextCellValue(_formatPhone(seat.studentPhone ?? membership.phoneNumber)));
+      writeCell(
+        2,
+        TextCellValue(
+          _formatPhone(seat.studentPhone ?? membership.phoneNumber),
+        ),
+      );
       writeCell(3, TextCellValue(membership.planDisplayLabel));
       writeCell(4, TextCellValue(_dateFormat.format(membership.startDate)));
       writeCell(5, TextCellValue(_dateFormat.format(membership.endDate)));

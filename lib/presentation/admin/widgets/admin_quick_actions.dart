@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/app_ui_constants.dart';
 
@@ -23,30 +23,30 @@ class AdminQuickActions extends StatelessWidget {
       _ActionItem(
         icon: Icons.receipt_long_outlined,
         label: 'Invoices',
-        color: Colors.orange,
+        color: AppUIConstants.warning,
         onTap: onInvoicesTap,
       ),
       _ActionItem(
         icon: Icons.business_outlined,
         label: 'Libraries',
-        color: Colors.blue,
+        color: AppUIConstants.primaryLight,
         onTap: onLibrariesTap,
       ),
       _ActionItem(
         icon: Icons.card_membership_outlined,
         label: 'Subscriptions',
-        color: Colors.purple,
+        color: AppUIConstants.accent,
         onTap: onSubscriptionsTap,
       ),
       if (onFeatureAnalyticsTap != null)
         _ActionItem(
           icon: Icons.analytics_outlined,
           label: 'Analytics',
-          color: Colors.teal,
+          color: AppUIConstants.primary,
           onTap: onFeatureAnalyticsTap!,
         ),
     ];
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -63,9 +63,8 @@ class AdminQuickActions extends StatelessWidget {
           ),
           itemCount: actions.length,
           padding: EdgeInsets.zero,
-          itemBuilder: (context, index) => _QuickActionCard(
-            action: actions[index],
-          ),
+          itemBuilder: (context, index) =>
+              _QuickActionCard(action: actions[index]),
         ),
       ],
     );
@@ -97,7 +96,10 @@ class _QuickActionCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: action.color.withValues(alpha: 0.3), width: 1.5),
+        side: BorderSide(
+          color: action.color.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
       ),
       child: InkWell(
         onTap: action.onTap,
@@ -110,12 +112,12 @@ class _QuickActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: action.color.withValues(alpha: 0.15),
+                  color: AppUIConstants.surfaceMuted,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   action.icon,
-                  color: action.color,
+                  color: AppUIConstants.primaryLight,
                   size: 20,
                 ),
               ),

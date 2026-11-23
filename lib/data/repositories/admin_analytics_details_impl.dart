@@ -94,10 +94,12 @@ class _ActivityDetailResolver {
     required DateTime endDate,
   }) async {
     try {
-      final dayStart =
-          DateTime(startDate.year, startDate.month, startDate.day);
-      final dayEnd = DateTime(endDate.year, endDate.month, endDate.day)
-          .add(const Duration(days: 1));
+      final dayStart = DateTime(startDate.year, startDate.month, startDate.day);
+      final dayEnd = DateTime(
+        endDate.year,
+        endDate.month,
+        endDate.day,
+      ).add(const Duration(days: 1));
 
       final snapshot = await _sessionsRef
           .where('userId', isEqualTo: userId)
@@ -134,20 +136,25 @@ class _ActivityDetailResolver {
         if (startTimeTs == null) continue;
 
         final startTime = startTimeTs.toDate();
-        final sessionDate =
-            DateTime(startTime.year, startTime.month, startTime.day);
-
-        sessionsByDate.putIfAbsent(sessionDate, () => []).add(
-          UserActivityDetail(
-            userId: userId,
-            userName: userName,
-            role: role,
-            checkInTime: startTime,
-            checkOutTime: endTimeTs?.toDate(),
-            libraryName: libraryInfo?['name'],
-            libraryId: libraryInfo?['id'],
-          ),
+        final sessionDate = DateTime(
+          startTime.year,
+          startTime.month,
+          startTime.day,
         );
+
+        sessionsByDate
+            .putIfAbsent(sessionDate, () => [])
+            .add(
+              UserActivityDetail(
+                userId: userId,
+                userName: userName,
+                role: role,
+                checkInTime: startTime,
+                checkOutTime: endTimeTs?.toDate(),
+                libraryName: libraryInfo?['name'],
+                libraryId: libraryInfo?['id'],
+              ),
+            );
       }
 
       final timelines = sessionsByDate.entries.map((entry) {

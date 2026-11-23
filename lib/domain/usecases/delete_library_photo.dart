@@ -38,12 +38,22 @@ class DeleteLibraryPhoto implements UseCase<Library, DeleteLibraryPhotoParams> {
         updatedAt: DateTime.now(),
       );
 
+      if (!params.persist) {
+        // PG not saved yet: only drop the uploaded file (best effort).
+        try {
+          await storageService.deleteImage(params.photoUrl);
+        } catch (_) {}
+        return Right(updatedLibrary);
+      }
+
       // Update library first (optimistic update)
       final updateResult = await libraryRepository.updateLibrary(
         updatedLibrary,
       );
 
-      return updateResult.fold((failure) => Left(failure), (library) async {
+      return await updateResult.fold((failure) => Left(failure), (
+        library,
+      ) async {
         // Delete from storage (best effort - don't fail if storage delete fails)
         try {
           await storageService.deleteImage(params.photoUrl);
@@ -68,8 +78,12 @@ class DeleteLibraryPhotoParams {
   const DeleteLibraryPhotoParams({
     required this.library,
     required this.photoUrl,
+    this.persist = true,
   });
 
   final Library library;
   final String photoUrl;
+
+  /// Whether to write the updated photo list to Firestore immediately.
+  final bool persist;
 }

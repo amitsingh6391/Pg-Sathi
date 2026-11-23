@@ -71,18 +71,20 @@ void main() {
       librarySummaries: tSummaries,
     );
 
-    test('should_return_combined_dashboard_data_when_repository_succeeds',
-        () async {
-      when(
-        () => mockRepository.getDashboardData(),
-      ).thenAnswer((_) async => Right(tData));
+    test(
+      'should_return_combined_dashboard_data_when_repository_succeeds',
+      () async {
+        when(
+          () => mockRepository.getDashboardData(),
+        ).thenAnswer((_) async => Right(tData));
 
-      final result = await useCase(const NoParams());
+        final result = await useCase(const NoParams());
 
-      expect(result, Right(tData));
-      verify(() => mockRepository.getDashboardData()).called(1);
-      verifyNoMoreInteractions(mockRepository);
-    });
+        expect(result, Right(tData));
+        verify(() => mockRepository.getDashboardData()).called(1);
+        verifyNoMoreInteractions(mockRepository);
+      },
+    );
 
     test('should_return_failure_when_repository_fails', () async {
       const tFailure = ServerFailure(message: 'Failed to get dashboard data');

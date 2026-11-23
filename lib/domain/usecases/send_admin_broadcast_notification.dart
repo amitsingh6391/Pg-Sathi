@@ -52,7 +52,8 @@ class SendAdminBroadcastNotification
         userIds = result.getOrElse(() => []);
 
       case BroadcastAudience.studentsWithActiveMembership:
-        final result = await analyticsRepository.getStudentIdsWithActiveMembership();
+        final result = await analyticsRepository
+            .getStudentIdsWithActiveMembership();
         if (result.isLeft()) {
           return Left(result.fold((l) => l, (_) => const GenericFailure()));
         }

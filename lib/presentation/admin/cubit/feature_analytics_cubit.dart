@@ -14,12 +14,9 @@ class FeatureAnalyticsCubit extends Cubit<FeatureAnalyticsState> {
   StreamSubscription<List<AnalyticsSummary>>? _recentEventsSubscription;
 
   FeatureAnalyticsCubit(this._repository)
-      : super(const FeatureAnalyticsState());
+    : super(const FeatureAnalyticsState());
 
-  Future<void> loadAnalytics({
-    String? role,
-    String? timeRange,
-  }) async {
+  Future<void> loadAnalytics({String? role, String? timeRange}) async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
@@ -47,39 +44,48 @@ class FeatureAnalyticsCubit extends Cubit<FeatureAnalyticsState> {
       final platformCounts = results[1];
       final roleCounts = results[2];
 
-      emit(state.copyWith(
-        isLoading: false,
-        eventCounts: eventCounts,
-        platformCounts: platformCounts,
-        roleCounts: roleCounts,
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          eventCounts: eventCounts,
+          platformCounts: platformCounts,
+          roleCounts: roleCounts,
+        ),
+      );
 
       // Subscribe to recent events
       _subscribeToRecentEvents();
     } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        errorMessage: 'Failed to load analytics: ${e.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          errorMessage: 'Failed to load analytics: ${e.toString()}',
+        ),
+      );
     }
   }
 
   void _subscribeToRecentEvents() {
     _recentEventsSubscription?.cancel();
-    _recentEventsSubscription = _repository.getRecentEvents(limit: 10).listen(
-      (events) {
-        if (!isClosed) {
-          emit(state.copyWith(recentEvents: events));
-        }
-      },
-      onError: (error) {
-        if (!isClosed) {
-          emit(state.copyWith(
-            errorMessage: 'Failed to load recent events: ${error.toString()}',
-          ));
-        }
-      },
-    );
+    _recentEventsSubscription = _repository
+        .getRecentEvents(limit: 10)
+        .listen(
+          (events) {
+            if (!isClosed) {
+              emit(state.copyWith(recentEvents: events));
+            }
+          },
+          onError: (error) {
+            if (!isClosed) {
+              emit(
+                state.copyWith(
+                  errorMessage:
+                      'Failed to load recent events: ${error.toString()}',
+                ),
+              );
+            }
+          },
+        );
   }
 
   (DateTime?, DateTime?) _getDateRange(String timeRange) {

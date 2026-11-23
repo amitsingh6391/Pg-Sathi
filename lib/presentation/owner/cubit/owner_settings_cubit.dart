@@ -100,7 +100,7 @@ class OwnerSettingsCubit extends Cubit<OwnerSettingsState> {
 
     final result = await updateOwnerSettings(
       UpdateOwnerSettingsParams(
-        ownerId: user.id,
+        ownerId: user.ownerAccountId,
         showOtherLibraries: showOtherLibraries,
         showMyLibraryInListing: showMyLibraryInListing,
         autoWhatsAppInvoicesEnabled: autoWhatsAppInvoicesEnabled,

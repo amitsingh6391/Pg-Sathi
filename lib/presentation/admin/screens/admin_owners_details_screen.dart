@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/di/injection_container.dart';
 import '../../../domain/entities/library.dart';
@@ -9,6 +9,7 @@ import '../../core/app_ui_constants.dart';
 import '../widgets/owner_cards/edit_custom_pricing_dialog.dart';
 import '../widgets/owner_cards/owner_card.dart';
 import '../widgets/owner_cards/owner_filter_bar.dart';
+import '../widgets/subscription_widgets/shimmer_box.dart';
 
 /// Admin screen for managing owners and their library subscriptions.
 /// Features: Search, filter, sort, and custom pricing management.
@@ -67,7 +68,7 @@ class _AdminOwnersDetailsScreenState extends State<AdminOwnersDetailsScreen> {
         (data) => owners = data as List<User>,
       );
       librariesResult.fold(
-        (failure) => errorMsg ??= failure.message ?? 'Failed to load libraries',
+        (failure) => errorMsg ??= failure.message ?? 'Failed to load PGs',
         (data) => libraries = data as List<Library>,
       );
 
@@ -152,12 +153,10 @@ class _AdminOwnersDetailsScreenState extends State<AdminOwnersDetailsScreen> {
           // Prefer library createdAt, fall back to owner registration date.
           // Using DateTime(0) as a last resort so owners with unknown dates
           // sort to the bottom instead of randomly appearing at the top.
-          final aDate = _ownerLibraryMap[a.id]?.createdAt
-              ?? a.createdAt
-              ?? DateTime(0);
-          final bDate = _ownerLibraryMap[b.id]?.createdAt
-              ?? b.createdAt
-              ?? DateTime(0);
+          final aDate =
+              _ownerLibraryMap[a.id]?.createdAt ?? a.createdAt ?? DateTime(0);
+          final bDate =
+              _ownerLibraryMap[b.id]?.createdAt ?? b.createdAt ?? DateTime(0);
           return bDate.compareTo(aDate);
         });
       case OwnerSortType.customPriceDesc:
@@ -251,12 +250,13 @@ class _AdminOwnersDetailsScreenState extends State<AdminOwnersDetailsScreen> {
     return Scaffold(
       backgroundColor: AppUIConstants.background,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Manage Owners',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
         ),
-        backgroundColor: AppUIConstants.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppUIConstants.background,
+        foregroundColor: AppUIConstants.textPrimary,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
       ),
@@ -272,11 +272,23 @@ class _AdminOwnersDetailsScreenState extends State<AdminOwnersDetailsScreen> {
             onRefresh: _loadData,
           ),
           Expanded(
-            child: _isLoading
-                ? _buildLoadingState()
-                : _error != null
-                ? _buildErrorState()
-                : _buildContent(),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: _isLoading
+                  ? KeyedSubtree(
+                      key: const ValueKey('loading'),
+                      child: _buildLoadingState(),
+                    )
+                  : _error != null
+                  ? KeyedSubtree(
+                      key: const ValueKey('error'),
+                      child: _buildErrorState(),
+                    )
+                  : KeyedSubtree(
+                      key: const ValueKey('content'),
+                      child: _buildContent(),
+                    ),
+            ),
           ),
         ],
       ),
@@ -284,86 +296,21 @@ class _AdminOwnersDetailsScreenState extends State<AdminOwnersDetailsScreen> {
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppUIConstants.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: CircularProgressIndicator(
-              color: AppUIConstants.primary,
-              strokeWidth: 3,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Loading owners...',
-            style: AppUIConstants.bodyMd.copyWith(
-              color: AppUIConstants.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: 12),
+      children: List.generate(6, (_) => const ShimmerCardRow()),
     );
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppUIConstants.error.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.error_outline_rounded,
-              size: 64,
-              color: AppUIConstants.error,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Something went wrong',
-            style: AppUIConstants.headingSm.copyWith(
-              color: AppUIConstants.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              _error!,
-              style: AppUIConstants.bodySm.copyWith(
-                color: AppUIConstants.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Try Again'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppUIConstants.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return AdminEmptyState(
+      icon: Icons.cloud_off_rounded,
+      color: AppUIConstants.error,
+      title: 'Something went wrong',
+      message: _error,
+      actionLabel: 'Try Again',
+      onAction: _loadData,
     );
   }
 
@@ -371,72 +318,56 @@ class _AdminOwnersDetailsScreenState extends State<AdminOwnersDetailsScreen> {
     final owners = _getFilteredAndSortedOwners();
 
     if (owners.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppUIConstants.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.people_outline_rounded,
-                size: 64,
-                color: AppUIConstants.primary.withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'No owners match your search'
-                  : 'No owners found',
-              style: AppUIConstants.headingSm.copyWith(
-                color: AppUIConstants.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'Try adjusting your search filters'
-                  : 'Owners will appear here once added',
-              style: AppUIConstants.bodySm.copyWith(
-                color: AppUIConstants.textSecondary,
-              ),
-            ),
-          ],
-        ),
+      final searching = _searchQuery.isNotEmpty;
+      return AdminEmptyState(
+        icon: searching ? Icons.search_off_rounded : Icons.groups_outlined,
+        title: searching ? 'No owners match your search' : 'No owners found',
+        message: searching
+            ? 'Try a different name, phone or email'
+            : 'Owners will appear here once added',
+        actionLabel: 'Refresh',
+        onAction: _loadData,
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: AppUIConstants.spacingSm),
-      children: [
-        OwnerStatsRow(
-          totalOwners: _ownerCache.length,
-          withLibrary: _countWithLibrary(),
-          withoutLibrary: _ownerCache.length - _countWithLibrary(),
-          withCustomPricing: _countCustomPricing(),
-        ),
-        const SizedBox(height: 4),
-        ...owners.map((owner) {
-          final library = _ownerLibraryMap[owner.id];
-          final isExpanded = _expandedState[owner.id] ?? false;
+    return RefreshIndicator(
+      color: AppUIConstants.primaryLight,
+      backgroundColor: AppUIConstants.surface,
+      onRefresh: _loadData,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          OwnerStatsRow(
+            totalOwners: _ownerCache.length,
+            withLibrary: _countWithLibrary(),
+            withoutLibrary: _ownerCache.length - _countWithLibrary(),
+            withCustomPricing: _countCustomPricing(),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 2),
+            child: Text(
+              '${owners.length} owner${owners.length == 1 ? '' : 's'}',
+              style: AppUIConstants.caption,
+            ),
+          ),
+          ...owners.map((owner) {
+            final library = _ownerLibraryMap[owner.id];
+            final isExpanded = _expandedState[owner.id] ?? false;
 
-          return OwnerCard(
-            owner: owner,
-            library: library,
-            isExpanded: isExpanded,
-            onExpand: () =>
-                setState(() => _expandedState[owner.id] = !isExpanded),
-            onEditPricing: library != null
-                ? () => _editLibraryPricing(library)
-                : null,
-          );
-        }),
-      ],
+            return OwnerCard(
+              key: ValueKey(owner.id),
+              owner: owner,
+              library: library,
+              isExpanded: isExpanded,
+              onExpand: () =>
+                  setState(() => _expandedState[owner.id] = !isExpanded),
+              onEditPricing: library != null
+                  ? () => _editLibraryPricing(library)
+                  : null,
+            );
+          }),
+        ],
+      ),
     );
   }
 }

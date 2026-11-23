@@ -8,5 +8,6 @@ class SmsPortalsConfig {
   static const String dltHeaderId = '1401562890000015990';
 
   // API Endpoint
-  static const String baseUrl = 'https://sms.smsportals.org/api_v2/message/send';
+  static const String baseUrl =
+      'https://sms.smsportals.org/api_v2/message/send';
 }

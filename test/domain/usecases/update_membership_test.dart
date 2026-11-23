@@ -13,11 +13,7 @@ import 'package:mockito/mockito.dart';
 
 import 'update_membership_test.mocks.dart';
 
-@GenerateMocks([
-  MembershipRepository,
-  InvoiceRepository,
-  SlotRepository,
-])
+@GenerateMocks([MembershipRepository, InvoiceRepository, SlotRepository])
 void main() {
   late UpdateMembership useCase;
   late MockMembershipRepository mockRepository;
@@ -86,13 +82,10 @@ void main() {
         final result = await useCase(params);
 
         expect(result.isLeft(), true);
-        result.fold(
-          (l) {
-            expect(l, isA<MembershipNotActiveFailure>());
-            expect(l.message, contains('expired'));
-          },
-          (r) => fail('Should not return success'),
-        );
+        result.fold((l) {
+          expect(l, isA<MembershipNotActiveFailure>());
+          expect(l.message, contains('expired'));
+        }, (r) => fail('Should not return success'));
       },
     );
 
@@ -121,45 +114,39 @@ void main() {
       },
     );
 
-    test(
-      'should_allow_update_when_status_is_pendingPayment',
-      () async {
-        final pendingMembership = testMembership.copyWith(
-          status: MembershipStatus.pendingPayment,
-        );
-        when(
-          mockRepository.getMembershipById(any),
-        ).thenAnswer((_) async => Right(pendingMembership));
-        when(
-          mockRepository.isSeatSlotOccupied(
-            libraryId: anyNamed('libraryId'),
-            seatId: anyNamed('seatId'),
-            slot: anyNamed('slot'),
-          ),
-        ).thenAnswer((_) async => const Right(false));
-        when(
-          mockRepository.updateMembership(any),
-        ).thenAnswer((inv) async => Right(inv.positionalArguments[0]));
+    test('should_allow_update_when_status_is_pendingPayment', () async {
+      final pendingMembership = testMembership.copyWith(
+        status: MembershipStatus.pendingPayment,
+      );
+      when(
+        mockRepository.getMembershipById(any),
+      ).thenAnswer((_) async => Right(pendingMembership));
+      when(
+        mockRepository.isSeatSlotOccupied(
+          libraryId: anyNamed('libraryId'),
+          seatId: anyNamed('seatId'),
+          slot: anyNamed('slot'),
+        ),
+      ).thenAnswer((_) async => const Right(false));
+      when(
+        mockRepository.updateMembership(any),
+      ).thenAnswer((inv) async => Right(inv.positionalArguments[0]));
 
-        final params = UpdateMembershipParams(
-          membershipId: 'mem-1',
-          newSeatId: 'seat-2',
-        );
+      final params = UpdateMembershipParams(
+        membershipId: 'mem-1',
+        newSeatId: 'seat-2',
+      );
 
-        final result = await useCase(params);
+      final result = await useCase(params);
 
-        expect(result.isRight(), true);
-        result.fold(
-          (l) => fail('Should not return failure: ${l.message}'),
-          (r) {
-            expect(r.assignedSeatId, 'seat-2');
-            // Status must be preserved — we are NOT activating the
-            // membership as a side-effect of editing it.
-            expect(r.status, MembershipStatus.pendingPayment);
-          },
-        );
-      },
-    );
+      expect(result.isRight(), true);
+      result.fold((l) => fail('Should not return failure: ${l.message}'), (r) {
+        expect(r.assignedSeatId, 'seat-2');
+        // Status must be preserved — we are NOT activating the
+        // membership as a side-effect of editing it.
+        expect(r.status, MembershipStatus.pendingPayment);
+      });
+    });
 
     test(
       'should return SeatAlreadyOccupiedFailure when new seat+slot is occupied',

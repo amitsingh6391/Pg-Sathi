@@ -281,7 +281,11 @@ class OwnerInvoiceCubit extends Cubit<OwnerInvoiceState> {
 
   /// Shares an invoice PDF directly to WhatsApp with student's phone number.
   /// On Android: Opens WhatsApp to specific contact. On iOS: Opens share sheet.
-  Future<void> shareInvoiceToWhatsApp(Invoice invoice, {Rect? shareOrigin}) async {
+  /// Returns true when the invoice image was copied and has to be pasted.
+  Future<bool> shareInvoiceToWhatsApp(
+    Invoice invoice, {
+    Rect? shareOrigin,
+  }) async {
     emit(
       state.copyWith(
         status: OwnerInvoiceStatus.downloading,
@@ -290,13 +294,17 @@ class OwnerInvoiceCubit extends Cubit<OwnerInvoiceState> {
     );
 
     try {
-      await pdfService.shareToWhatsApp(invoice, shareOrigin: shareOrigin);
+      final copied = await pdfService.shareToWhatsApp(
+        invoice,
+        shareOrigin: shareOrigin,
+      );
       emit(
         state.copyWith(
           status: OwnerInvoiceStatus.loaded,
           downloadingInvoiceId: null,
         ),
       );
+      return copied;
     } catch (e) {
       emit(
         state.copyWith(
@@ -305,6 +313,7 @@ class OwnerInvoiceCubit extends Cubit<OwnerInvoiceState> {
           downloadingInvoiceId: null,
         ),
       );
+      return false;
     }
   }
 

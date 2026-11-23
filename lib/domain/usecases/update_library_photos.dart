@@ -10,6 +10,10 @@ import '../services/storage_service.dart';
 
 /// Use case for updating library photos.
 /// Handles uploading new images and updating the library's photo list.
+///
+/// When [UpdateLibraryPhotosParams.persist] is false (the PG or branch is not
+/// saved yet), the photos are uploaded and the updated entity is returned
+/// without a Firestore write; the URLs are saved with the rest of the profile.
 class UpdateLibraryPhotos
     implements UseCase<Library, UpdateLibraryPhotosParams> {
   const UpdateLibraryPhotos({
@@ -70,9 +74,11 @@ class UpdateLibraryPhotos
         updatedAt: DateTime.now(),
       );
 
+      if (!params.persist) return Right(updatedLibrary);
+
       final result = await libraryRepository.updateLibrary(updatedLibrary);
 
-      return result.fold((failure) {
+      return await result.fold((failure) {
         // If Firestore update fails, delete uploaded photos
         if (uploadedUrls.isNotEmpty) {
           storageService.deleteImages(uploadedUrls);
@@ -94,8 +100,12 @@ class UpdateLibraryPhotosParams {
   const UpdateLibraryPhotosParams({
     required this.library,
     required this.newPhotos,
+    this.persist = true,
   });
 
   final Library library;
   final List<File> newPhotos;
+
+  /// Whether to write the new photo list to Firestore immediately.
+  final bool persist;
 }

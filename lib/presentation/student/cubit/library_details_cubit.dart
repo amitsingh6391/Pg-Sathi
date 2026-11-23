@@ -46,9 +46,9 @@ class LibraryDetailsCubit extends Cubit<LibraryDetailsState> {
         bool hasActiveMembership = false;
         final membershipResult = await membershipRepository
             .getActiveMembershipByUserAndLibrary(
-          userId: userId,
-          libraryId: libraryId,
-        );
+              userId: userId,
+              libraryId: libraryId,
+            );
         membershipResult.fold(
           (_) {},
           (membership) => hasActiveMembership = membership != null,

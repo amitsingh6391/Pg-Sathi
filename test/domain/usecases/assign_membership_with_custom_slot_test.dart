@@ -78,6 +78,17 @@ void main() {
     mockUserRepository = MockUserRepository();
     mockLibraryRepository = MockLibraryRepository();
     mockPaymentRepository = MockPaymentRepository();
+
+    // The use case starts these reads in parallel before validating the slot,
+    // so every test needs a default answer. Tests override them as needed.
+    when(
+      () => mockUserRepository.getUserByPhone(any()),
+    ).thenAnswer((_) async => const Right(null));
+    when(
+      () => mockMembershipRepository.getActiveAndReservedMembershipsForLibrary(
+        any(),
+      ),
+    ).thenAnswer((_) async => const Right([]));
     mockSeatRepository = MockSeatRepository();
     useCase = AssignMembershipWithCustomSlot(
       membershipRepository: mockMembershipRepository,

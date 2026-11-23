@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PG Sathi &mdash; PG & Hostel Management App</title>
-  <meta name="description" content="Manage your PG or hostel from your phone. Track tenants, rooms, rent, deposits, attendance and payments. Built for India — works on iOS, Android and Web.">
-  <meta name="keywords" content="PG management app, hostel management software, tenant management, room rent tracking, attendance, payment records">
+  <meta name="description" content="Manage your PG or hostel from your phone. Track tenants, rooms, beds, rent, deposits and payments. Built for India — works on iOS, Android and Web.">
+  <meta name="keywords" content="PG management app, hostel management software, tenant management, room rent tracking, rent reminders, payment records">
   <meta property="og:title" content="PG Sathi &mdash; PG & Hostel Management">
   <meta property="og:description" content="Manage your PG or hostel from your phone. Tenants, rooms, rent, payments and analytics — iOS, Android &amp; Web.">
   <meta property="og:url" content="https://pg-sathi.web.app/">
@@ -369,7 +369,7 @@
   <div class="container">
     <div class="stats-inner">
       <div class="stat reveal"><div class="stat-num">iOS &middot; Android &middot; <span class="hl">Web</span></div><div class="stat-lbl">Available on every device</div></div>
-      <div class="stat reveal d1"><div class="stat-num">Hindi <span class="hl">+</span> English</div><div class="stat-lbl">Native bilingual support</div></div>
+      <div class="stat reveal d1"><div class="stat-num"><span class="hl">WhatsApp</span> Notices</div><div class="stat-lbl">Reach every tenant instantly</div></div>
       <div class="stat reveal d2"><div class="stat-num"><span class="hl">UPI</span> Payments</div><div class="stat-lbl">Direct to your bank account</div></div>
       <div class="stat reveal d3"><div class="stat-num">Free <span class="hl">Onboarding</span></div><div class="stat-lbl">We help you get set up</div></div>
     </div>
@@ -381,28 +381,28 @@
   <div class="container">
     <div class="center">
       <p class="eyebrow">Features</p>
-      <h2 class="sec-title">Built for owners. Loved by students.</h2>
+      <h2 class="sec-title">Built for owners. Loved by tenants.</h2>
       <p class="sec-sub">Two apps in one platform — a powerful management console for owners, and a simple daily companion for tenants.</p>
       <div class="tab-bar">
         <button class="tab active" onclick="showTab('o')">For Owners</button>
-        <button class="tab" onclick="showTab('s')">For Students</button>
+        <button class="tab" onclick="showTab('s')">For Tenants</button>
       </div>
     </div>
     <div class="feat-grid" id="oGrid">
-      <div class="feat-card reveal"><div class="feat-icon icon-navy">&#x1F4CA;</div><h3>Revenue Dashboard</h3><p>Real-time revenue, bed occupancy, and tenant analytics all in one view.</p></div>
-      <div class="feat-card reveal d1"><div class="feat-icon icon-blue">&#x1FA91;</div><h3>Room & Bed Management</h3><p>Configure rooms, beds, rent plans, and see live occupancy at any time.</p></div>
-      <div class="feat-card reveal d2"><div class="feat-icon icon-slate">&#x1F465;</div><h3>Tenant Management</h3><p>Assign rooms or beds, manage rent plans, verify IDs, and track renewals.</p></div>
-      <div class="feat-card reveal"><div class="feat-icon icon-warm">&#x1F4B0;</div><h3>Payments &amp; Invoices</h3><p>Accept UPI and cash, auto-generate PDF invoices, approve payments easily.</p></div>
-      <div class="feat-card reveal d1"><div class="feat-icon icon-rose">&#x1F4CB;</div><h3>Attendance Tracking</h3><p>Mark attendance, view daily analytics, and track per-student history.</p></div>
-      <div class="feat-card reveal d2"><div class="feat-icon icon-green">&#x1F4E2;</div><h3>Notices &amp; Reminders</h3><p>Broadcast notices to all tenants. Automated rent due reminders.</p></div>
+      <div class="feat-card reveal"><div class="feat-icon icon-navy">&#x1F4CA;</div><h3>Revenue Dashboard</h3><p>Rent collected, pending dues, deposits and bed occupancy at a glance.</p></div>
+      <div class="feat-card reveal d1"><div class="feat-icon icon-blue">&#x1FA91;</div><h3>Room &amp; Bed Management</h3><p>Set up room types and beds, and see vacant, occupied and reserved beds live.</p></div>
+      <div class="feat-card reveal d2"><div class="feat-icon icon-slate">&#x1F465;</div><h3>Tenant Management</h3><p>Assign beds, keep ID documents and check-in dates, or bulk import from Excel.</p></div>
+      <div class="feat-card reveal"><div class="feat-icon icon-warm">&#x1F4B0;</div><h3>Rent &amp; Invoices</h3><p>Record rent, deposits and part payments. Approve UPI or cash and auto-generate PDF invoices.</p></div>
+      <div class="feat-card reveal d1"><div class="feat-icon icon-rose">&#x1F4F1;</div><h3>QR Invite &amp; Bed Requests</h3><p>Share your PG&rsquo;s QR code or link. Tenants request a bed and you approve in one tap.</p></div>
+      <div class="feat-card reveal d2"><div class="feat-icon icon-green">&#x1F4E2;</div><h3>Notices &amp; Reminders</h3><p>Send or schedule notices by app and WhatsApp. Automatic rent due reminders.</p></div>
     </div>
     <div class="feat-grid" id="sGrid" style="display:none">
-      <div class="feat-card reveal show"><div class="feat-icon icon-navy">&#x1F4CB;</div><h3>Stay Dashboard</h3><p>Your active stay, attendance history, and payment status in a single card.</p></div>
+      <div class="feat-card reveal show"><div class="feat-icon icon-navy">&#x1F4CB;</div><h3>Stay Dashboard</h3><p>Your room, bed, rent due date and payment status in a single card.</p></div>
       <div class="feat-card reveal show"><div class="feat-icon icon-blue">&#x1F50D;</div><h3>Explore PGs</h3><p>Discover nearby PGs and hostels with availability, amenities and pricing.</p></div>
-      <div class="feat-card reveal show"><div class="feat-icon icon-slate">&#x1F4C8;</div><h3>Job &amp; Results Alerts</h3><p>Sarkari jobs, exam results, admit cards — stay ahead of every deadline.</p></div>
-      <div class="feat-card reveal show"><div class="feat-icon icon-warm">&#x1F4F0;</div><h3>Current Affairs</h3><p>Curated daily current affairs for competitive exam preparation.</p></div>
+      <div class="feat-card reveal show"><div class="feat-icon icon-slate">&#x1F6CF;&#xFE0F;</div><h3>Request a Bed</h3><p>Scan your PG&rsquo;s QR code or open its link and request a bed in seconds.</p></div>
+      <div class="feat-card reveal show"><div class="feat-icon icon-warm">&#x1F4E2;</div><h3>Notices</h3><p>Never miss an update from your PG &mdash; rules, holidays, maintenance and more.</p></div>
       <div class="feat-card reveal show"><div class="feat-icon icon-rose">&#x1F4B3;</div><h3>UPI Payments</h3><p>Pay rent or dues and receive digital invoices instantly on payment.</p></div>
-      <div class="feat-card reveal show"><div class="feat-icon icon-green">&#x1F4C2;</div><h3>Documents &amp; Tools</h3><p>Access invoices, documents, and a full suite of study utility tools.</p></div>
+      <div class="feat-card reveal show"><div class="feat-icon icon-green">&#x1F4C2;</div><h3>Invoices &amp; Documents</h3><p>Download rent invoices and keep your ID documents safely in one place.</p></div>
     </div>
   </div>
 </section>
@@ -418,8 +418,8 @@
     <div class="steps-grid">
       <div class="step-card reveal"><div class="step-num">1</div><h4>Create Account</h4><p>Sign up with your phone number. Quick OTP verification, no setup fees.</p></div>
       <div class="step-card reveal d1"><div class="step-num">2</div><h4>Set Up Your Property</h4><p>Add rooms, beds, rent plans and occupancy details in a few taps.</p></div>
-      <div class="step-card reveal d2"><div class="step-num">3</div><h4>Add Tenants</h4><p>Students join via phone number. Assign their room, bed and rent plan instantly.</p></div>
-      <div class="step-card reveal d3"><div class="step-num">4</div><h4>Manage Everything</h4><p>Attendance, payments, notices, analytics — all from one dashboard.</p></div>
+      <div class="step-card reveal d2"><div class="step-num">3</div><h4>Add Tenants</h4><p>Add tenants by phone number, share your QR invite, or import them from Excel.</p></div>
+      <div class="step-card reveal d3"><div class="step-num">4</div><h4>Manage Everything</h4><p>Rent, deposits, notices and analytics &mdash; all from one dashboard.</p></div>
     </div>
   </div>
 </section>
@@ -434,9 +434,9 @@
         <p class="showcase-sub">Built mobile-first for owners who manage their PG or hostel on the go. The same powerful tools — designed for one-handed use, even on entry-level Android phones.</p>
         <ul class="showcase-bullets">
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Real-time revenue and occupancy on your home screen</li>
-          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Mark attendance and assign rooms in a single tap</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Assign beds and approve bed requests in a single tap</li>
           <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Verify UPI payments and auto-send PDF invoices</li>
-          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Broadcast notices to all tenants instantly</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Send notices to all tenants on the app and WhatsApp</li>
         </ul>
         <div class="showcase-cta">
           <a href="https://play.google.com/store/apps/details?id=in.pgsathi.app" target="_blank" rel="noopener" class="store-btn">
@@ -465,15 +465,15 @@
           <div class="phone-row-icon">&#x1F4CA;</div>
           <div class="phone-row-text">
             <div class="phone-row-title">Today&rsquo;s Revenue</div>
-            <div class="phone-row-sub">&#x20B9;12,450 collected &middot; 8 renewals</div>
+            <div class="phone-row-sub">&#x20B9;1,24,500 collected &middot; 6 dues pending</div>
           </div>
           <span class="phone-row-pill">Live</span>
         </div>
         <div class="phone-row">
           <div class="phone-row-icon">&#x1FA91;</div>
           <div class="phone-row-text">
-            <div class="phone-row-title">Seat Occupancy</div>
-            <div class="phone-row-sub">68 of 80 beds filled &middot; Shift A</div>
+            <div class="phone-row-title">Bed Occupancy</div>
+            <div class="phone-row-sub">68 of 80 beds filled &middot; 12 vacant</div>
           </div>
           <span class="phone-row-pill">85%</span>
         </div>
@@ -481,23 +481,23 @@
           <div class="phone-row-icon">&#x1F4B0;</div>
           <div class="phone-row-text">
             <div class="phone-row-title">UPI Payment Received</div>
-            <div class="phone-row-sub">Aman Sharma &middot; &#x20B9;1,200 &middot; auto-invoiced</div>
+            <div class="phone-row-sub">Aman Sharma &middot; &#x20B9;8,500 &middot; auto-invoiced</div>
           </div>
           <span class="phone-row-pill">New</span>
         </div>
         <div class="phone-row">
-          <div class="phone-row-icon">&#x1F4CB;</div>
+          <div class="phone-row-icon">&#x1F6CF;&#xFE0F;</div>
           <div class="phone-row-text">
-            <div class="phone-row-title">Attendance Marked</div>
-            <div class="phone-row-sub">42 students &middot; today</div>
+            <div class="phone-row-title">New Bed Request</div>
+            <div class="phone-row-sub">Rohit Verma &middot; Double sharing &middot; via QR</div>
           </div>
-          <span class="phone-row-pill">Done</span>
+          <span class="phone-row-pill">Review</span>
         </div>
         <div class="phone-row">
           <div class="phone-row-icon">&#x1F4E2;</div>
           <div class="phone-row-text">
             <div class="phone-row-title">Notice Sent</div>
-            <div class="phone-row-sub">Holiday schedule &middot; 80 tenants notified</div>
+            <div class="phone-row-sub">Water supply update &middot; 68 tenants on WhatsApp</div>
           </div>
           <span class="phone-row-pill">Sent</span>
         </div>
@@ -554,23 +554,23 @@
   </div>
 </section>
 
-<!-- ═══ STUDENT TOOLS ═══ -->
+<!-- ═══ OWNER TOOLS ═══ -->
 <section class="section section-alt" id="tools">
   <div class="container">
     <div class="center">
-      <p class="eyebrow">Student Tools</p>
-      <h2 class="sec-title">More than just a PG app</h2>
-      <p class="sec-sub">Students get a complete suite of free productivity and AI tools built right in — no extra downloads needed.</p>
+      <p class="eyebrow">Owner Tools</p>
+      <h2 class="sec-title">More than a rent register</h2>
+      <p class="sec-sub">Everything you need to fill beds, collect rent and keep tenants informed &mdash; built right in.</p>
     </div>
     <div class="tools-grid">
-      <div class="tool-card reveal"><div class="tool-emoji">&#x1F4DD;</div><h4>Image to Text (OCR)</h4><p>Extract text from any photo or image instantly</p></div>
-      <div class="tool-card reveal d1"><div class="tool-emoji">&#x1F4C4;</div><h4>Images to PDF</h4><p>Merge multiple images into a single PDF file</p></div>
-      <div class="tool-card reveal d2"><div class="tool-emoji">&#x2702;&#xFE0F;</div><h4>PDF Page Extractor</h4><p>Pull specific pages out of any PDF document</p></div>
-      <div class="tool-card reveal d3"><div class="tool-emoji">&#x1F5BC;&#xFE0F;</div><h4>PDF to Images</h4><p>Convert every PDF page into an image file</p></div>
-      <div class="tool-card reveal"><div class="tool-emoji">&#x1F4F7;</div><h4>Image Compressor</h4><p>Compress photos down to an exact target size</p></div>
-      <div class="tool-card reveal d1"><div class="tool-emoji">&#x1F916;</div><h4>AI Doubt Solver</h4><p>Ask any study question and get instant AI answers</p></div>
-      <div class="tool-card reveal d2"><div class="tool-emoji">&#x1F9E0;</div><h4>AI Quiz Generator</h4><p>Generate MCQ quizzes from your own study notes</p></div>
-      <div class="tool-card reveal d3"><div class="tool-emoji">&#x1F4F1;</div><h4>QR Code Generator</h4><p>Create and share QR codes in seconds</p></div>
+      <div class="tool-card reveal"><div class="tool-emoji">&#x1F4F1;</div><h4>PG QR Code</h4><p>Print or share your PG&rsquo;s QR so new tenants can join instantly</p></div>
+      <div class="tool-card reveal d1"><div class="tool-emoji">&#x1F6CF;&#xFE0F;</div><h4>Bed Requests</h4><p>Review and approve incoming bed requests in one tap</p></div>
+      <div class="tool-card reveal d2"><div class="tool-emoji">&#x1F4CA;</div><h4>Excel Import</h4><p>Bring existing tenants and stays over from a spreadsheet</p></div>
+      <div class="tool-card reveal d3"><div class="tool-emoji">&#x1F4AC;</div><h4>WhatsApp Notices</h4><p>Deliver notices straight to tenants&rsquo; WhatsApp</p></div>
+      <div class="tool-card reveal"><div class="tool-emoji">&#x23F0;</div><h4>Scheduled Notices</h4><p>Write a notice now and publish it automatically later</p></div>
+      <div class="tool-card reveal d1"><div class="tool-emoji">&#x2705;</div><h4>UPI &amp; Cash Approvals</h4><p>Verify tenant payments and keep dues up to date</p></div>
+      <div class="tool-card reveal d2"><div class="tool-emoji">&#x1F9FE;</div><h4>PDF Invoices</h4><p>Professional rent invoices generated automatically</p></div>
+      <div class="tool-card reveal d3"><div class="tool-emoji">&#x1F4C8;</div><h4>Revenue Analytics</h4><p>Track monthly collections, dues and occupancy trends</p></div>
     </div>
   </div>
 </section>
@@ -586,23 +586,23 @@
     <div class="testi-grid">
       <div class="testi-card reveal">
         <div class="testi-stars">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</div>
-        <blockquote>"Managing 80 students used to be chaos. Now attendance, renewals, and invoices happen automatically. I save hours every week."</blockquote>
+        <blockquote>"Managing 80 beds used to be chaos. Now rent dues, reminders and invoices happen automatically. I save hours every week."</blockquote>
         <div class="testi-author"><div class="testi-avatar av-a">RK</div><div><div class="testi-name">Rajesh Kumar</div><div class="testi-role">PG Owner, Mumbai</div></div></div>
       </div>
       <div class="testi-card reveal d1">
         <div class="testi-stars">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</div>
-        <blockquote>"Revenue analytics and bed occupancy data helped me plan shift timings better. The best &#x20B9;499 I spend every month."</blockquote>
+        <blockquote>"Seeing vacant beds and pending rent in one place changed how I run my PG. The best &#x20B9;499 I spend every month."</blockquote>
         <div class="testi-author"><div class="testi-avatar av-b">PS</div><div><div class="testi-name">Priya Sharma</div><div class="testi-role">PG Manager, Delhi</div></div></div>
       </div>
       <div class="testi-card reveal">
         <div class="testi-stars">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</div>
-        <blockquote>"Job alerts and current affairs in the same app is brilliant. I never miss exam results or admit card dates anymore."</blockquote>
-        <div class="testi-author"><div class="testi-avatar av-c">AP</div><div><div class="testi-name">Amit Patel</div><div class="testi-role">Student, Bengaluru</div></div></div>
+        <blockquote>"I scanned the QR at my PG, requested a bed and was in within a day. Rent dues and notices are always on my phone."</blockquote>
+        <div class="testi-author"><div class="testi-avatar av-c">AP</div><div><div class="testi-name">Amit Patel</div><div class="testi-role">Tenant, Bengaluru</div></div></div>
       </div>
       <div class="testi-card reveal d1">
         <div class="testi-stars">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</div>
         <blockquote>"UPI payments and digital invoices have made my PG feel genuinely professional. Tenants trust the records completely."</blockquote>
-        <div class="testi-author"><div class="testi-avatar av-d">NG</div><div><div class="testi-name">Neha Gupta</div><div class="testi-role">Study Centre, Pune</div></div></div>
+        <div class="testi-author"><div class="testi-avatar av-d">NG</div><div><div class="testi-name">Neha Gupta</div><div class="testi-role">Hostel Owner, Pune</div></div></div>
       </div>
     </div>
   </div>
@@ -626,8 +626,8 @@
         <div class="faq-body">Tenants pay you directly via UPI to your own bank account. Cash payments can also be recorded manually. Either way, the app auto-generates a PDF invoice and updates rent status.</div>
       </details>
       <details class="faq-item reveal">
-        <summary>Is the app available in Hindi?<span class="faq-icon">+</span></summary>
-        <div class="faq-body">Yes — full Hindi and English support across the entire app. Switch languages anytime from settings, and your tenants can view notices and invoices in their preferred language.</div>
+        <summary>Can I send notices on WhatsApp?<span class="faq-icon">+</span></summary>
+        <div class="faq-body">Yes. Every notice reaches tenants in the app, and you can also deliver it to their WhatsApp. Every owner gets free WhatsApp credits to start, and top-up packs begin at just &#x20B9;49.</div>
       </details>
       <details class="faq-item reveal">
         <summary>Will it work on entry-level Android phones?<span class="faq-icon">+</span></summary>
@@ -737,7 +737,7 @@
         <a href="#features">Features</a>
         <a href="#app">Mobile App</a>
         <a href="#pricing">Pricing</a>
-        <a href="#tools">Student Tools</a>
+        <a href="#tools">Owner Tools</a>
         <a href="#faq">FAQ</a>
         <a href="#contact">Contact</a>
         <a href="/privacy">Privacy</a>

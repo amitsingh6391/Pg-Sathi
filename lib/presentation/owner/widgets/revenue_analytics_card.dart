@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -128,7 +128,9 @@ class _RevenueCard extends StatelessWidget {
                     Expanded(
                       child: _EarningsItem(
                         label: 'Today',
-                        amount: indianRupeeCurrencyFormat.format(analytics.todayEarnings),
+                        amount: indianRupeeCurrencyFormat.format(
+                          analytics.todayEarnings,
+                        ),
                         icon: Icons.today_outlined,
                       ),
                     ),
@@ -140,7 +142,9 @@ class _RevenueCard extends StatelessWidget {
                     Expanded(
                       child: _EarningsItem(
                         label: 'This Month',
-                        amount: indianRupeeCurrencyFormat.format(analytics.monthEarnings),
+                        amount: indianRupeeCurrencyFormat.format(
+                          analytics.monthEarnings,
+                        ),
                         icon: Icons.calendar_month_outlined,
                         isPrimary: true,
                       ),

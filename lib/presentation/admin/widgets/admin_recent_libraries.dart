@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/library_summary.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 
-/// Recent libraries section for admin dashboard.
+/// Recently onboarded PGs for the admin console.
 class AdminRecentLibraries extends StatelessWidget {
   const AdminRecentLibraries({
     super.key,
@@ -21,39 +22,40 @@ class AdminRecentLibraries extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text('Recent Libraries', style: AppUIConstants.headingSm),
-            const Spacer(),
-            TextButton(onPressed: onViewAll, child: const Text('View All')),
-          ],
+        PremiumSectionHeader(
+          'Recent PGs',
+          action: 'View all',
+          onAction: onViewAll,
         ),
-        const SizedBox(height: AppUIConstants.spacingSm),
         if (recent.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(AppUIConstants.spacingLg),
-            decoration: AppUIConstants.cardDecoration,
-            child: Center(
-              child: Text(
-                'No libraries yet',
-                style: AppUIConstants.bodyMd.copyWith(
+          PremiumCard(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.apartment_rounded,
+                  size: 32,
                   color: AppUIConstants.textTertiary,
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text('No PGs onboarded yet', style: AppUIConstants.bodyMd),
+              ],
             ),
           )
         else
-          Container(
-            decoration: AppUIConstants.cardDecoration,
+          PremiumCard(
+            padding: EdgeInsets.zero,
             child: Column(
-              children: recent.asMap().entries.map((entry) {
-                final library = entry.value;
-                final isLast = entry.key == recent.length - 1;
-                return _RecentLibraryTile(
-                  library: library,
-                  showDivider: !isLast,
-                );
-              }).toList(),
+              children: [
+                for (var i = 0; i < recent.length; i++) ...[
+                  _RecentLibraryTile(library: recent[i], onTap: onViewAll),
+                  if (i != recent.length - 1)
+                    Divider(
+                      height: 1,
+                      color: AppUIConstants.divider,
+                      indent: 68,
+                    ),
+                ],
+              ],
             ),
           ),
       ],
@@ -62,94 +64,84 @@ class AdminRecentLibraries extends StatelessWidget {
 }
 
 class _RecentLibraryTile extends StatelessWidget {
-  const _RecentLibraryTile({required this.library, this.showDivider = true});
+  const _RecentLibraryTile({required this.library, required this.onTap});
 
   final LibrarySummary library;
-  final bool showDivider;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppUIConstants.spacingMd),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppUIConstants.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
-                ),
-                child: Center(
-                  child: Text(
-                    library.libraryName.isNotEmpty
-                        ? library.libraryName[0].toUpperCase()
-                        : 'L',
-                    style: TextStyle(
-                      color: AppUIConstants.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+    final occ = library.occupancyPercent;
+    final occColor = _getOccupancyColor(occ);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppUIConstants.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                library.libraryName.isNotEmpty
+                    ? library.libraryName[0].toUpperCase()
+                    : 'P',
+                style: const TextStyle(
+                  color: AppUIConstants.primaryLight,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
                 ),
               ),
-              const SizedBox(width: AppUIConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      library.libraryName,
-                      style: AppUIConstants.bodyMd.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '${library.ownerName} • ${library.area ?? ""}',
-                      style: AppUIConstants.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    library.formattedOccupancy,
-                    style: AppUIConstants.bodySm.copyWith(
-                      color: _getOccupancyColor(library.occupancyPercent),
-                      fontWeight: FontWeight.w600,
-                    ),
+                    library.libraryName,
+                    style: AppUIConstants.bodyLg,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    '${library.totalSeats} seats',
+                    [
+                      library.ownerName,
+                      if ((library.area ?? '').isNotEmpty) library.area!,
+                    ].join(' \u2022 '),
                     style: AppUIConstants.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                PremiumStatusPill(library.formattedOccupancy, color: occColor),
+                const SizedBox(height: 4),
+                Text(
+                  '${library.totalSeats} beds',
+                  style: AppUIConstants.caption,
+                ),
+              ],
+            ),
+          ],
         ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            color: AppUIConstants.divider,
-            indent: AppUIConstants.spacingMd,
-            endIndent: AppUIConstants.spacingMd,
-          ),
-      ],
+      ),
     );
   }
 
   Color _getOccupancyColor(double percent) {
     if (percent >= 80) return AppUIConstants.success;
-    if (percent >= 50) return AppUIConstants.accent;
+    if (percent >= 50) return AppUIConstants.primaryLight;
     if (percent >= 25) return AppUIConstants.warning;
     return AppUIConstants.textTertiary;
   }

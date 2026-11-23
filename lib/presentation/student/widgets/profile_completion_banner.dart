@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/user.dart';
 import '../../core/app_ui_constants.dart';
 
-/// Non-blocking banner to encourage profile completion - minimal design.
+/// Non-blocking banner nudging the resident to finish their profile.
 class ProfileCompletionBanner extends StatelessWidget {
   const ProfileCompletionBanner({
     super.key,
@@ -22,48 +22,70 @@ class ProfileCompletionBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppUIConstants.spacingLg),
       padding: const EdgeInsets.all(AppUIConstants.spacingLg),
       decoration: BoxDecoration(
-        color: AppUIConstants.warning.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-        border: Border.all(
-          color: AppUIConstants.warning.withValues(alpha: 0.2),
-        ),
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+        border: Border.all(color: AppUIConstants.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.person_outline_rounded,
-            color: AppUIConstants.warning,
-            size: 20,
-          ),
-          const SizedBox(width: AppUIConstants.spacingMd),
-          Expanded(
-            child: Text(
-              'Complete your profile',
-              style: AppUIConstants.bodyLg.copyWith(
-                fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppUIConstants.surfaceMuted,
+                  borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+                ),
+                child: const Icon(
+                  Icons.badge_outlined,
+                  color: AppUIConstants.primaryLight,
+                  size: 20,
+                ),
               ),
-            ),
-          ),
-          TextButton(
-            onPressed: onSkip,
-            style: TextButton.styleFrom(
-              foregroundColor: AppUIConstants.textSecondary,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            child: const Text('Skip'),
-          ),
-          ElevatedButton(
-            onPressed: onComplete,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppUIConstants.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+              const SizedBox(width: AppUIConstants.spacingMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Complete your profile',
+                      style: AppUIConstants.bodyLg.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Help your PG owner know you better.',
+                      style: AppUIConstants.bodySm,
+                    ),
+                  ],
+                ),
               ),
-              elevation: 0,
-            ),
-            child: const Text('Complete', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: AppUIConstants.spacingMd),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: onSkip,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppUIConstants.textSecondary,
+                ),
+                child: const Text('Skip'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: onComplete,
+                style: AppUIConstants.accentButtonStyle.copyWith(
+                  padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  ),
+                ),
+                child: const Text('Complete'),
+              ),
+            ],
           ),
         ],
       ),

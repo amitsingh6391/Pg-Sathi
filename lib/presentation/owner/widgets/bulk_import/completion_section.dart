@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/app_ui_constants.dart';
 import '../../cubit/bulk_import_state.dart';
 import '../../models/import_row_data.dart';
+import '../../../core/widgets/premium_kit.dart';
 import 'summary_card.dart';
 
 /// Completion section showing import results.
@@ -15,7 +16,9 @@ class CompletionSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final summary = state.importSummary;
     if (summary == null) {
-      return const Center(child: Text('No summary available'));
+      return const Center(
+        child: Text('No summary available', style: AppUIConstants.bodyMd),
+      );
     }
 
     return SingleChildScrollView(
@@ -24,18 +27,33 @@ class CompletionSection extends StatelessWidget {
         children: [
           // Success header
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.green.shade600, Colors.green.shade400],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
+              color: AppUIConstants.surface,
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+              boxShadow: [
+                BoxShadow(
+                  color: AppUIConstants.primary.withValues(alpha: 0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               children: [
-                const Icon(Icons.check_circle, size: 64, color: Colors.white),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    size: 44,
+                    color: Colors.white,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Import Complete!',
@@ -47,9 +65,9 @@ class CompletionSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${summary.successCount} students imported successfully',
+                  '${summary.successCount} residents imported successfully',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
@@ -65,21 +83,21 @@ class CompletionSection extends StatelessWidget {
                 icon: Icons.check_circle,
                 label: 'Imported',
                 value: summary.successCount.toString(),
-                color: Colors.green,
+                color: AppUIConstants.success,
               ),
               const SizedBox(width: 12),
               SummaryCard(
                 icon: Icons.skip_next,
                 label: 'Skipped',
                 value: summary.skippedCount.toString(),
-                color: Colors.orange,
+                color: AppUIConstants.primaryLight,
               ),
               const SizedBox(width: 12),
               SummaryCard(
                 icon: Icons.error,
                 label: 'Failed',
                 value: summary.failedCount.toString(),
-                color: Colors.red,
+                color: AppUIConstants.error,
               ),
             ],
           ),
@@ -87,17 +105,17 @@ class CompletionSection extends StatelessWidget {
           Row(
             children: [
               SummaryCard(
-                icon: Icons.person_add,
-                label: 'New Students',
+                icon: Icons.person_add_alt_1_rounded,
+                label: 'New Residents',
                 value: summary.studentsCreated.toString(),
-                color: Colors.blue,
+                color: AppUIConstants.primaryLight,
               ),
               const SizedBox(width: 12),
               SummaryCard(
-                icon: Icons.person,
+                icon: Icons.person_rounded,
                 label: 'Existing',
                 value: summary.studentsReused.toString(),
-                color: Colors.purple,
+                color: AppUIConstants.primaryLight,
               ),
             ],
           ),
@@ -105,11 +123,10 @@ class CompletionSection extends StatelessWidget {
 
           // Results list
           if (summary.results.any((r) => r.status != ImportStatus.success)) ...[
-            const Text(
-              'Details',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: PremiumSectionHeader('Needs attention'),
             ),
-            const SizedBox(height: 12),
             ...summary.results
                 .where((r) => r.status != ImportStatus.success)
                 .map((r) => _ResultCard(result: r)),
@@ -118,7 +135,6 @@ class CompletionSection extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Banner ad - shown after successful import
-
           const SizedBox(height: 20),
 
           // Done button
@@ -126,14 +142,7 @@ class CompletionSection extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppUIConstants.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+              style: AppUIConstants.primaryButtonStyle,
               child: const Text(
                 'Done',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -155,26 +164,36 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = result.status == ImportStatus.skipped
-        ? Colors.orange
-        : Colors.red;
+        ? AppUIConstants.primaryLight
+        : AppUIConstants.error;
     final icon = result.status == ImportStatus.skipped
         ? Icons.skip_next
         : Icons.error;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: color.withValues(alpha: 0.3)),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text('Row ${result.rowIndex}'),
-        subtitle: Text(result.message ?? ''),
-        trailing: Text(
-          result.phone,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Row ${result.rowIndex}', style: AppUIConstants.bodyLg),
+                if ((result.message ?? '').isNotEmpty)
+                  Text(result.message!, style: AppUIConstants.bodySm),
+              ],
+            ),
+          ),
+          Text(result.phone, style: AppUIConstants.bodySm),
+        ],
       ),
     );
   }

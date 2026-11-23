@@ -12,8 +12,7 @@ import 'package:pg_manager/domain/entities/slot.dart' as _i7;
 import 'package:pg_manager/domain/entities/user.dart' as _i9;
 import 'package:pg_manager/domain/repositories/membership_repository.dart'
     as _i3;
-import 'package:pg_manager/domain/repositories/user_repository.dart'
-    as _i8;
+import 'package:pg_manager/domain/repositories/user_repository.dart' as _i8;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint

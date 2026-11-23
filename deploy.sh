@@ -62,6 +62,9 @@ cp web/manifest.json build/deploy/manifest.json
 cp web/app-ads.txt build/deploy/app-ads.txt
 cp -r web/icons build/deploy/icons
 
+# 2b. Copy app-link verification files (Android App Links / iOS Universal Links)
+cp -r landing/.well-known build/deploy/.well-known
+
 # 3. Copy landing page assets (logos, screenshots)
 mkdir -p build/deploy/assets/web_landing
 cp -r assets/web_landing/logos build/deploy/assets/web_landing/logos

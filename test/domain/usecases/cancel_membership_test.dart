@@ -50,24 +50,21 @@ void main() {
       },
     );
 
-    test(
-      'should_return_MembershipNotFoundFailure_when_not_found',
-      () async {
-        when(
-          mockRepo.getMembershipById(any),
-        ).thenAnswer((_) async => const Left(MembershipNotFoundFailure()));
+    test('should_return_MembershipNotFoundFailure_when_not_found', () async {
+      when(
+        mockRepo.getMembershipById(any),
+      ).thenAnswer((_) async => const Left(MembershipNotFoundFailure()));
 
-        final params = CancelMembershipParams(membershipId: 'mem-1');
+      final params = CancelMembershipParams(membershipId: 'mem-1');
 
-        final result = await useCase(params);
+      final result = await useCase(params);
 
-        expect(result.isLeft(), true);
-        result.fold(
-          (l) => expect(l, isA<MembershipNotFoundFailure>()),
-          (r) => fail('Should not return success'),
-        );
-      },
-    );
+      expect(result.isLeft(), true);
+      result.fold(
+        (l) => expect(l, isA<MembershipNotFoundFailure>()),
+        (r) => fail('Should not return success'),
+      );
+    });
 
     test(
       'should_return_MembershipNotActiveFailure_when_status_is_cancelled',

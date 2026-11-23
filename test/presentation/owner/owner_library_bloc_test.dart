@@ -1,12 +1,13 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pg_manager/data/services/owner_branch_selection_service.dart';
 import 'package:pg_manager/domain/entities/library.dart';
 import 'package:pg_manager/domain/entities/library_stats.dart';
 import 'package:pg_manager/domain/failures/library_failures.dart';
 import 'package:pg_manager/domain/usecases/create_library.dart';
 import 'package:pg_manager/domain/usecases/get_library_stats.dart';
-import 'package:pg_manager/domain/usecases/get_owner_library.dart';
+import 'package:pg_manager/domain/usecases/get_owner_libraries.dart';
 import 'package:pg_manager/domain/usecases/update_library.dart';
 import 'package:pg_manager/presentation/owner/bloc/owner_library_bloc.dart';
 import 'package:pg_manager/presentation/owner/bloc/owner_library_event.dart';
@@ -16,25 +17,41 @@ import 'package:mockito/mockito.dart';
 
 import 'owner_library_bloc_test.mocks.dart';
 
-@GenerateMocks([GetOwnerLibrary, GetLibraryStats, CreateLibrary, UpdateLibrary])
+@GenerateMocks([
+  GetOwnerLibraries,
+  GetLibraryStats,
+  CreateLibrary,
+  UpdateLibrary,
+  OwnerBranchSelectionService,
+])
 void main() {
   late OwnerLibraryBloc bloc;
-  late MockGetOwnerLibrary mockGetOwnerLibrary;
+  late MockGetOwnerLibraries mockGetOwnerLibraries;
   late MockGetLibraryStats mockGetLibraryStats;
   late MockCreateLibrary mockCreateLibrary;
   late MockUpdateLibrary mockUpdateLibrary;
+  late MockOwnerBranchSelectionService mockBranchSelectionService;
 
   setUp(() {
-    mockGetOwnerLibrary = MockGetOwnerLibrary();
+    mockGetOwnerLibraries = MockGetOwnerLibraries();
     mockGetLibraryStats = MockGetLibraryStats();
     mockCreateLibrary = MockCreateLibrary();
     mockUpdateLibrary = MockUpdateLibrary();
+    mockBranchSelectionService = MockOwnerBranchSelectionService();
+
+    when(
+      mockBranchSelectionService.setSelectedLibraryId(any, any),
+    ).thenAnswer((_) async {});
+    when(
+      mockBranchSelectionService.getSelectedLibraryId(any),
+    ).thenReturn(null);
 
     bloc = OwnerLibraryBloc(
-      getOwnerLibrary: mockGetOwnerLibrary,
+      getOwnerLibraries: mockGetOwnerLibraries,
       getLibraryStats: mockGetLibraryStats,
       createLibrary: mockCreateLibrary,
       updateLibrary: mockUpdateLibrary,
+      branchSelectionService: mockBranchSelectionService,
     );
   });
 
@@ -51,6 +68,15 @@ void main() {
     fullAddress: 'Test Full Address',
     area: 'Test Area',
     capacity: 50,
+  );
+
+  final secondLibrary = Library(
+    id: 'library-456',
+    ownerId: ownerId,
+    name: 'Second Branch',
+    fullAddress: 'Second Full Address',
+    area: 'Second Area',
+    capacity: 30,
   );
 
   const testStats = LibraryStats(
@@ -71,8 +97,8 @@ void main() {
         'emits_loaded_with_library_when_exists',
         build: () {
           when(
-            mockGetOwnerLibrary(any),
-          ).thenAnswer((_) async => Right(testLibrary));
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => Right([testLibrary]));
           when(
             mockGetLibraryStats(any),
           ).thenAnswer((_) async => const Right(testStats));
@@ -89,11 +115,7 @@ void main() {
               .having((s) => s.status, 'status', OwnerLibraryStatus.loaded)
               .having((s) => s.library, 'library', testLibrary)
               .having((s) => s.stats.totalSeats, 'totalSeats', 50)
-              .having(
-                (s) => s.stats.occupiedSeats,
-                'occupiedSeats',
-                10,
-              ), // 5 + 5
+              .having((s) => s.stats.occupiedSeats, 'occupiedSeats', 5),
         ],
       );
 
@@ -101,8 +123,8 @@ void main() {
         'emits_loaded_without_library_when_none_exists',
         build: () {
           when(
-            mockGetOwnerLibrary(any),
-          ).thenAnswer((_) async => const Right(null));
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => const Right([]));
           return bloc;
         },
         act: (bloc) => bloc.add(const LoadOwnerLibrary(ownerId: ownerId)),
@@ -122,7 +144,7 @@ void main() {
         'emits_error_when_loading_fails',
         build: () {
           when(
-            mockGetOwnerLibrary(any),
+            mockGetOwnerLibraries(any),
           ).thenAnswer((_) async => const Left(LibraryNotFoundFailure()));
           return bloc;
         },
@@ -142,6 +164,90 @@ void main() {
               ),
         ],
       );
+
+      blocTest<OwnerLibraryBloc, OwnerLibraryState>(
+        'restores_persisted_selection_when_branch_still_exists',
+        build: () {
+          when(
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => Right([testLibrary, secondLibrary]));
+          when(
+            mockBranchSelectionService.getSelectedLibraryId(ownerId),
+          ).thenReturn(secondLibrary.id);
+          when(
+            mockGetLibraryStats(any),
+          ).thenAnswer((_) async => const Right(testStats));
+          return bloc;
+        },
+        act: (bloc) => bloc.add(const LoadOwnerLibrary(ownerId: ownerId)),
+        expect: () => [
+          isA<OwnerLibraryState>().having(
+            (s) => s.status,
+            'status',
+            OwnerLibraryStatus.loading,
+          ),
+          isA<OwnerLibraryState>()
+              .having((s) => s.status, 'status', OwnerLibraryStatus.loaded)
+              .having((s) => s.selectedLibraryIndex, 'index', 1)
+              .having((s) => s.library, 'library', secondLibrary),
+        ],
+      );
+
+      blocTest<OwnerLibraryBloc, OwnerLibraryState>(
+        'falls_back_to_first_branch_when_persisted_branch_no_longer_exists',
+        build: () {
+          when(
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => Right([testLibrary, secondLibrary]));
+          when(
+            mockBranchSelectionService.getSelectedLibraryId(ownerId),
+          ).thenReturn('library-deleted');
+          when(
+            mockGetLibraryStats(any),
+          ).thenAnswer((_) async => const Right(testStats));
+          return bloc;
+        },
+        act: (bloc) => bloc.add(const LoadOwnerLibrary(ownerId: ownerId)),
+        expect: () => [
+          isA<OwnerLibraryState>().having(
+            (s) => s.status,
+            'status',
+            OwnerLibraryStatus.loading,
+          ),
+          isA<OwnerLibraryState>()
+              .having((s) => s.status, 'status', OwnerLibraryStatus.loaded)
+              .having((s) => s.selectedLibraryIndex, 'index', 0)
+              .having((s) => s.library, 'library', testLibrary),
+        ],
+      );
+    });
+
+    group('SelectLibrary', () {
+      blocTest<OwnerLibraryBloc, OwnerLibraryState>(
+        'persists_chosen_branch',
+        build: () {
+          when(
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => Right([testLibrary, secondLibrary]));
+          when(
+            mockGetLibraryStats(any),
+          ).thenAnswer((_) async => const Right(testStats));
+          return bloc;
+        },
+        act: (bloc) async {
+          bloc.add(const LoadOwnerLibrary(ownerId: ownerId));
+          await Future.delayed(const Duration(milliseconds: 100));
+          bloc.add(const SelectLibrary(index: 1));
+        },
+        verify: (_) {
+          verify(
+            mockBranchSelectionService.setSelectedLibraryId(
+              ownerId,
+              secondLibrary.id,
+            ),
+          ).called(1);
+        },
+      );
     });
 
     group('CreateLibraryRequested', () {
@@ -149,8 +255,8 @@ void main() {
         'emits_success_when_library_created',
         build: () {
           when(
-            mockGetOwnerLibrary(any),
-          ).thenAnswer((_) async => const Right(null));
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => const Right([]));
           when(
             mockCreateLibrary(any),
           ).thenAnswer((_) async => Right(testLibrary));
@@ -177,8 +283,8 @@ void main() {
         'emits_failure_when_create_fails',
         build: () {
           when(
-            mockGetOwnerLibrary(any),
-          ).thenAnswer((_) async => const Right(null));
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => const Right([]));
           when(mockCreateLibrary(any)).thenAnswer(
             (_) async => const Left(
               LibraryAlreadyExistsFailure(message: 'Already exists'),
@@ -229,8 +335,8 @@ void main() {
         'emits_success_when_library_updated',
         build: () {
           when(
-            mockGetOwnerLibrary(any),
-          ).thenAnswer((_) async => Right(testLibrary));
+            mockGetOwnerLibraries(any),
+          ).thenAnswer((_) async => Right([testLibrary]));
           when(
             mockGetLibraryStats(any),
           ).thenAnswer((_) async => const Right(testStats));

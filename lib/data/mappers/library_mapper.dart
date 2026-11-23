@@ -31,6 +31,7 @@ class LibraryMapper {
       isProfileComplete: dto.isProfileComplete,
       ownerPhone: dto.ownerPhone,
       ownerUpiId: dto.ownerUpiId,
+      ownerUpiQrUrl: dto.ownerUpiQrUrl,
       // Custom Pricing
       customMonthlyPrice: dto.customMonthlyPrice,
       customDiscount: dto.customDiscount != null
@@ -74,6 +75,7 @@ class LibraryMapper {
       isProfileComplete: entity.isProfileComplete,
       ownerPhone: entity.ownerPhone,
       ownerUpiId: entity.ownerUpiId,
+      ownerUpiQrUrl: entity.ownerUpiQrUrl,
       // Custom Pricing
       customMonthlyPrice: entity.customMonthlyPrice,
       customDiscount: entity.customDiscount != null

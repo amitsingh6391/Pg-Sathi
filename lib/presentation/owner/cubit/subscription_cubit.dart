@@ -485,7 +485,7 @@ class SubscriptionCubit extends Cubit<SubscriptionState> {
 
         // Track subscription purchased
         await analyticsService.trackSubscriptionPurchased(
-          subscriptionPlan: '${subscription.seatCount} seats',
+          subscriptionPlan: '${subscription.seatCount} beds',
           amount: subscription.finalAmount,
           duration: '${subscription.durationInMonths} months',
         );

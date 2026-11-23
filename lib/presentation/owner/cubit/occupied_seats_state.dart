@@ -5,14 +5,7 @@ import '../../../domain/entities/slot.dart';
 import '../../../domain/usecases/get_occupied_seats.dart';
 
 /// Sorting options for occupied seats.
-enum SortBy {
-  seatNumber,
-  dateExpiring,
-  status,
-  name,
-  daysRemaining,
-  addedDate,
-}
+enum SortBy { seatNumber, dateExpiring, status, name, daysRemaining, addedDate }
 
 /// State for occupied seats cubit.
 /// Using Cubit: Simple linear flow - load list, perform action, refresh.

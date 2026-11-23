@@ -106,19 +106,25 @@ void main() {
     });
 
     group('business rules', () {
-      test('should_return_failure_when_owner_already_has_library', () async {
+      test('should_allow_new_branch_when_owner_already_has_library', () async {
         when(
           mockLibraryRepo.ownerHasLibrary(any),
         ).thenAnswer((_) async => const Right(true));
+        when(
+          mockLibraryRepo.createLibrary(any),
+        ).thenAnswer((_) async => Right(testLibrary));
+        when(
+          mockSeatRepo.createSeats(
+            libraryId: anyNamed('libraryId'),
+            count: anyNamed('count'),
+          ),
+        ).thenAnswer((_) async => const Right(<Seat>[]));
 
         final result = await useCase(CreateLibraryParams(library: testLibrary));
 
-        expect(result.isLeft(), true);
-        result.fold(
-          (l) => expect(l, isA<LibraryAlreadyExistsFailure>()),
-          (r) => fail('Should return failure'),
-        );
-        verifyNever(mockLibraryRepo.createLibrary(any));
+        expect(result.isRight(), true);
+        verify(mockLibraryRepo.createLibrary(any)).called(1);
+        verifyNever(mockLibraryRepo.ownerHasLibrary(any));
       });
 
       test(

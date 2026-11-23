@@ -8,10 +8,9 @@ import '../../core/constants/app_constants.dart';
 
 class AppRatingService {
   AppRatingService({InAppReview? inAppReview})
-      : _inAppReview = inAppReview ?? InAppReview.instance;
+    : _inAppReview = inAppReview ?? InAppReview.instance;
 
   final InAppReview _inAppReview;
-
 
   Future<bool> requestReview() async {
     if (kIsWeb) return false;
@@ -36,11 +35,9 @@ class AppRatingService {
 
     try {
       final uri = Uri.parse(
-        Platform.isIOS
-            ? AppConstants.appStoreUrl
-            : AppConstants.playStoreUrl,
+        Platform.isIOS ? AppConstants.appStoreUrl : AppConstants.playStoreUrl,
       );
-      return launchUrl(uri, mode: LaunchMode.externalApplication);
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
       debugPrint('AppRatingService: Failed to open store listing: $e');
       return false;

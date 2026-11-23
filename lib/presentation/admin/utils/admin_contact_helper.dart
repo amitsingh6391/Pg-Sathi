@@ -36,22 +36,22 @@ class AdminContactHelper {
     return cleaned;
   }
 
-  /// Generates WhatsApp message for student to download app.
+  /// Generates WhatsApp message asking a resident to download the app.
   static String generateAppDownloadMessage({
     required String studentName,
     required String libraryName,
   }) {
     return '''Hi $studentName! 👋
 
-Your library *$libraryName* uses our official app to manage memberships and seat bookings.
+Your PG *$libraryName* uses our official app to manage stays and rent.
 
 📱 *Download the app now:*
 • Android: ${AppConstants.playStoreUrl}
 • iOS: ${AppConstants.appStoreUrl}
 
-Manage your membership, book seats, and make payments - all in one place!
+Check your stay, pay rent and get notices from your PG - all in one place!
 
-Thank you! 📚''';
+Thank you! 🏠''';
   }
 
   /// Builds WhatsApp URL with app download message.

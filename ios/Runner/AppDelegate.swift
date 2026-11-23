@@ -5,13 +5,41 @@ import FirebaseMessaging
 import UserNotifications
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  // UIScene lifecycle: plugins are registered once the implicit engine exists.
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    registerWhatsAppShareChannel(engineBridge.pluginRegistry)
+  }
+
+  /// Copies the owner's UPI QR image to the clipboard so it can be pasted
+  /// into a resident's WhatsApp chat (rent reminders).
+  private func registerWhatsAppShareChannel(_ registry: FlutterPluginRegistry) {
+    guard let registrar = registry.registrar(forPlugin: "WhatsAppShare") else { return }
+    let channel = FlutterMethodChannel(
+      name: "in.pgsathi.app/whatsapp_share",
+      binaryMessenger: registrar.messenger()
+    )
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "copyImageToClipboard" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let args = call.arguments as? [String: Any],
+            let path = args["filePath"] as? String,
+            let image = UIImage(contentsOfFile: path) else {
+        result(FlutterError(code: "invalid_image", message: "Could not read the QR image", details: nil))
+        return
+      }
+      UIPasteboard.general.image = image
+      result(true)
+    }
+  }
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-
     // Set UNUserNotificationCenter delegate
     // This is required for handling notifications when app is in foreground
     if #available(iOS 10.0, *) {

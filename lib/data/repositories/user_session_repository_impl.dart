@@ -84,7 +84,10 @@ class UserSessionRepositoryImpl implements UserSessionRepository {
     try {
       final snapshot = await _sessionsRef
           .where('userId', isEqualTo: userId)
-          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where(
+            'startTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .orderBy('startTime', descending: true)
           .get();
@@ -108,7 +111,10 @@ class UserSessionRepositoryImpl implements UserSessionRepository {
     try {
       final snapshot = await _sessionsRef
           .where('role', isEqualTo: 'student')
-          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where(
+            'startTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .get();
 
@@ -131,7 +137,10 @@ class UserSessionRepositoryImpl implements UserSessionRepository {
     try {
       final snapshot = await _sessionsRef
           .where('role', isEqualTo: 'owner')
-          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where(
+            'startTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .get();
 

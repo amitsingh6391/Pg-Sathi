@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/entities/admin_dashboard_stats.dart';
@@ -38,11 +38,9 @@ class AdminPlatformOverview extends StatelessWidget {
   }
 
   void _navigateToOwners(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const AdminOwnersDetailsScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AdminOwnersDetailsScreen()));
   }
 
   @override
@@ -117,7 +115,7 @@ class AdminPlatformOverview extends StatelessWidget {
           children: [
             Icon(
               Icons.info_outline,
-              color: AppUIConstants.primary,
+              color: AppUIConstants.primaryLight,
               size: 24,
             ),
             const SizedBox(width: AppUIConstants.spacingSm),
@@ -130,18 +128,17 @@ class AdminPlatformOverview extends StatelessWidget {
           children: [
             _InfoItem(
               title: 'Libraries',
-              description: 'Total number of registered libraries on the platform.',
+              description: 'Total number of registered PGs on the platform.',
             ),
             const SizedBox(height: AppUIConstants.spacingMd),
             _InfoItem(
               title: 'Students',
-              description:
-                  'Total number of students with active memberships.',
+              description: 'Total number of tenants with active stays.',
             ),
             const SizedBox(height: AppUIConstants.spacingMd),
             _InfoItem(
               title: 'Owners',
-              description: 'Total number of library owners registered.',
+              description: 'Total number of PG owners registered.',
             ),
           ],
         ),
@@ -227,18 +224,10 @@ class _TappableMetricCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.08),
+                  color: AppUIConstants.surfaceMuted,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.15),
-                    width: 1,
-                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 20,
-                ),
+                child: Icon(icon, color: AppUIConstants.primaryLight, size: 20),
               ),
               const SizedBox(height: AppUIConstants.spacingMd),
               Text(

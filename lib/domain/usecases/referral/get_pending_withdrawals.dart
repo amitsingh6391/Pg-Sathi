@@ -12,9 +12,7 @@ class GetPendingWithdrawals
   final ReferralRepository referralRepository;
 
   @override
-  Future<Either<Failure, List<WithdrawalRequest>>> call(
-    NoParams params,
-  ) async {
+  Future<Either<Failure, List<WithdrawalRequest>>> call(NoParams params) async {
     return referralRepository.getAllPendingWithdrawals();
   }
 }

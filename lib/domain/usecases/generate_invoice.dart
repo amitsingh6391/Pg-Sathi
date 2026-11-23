@@ -170,7 +170,7 @@ class GenerateInvoice implements UseCase<Invoice, GenerateInvoiceParams> {
 
           // Save invoice
           final result = await invoiceRepository.createInvoice(invoice);
-          
+
           // Track invoice generation on success
           result.fold(
             (_) => null, // Don't track on failure
@@ -185,7 +185,7 @@ class GenerateInvoice implements UseCase<Invoice, GenerateInvoiceParams> {
               },
             ),
           );
-          
+
           return result;
         });
       });
@@ -251,16 +251,10 @@ class GenerateInvoice implements UseCase<Invoice, GenerateInvoiceParams> {
       final slotResult = await slotRepository.getSlotById(libraryId, slotId);
       return slotResult.fold((failure) => Left(failure), (slot) {
         if (slot != null) {
-          return Right({
-            'name': slot.name,
-            'timing': slot.displayTime,
-          });
+          return Right({'name': slot.name, 'timing': slot.displayTime});
         }
         // Fallback if slot not found
-        return const Right({
-          'name': 'Custom Slot',
-          'timing': 'Not assigned',
-        });
+        return const Right({'name': 'Custom Slot', 'timing': 'Not assigned'});
       });
     }
 
@@ -281,10 +275,7 @@ class GenerateInvoice implements UseCase<Invoice, GenerateInvoiceParams> {
     }
 
     // Fallback if no slot information
-    return const Right({
-      'name': 'Not assigned',
-      'timing': 'Not assigned',
-    });
+    return const Right({'name': 'Not assigned', 'timing': 'Not assigned'});
   }
 
   /// Determines invoice type based on payment details.

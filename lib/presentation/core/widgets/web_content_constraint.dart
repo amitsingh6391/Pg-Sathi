@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../app_ui_constants.dart';
 
 /// Maximum content width for web platforms.
 /// This creates a tablet-like experience on large screens.
@@ -43,15 +45,22 @@ class WebContentConstraint extends StatelessWidget {
       return child;
     }
 
-    // On web, apply max-width constraint with centered layout
-    final theme = Theme.of(context);
-    final bgColor = backgroundColor ?? theme.scaffoldBackgroundColor;
+    // On web, apply max-width constraint with centered layout. The gutter
+    // outside the column is the ink background; the column gets hairline
+    // edges so it reads as a device-like panel.
+    final bgColor = backgroundColor ?? AppUIConstants.background;
 
     return ColoredBox(
       color: bgColor,
       child: Center(
-        child: SizedBox(
+        child: Container(
           width: maxWidth,
+          decoration: const BoxDecoration(
+            color: AppUIConstants.background,
+            border: Border.symmetric(
+              vertical: BorderSide(color: AppUIConstants.divider),
+            ),
+          ),
           child: child,
         ),
       ),
@@ -65,10 +74,7 @@ class WebContentConstraint extends StatelessWidget {
 /// max-width constraint on web while allowing other routes (like the
 /// landing page) to remain full-width.
 class WebConstrainedShell extends StatelessWidget {
-  const WebConstrainedShell({
-    super.key,
-    required this.child,
-  });
+  const WebConstrainedShell({super.key, required this.child});
 
   final Widget child;
 

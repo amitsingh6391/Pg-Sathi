@@ -1,12 +1,12 @@
 import 'dart:developer';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../domain/core/failure.dart';
 import '../../domain/entities/invoice.dart';
+import '../../domain/entities/notice_whatsapp_result.dart';
 import '../../domain/repositories/whatsapp_notification_repository.dart';
 import '../failures/data_failures.dart';
 
@@ -14,16 +14,9 @@ class WhatsAppNotificationRepositoryImpl
     implements WhatsAppNotificationRepository {
   const WhatsAppNotificationRepositoryImpl({
     required FirebaseFunctions functions,
-    required FirebaseFirestore firestore,
-  })  : _functions = functions,
-        _firestore = firestore;
+  }) : _functions = functions;
 
   final FirebaseFunctions _functions;
-  final FirebaseFirestore _firestore;
-
-  /// Free WhatsApp notice broadcasts allowed per library per month.
-  /// Mirrors MAX_NOTICE_WHATSAPP_PER_MONTH in functions/whatsapp.js.
-  static const int maxNoticeWhatsAppPerMonth = 5;
 
   @override
   Future<Either<Failure, void>> sendInvoiceWhatsApp(Invoice invoice) async {
@@ -87,13 +80,9 @@ class WhatsAppNotificationRepositoryImpl
   }
 
   @override
-  Future<Either<Failure, NoticeWhatsAppResult>> sendNoticeWhatsApp({
-    required String libraryId,
-    required String noticeId,
-    required String libraryName,
-    required String title,
-    required String description,
-  }) async {
+  Future<Either<Failure, NoticeWhatsAppResult>> sendNoticeWhatsApp(
+    String noticeId,
+  ) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       log('[WhatsApp] Notice skipped — no authenticated user');
@@ -108,58 +97,26 @@ class WhatsAppNotificationRepositoryImpl
 
     try {
       log('[WhatsApp] Calling sendWhatsAppNotice for notice $noticeId');
-      final callable = _functions.httpsCallable(
-        'sendWhatsAppNotice',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 300)),
-      );
-      final result = await callable.call<Map<String, dynamic>>({
-        'libraryId': libraryId,
-        'noticeId': noticeId,
-        'libraryName': libraryName,
-        'title': title,
-        'description': description,
-      });
-      final data = result.data;
-      log('[WhatsApp] sendWhatsAppNotice result: $data');
-      return Right(
-        NoticeWhatsAppResult(
-          sent: (data['sent'] as num?)?.toInt() ?? 0,
-          failed: (data['failed'] as num?)?.toInt() ?? 0,
-          remaining: (data['remaining'] as num?)?.toInt() ?? 0,
-          skippedReason:
-              data['skipped'] == true ? (data['reason'] as String?) : null,
-        ),
-      );
+      final result = await _functions
+          .httpsCallable(
+            'sendWhatsAppNotice',
+            options: HttpsCallableOptions(timeout: const Duration(minutes: 9)),
+          )
+          .call<Map<String, dynamic>>({'noticeId': noticeId});
+      log('[WhatsApp] sendWhatsAppNotice result: ${result.data}');
+      return Right(NoticeWhatsAppResult.fromMap(result.data));
     } on FirebaseFunctionsException catch (e) {
-      log('[WhatsApp] Notice FirebaseFunctionsException [${e.code}]: ${e.message}');
+      log(
+        '[WhatsApp] Notice FirebaseFunctionsException [${e.code}]: ${e.message}',
+      );
       return Left(
-        ServerFailure(message: 'WhatsApp notice failed [${e.code}]: ${e.message}'),
+        ServerFailure(
+          message: 'WhatsApp notice failed [${e.code}]: ${e.message}',
+        ),
       );
     } catch (e, st) {
       log('[WhatsApp] Notice unexpected error: $e', stackTrace: st);
       return Left(ServerFailure(message: 'WhatsApp notice error: $e'));
-    }
-  }
-
-  @override
-  Future<Either<Failure, int>> getRemainingNoticeQuota(String libraryId) async {
-    try {
-      final now = DateTime.now();
-      final monthKey =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}';
-      final snap = await _firestore
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('whatsapp_notice_quota')
-          .doc(monthKey)
-          .get();
-      final used = snap.exists ? ((snap.data()?['count'] as num?)?.toInt() ?? 0) : 0;
-      final remaining = maxNoticeWhatsAppPerMonth - used;
-      return Right(remaining < 0 ? 0 : remaining);
-    } catch (e) {
-      log('[WhatsApp] Notice quota read failed: $e');
-      // Non-fatal — assume full quota so the UI stays usable.
-      return const Right(maxNoticeWhatsAppPerMonth);
     }
   }
 

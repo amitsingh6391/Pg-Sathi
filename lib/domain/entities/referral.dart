@@ -105,9 +105,7 @@ class ReferralRedemption extends Equatable {
   bool get isConverted => status == ReferralRedemptionStatus.converted;
   bool get isPending => status == ReferralRedemptionStatus.pending;
 
-  ReferralRedemption markConverted({
-    required String subscriptionId,
-  }) {
+  ReferralRedemption markConverted({required String subscriptionId}) {
     return ReferralRedemption(
       id: id,
       referralCode: referralCode,
@@ -235,25 +233,25 @@ class WithdrawalRequest extends Equatable {
   bool get isRejected => status == WithdrawalStatus.rejected;
 
   WithdrawalRequest approve() => WithdrawalRequest(
-        id: id,
-        ownerId: ownerId,
-        amount: amount,
-        status: WithdrawalStatus.approved,
-        upiId: upiId,
-        processedAt: DateTime.now(),
-        createdAt: createdAt,
-      );
+    id: id,
+    ownerId: ownerId,
+    amount: amount,
+    status: WithdrawalStatus.approved,
+    upiId: upiId,
+    processedAt: DateTime.now(),
+    createdAt: createdAt,
+  );
 
   WithdrawalRequest reject(String reason) => WithdrawalRequest(
-        id: id,
-        ownerId: ownerId,
-        amount: amount,
-        status: WithdrawalStatus.rejected,
-        upiId: upiId,
-        processedAt: DateTime.now(),
-        rejectionReason: reason,
-        createdAt: createdAt,
-      );
+    id: id,
+    ownerId: ownerId,
+    amount: amount,
+    status: WithdrawalStatus.rejected,
+    upiId: upiId,
+    processedAt: DateTime.now(),
+    rejectionReason: reason,
+    createdAt: createdAt,
+  );
 
   @override
   List<Object?> get props => [

@@ -2,7 +2,6 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pg_manager/domain/entities/membership.dart';
-import 'package:pg_manager/domain/entities/presence.dart';
 import 'package:pg_manager/domain/entities/slot.dart';
 import 'package:pg_manager/domain/entities/user.dart';
 import 'package:pg_manager/domain/failures/membership_failures.dart';
@@ -12,7 +11,6 @@ import 'package:pg_manager/domain/repositories/user_repository.dart';
 import 'package:pg_manager/domain/usecases/get_student_documents.dart';
 import 'package:pg_manager/domain/usecases/get_student_memberships.dart';
 import 'package:pg_manager/domain/usecases/sync_memberships_on_login.dart';
-import 'package:pg_manager/domain/usecases/validate_daily_presence.dart';
 import 'package:pg_manager/presentation/student/cubit/student_home_cubit.dart';
 import 'package:pg_manager/presentation/student/cubit/student_home_state.dart';
 import 'package:mockito/annotations.dart';
@@ -22,7 +20,6 @@ import 'student_home_cubit_test.mocks.dart';
 
 @GenerateMocks([
   GetStudentMemberships,
-  ValidateDailyPresence,
   SyncMembershipsOnLogin,
   AuthRepository,
   MembershipRepository,
@@ -32,7 +29,6 @@ import 'student_home_cubit_test.mocks.dart';
 void main() {
   late StudentHomeCubit cubit;
   late MockGetStudentMemberships mockGetStudentMemberships;
-  late MockValidateDailyPresence mockValidateDailyPresence;
   late MockSyncMembershipsOnLogin mockSyncMembershipsOnLogin;
   late MockAuthRepository mockAuthRepository;
   late MockMembershipRepository mockMembershipRepository;
@@ -49,7 +45,6 @@ void main() {
 
   setUp(() {
     mockGetStudentMemberships = MockGetStudentMemberships();
-    mockValidateDailyPresence = MockValidateDailyPresence();
     mockSyncMembershipsOnLogin = MockSyncMembershipsOnLogin();
     mockAuthRepository = MockAuthRepository();
     mockMembershipRepository = MockMembershipRepository();
@@ -71,7 +66,6 @@ void main() {
 
     cubit = StudentHomeCubit(
       getStudentMemberships: mockGetStudentMemberships,
-      validateDailyPresence: mockValidateDailyPresence,
       syncMembershipsOnLogin: mockSyncMembershipsOnLogin,
       membershipRepository: mockMembershipRepository,
       authRepository: mockAuthRepository,
@@ -103,14 +97,6 @@ void main() {
     isPendingPayment: false,
     isActive: true,
     isExpired: false,
-  );
-
-  final testPresence = Presence(
-    id: 'presence-1',
-    userId: 'user-1',
-    libraryId: 'library-1',
-    date: DateTime.now(),
-    checkInTime: DateTime.now(),
   );
 
   group('StudentHomeCubit', () {
@@ -173,53 +159,6 @@ void main() {
             status: StudentHomeStatus.success,
             user: testUser,
             memberships: [],
-          ),
-        ],
-      );
-    });
-
-    group('checkIn', () {
-      blocTest<StudentHomeCubit, StudentHomeState>(
-        'emits_loading_then_success_with_presence',
-        build: () {
-          when(
-            mockValidateDailyPresence(any),
-          ).thenAnswer((_) async => Right(testPresence));
-          return cubit;
-        },
-        act: (cubit) => cubit.checkIn(
-          presenceId: 'presence-1',
-          userId: 'user-1',
-          libraryId: 'library-1',
-        ),
-        expect: () => [
-          const StudentHomeState(status: StudentHomeStatus.loading),
-          StudentHomeState(
-            status: StudentHomeStatus.success,
-            todayPresence: testPresence,
-            isCheckedIn: true,
-          ),
-        ],
-      );
-
-      blocTest<StudentHomeCubit, StudentHomeState>(
-        'emits_loading_then_failure_on_error',
-        build: () {
-          when(
-            mockValidateDailyPresence(any),
-          ).thenAnswer((_) async => const Left(MembershipExpiredFailure()));
-          return cubit;
-        },
-        act: (cubit) => cubit.checkIn(
-          presenceId: 'presence-1',
-          userId: 'user-1',
-          libraryId: 'library-1',
-        ),
-        expect: () => [
-          const StudentHomeState(status: StudentHomeStatus.loading),
-          const StudentHomeState(
-            status: StudentHomeStatus.failure,
-            failure: MembershipExpiredFailure(),
           ),
         ],
       );

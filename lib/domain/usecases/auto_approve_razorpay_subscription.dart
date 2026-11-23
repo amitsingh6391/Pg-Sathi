@@ -3,8 +3,10 @@ import 'package:equatable/equatable.dart';
 
 import '../core/core.dart';
 import '../entities/subscription.dart';
+import '../entities/whatsapp_credits.dart';
 import '../repositories/referral_repository.dart';
 import '../repositories/subscription_repository.dart';
+import '../repositories/whatsapp_credits_repository.dart';
 
 /// Use case for auto-approving Razorpay subscriptions.
 /// Razorpay payments are instant and verified, so they bypass manual approval.
@@ -14,10 +16,12 @@ class AutoApproveRazorpaySubscription
   const AutoApproveRazorpaySubscription({
     required this.subscriptionRepository,
     this.referralRepository,
+    this.whatsAppCreditsRepository,
   });
 
   final SubscriptionRepository subscriptionRepository;
   final ReferralRepository? referralRepository;
+  final WhatsAppCreditsRepository? whatsAppCreditsRepository;
 
   @override
   Future<Either<Failure, Subscription>> call(
@@ -122,8 +126,30 @@ class AutoApproveRazorpaySubscription
         );
       }
 
+      // Grant the free WhatsApp credit pack that comes with the plan.
+      if (updateResult.isRight()) {
+        await _grantSubscriptionBonusCredits(approvedSubscription);
+      }
+
       return updateResult;
     });
+  }
+
+  /// 1 month → ₹49 pack, 3 months → ₹99 pack, 6/12 months → ₹199 pack.
+  /// Best-effort and idempotent per subscription: never fails the approval.
+  Future<void> _grantSubscriptionBonusCredits(Subscription subscription) async {
+    final repo = whatsAppCreditsRepository;
+    if (repo == null) return;
+    final pack = WhatsAppCreditPack.bonusForSubscriptionMonths(
+      subscription.durationInMonths,
+    );
+    if (pack == null) return;
+    await repo.grantBonusCredits(
+      ownerId: subscription.ownerId,
+      credits: pack.credits,
+      packId: pack.id,
+      grantId: 'sub_bonus_${subscription.id}',
+    );
   }
 
   Future<void> _convertReferralRedemption(

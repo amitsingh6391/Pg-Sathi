@@ -1,24 +1,21 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../domain/entities/attendance.dart';
 import '../../../domain/entities/invoice.dart';
 import '../../../domain/entities/student_document.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/repositories/invoice_repository.dart';
 import '../../../domain/repositories/student_document_repository.dart';
 import '../../../domain/repositories/user_repository.dart';
-import '../../../domain/usecases/get_attendance_history.dart';
 import '../../../domain/usecases/get_invoices_for_student.dart';
 import '../../../domain/usecases/get_student_documents.dart';
 import '../../../domain/usecases/upload_student_document.dart';
 
 part 'student_details_state.dart';
 
-/// Cubit for managing student details view (attendance, invoices, documents).
+/// Cubit for managing student details view (invoices, documents).
 class StudentDetailsCubit extends Cubit<StudentDetailsState> {
   StudentDetailsCubit({
-    required this.getAttendanceHistory,
     required this.getInvoicesForStudent,
     required this.getStudentDocuments,
     required this.uploadDocument,
@@ -27,7 +24,6 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
     required this.invoiceRepository,
   }) : super(const StudentDetailsState());
 
-  final GetAttendanceHistory getAttendanceHistory;
   final GetInvoicesForStudent getInvoicesForStudent;
   final GetStudentDocuments getStudentDocuments;
   final UploadStudentDocument uploadDocument;
@@ -35,7 +31,7 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
   final UserRepository userRepository;
   final InvoiceRepository invoiceRepository;
 
-  /// Load all student data (attendance, invoices, documents).
+  /// Load all student data (profile, invoices, documents).
   Future<void> loadStudentData({
     required String studentId,
     required String libraryId,
@@ -44,15 +40,6 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
 
     // Load student profile
     final studentResult = await userRepository.getUserById(studentId);
-
-    // Load attendance history (last 30 days)
-    final attendanceResult = await getAttendanceHistory(
-      GetAttendanceHistoryParams.lastDays(
-        userId: studentId,
-        libraryId: libraryId,
-        days: 30,
-      ),
-    );
 
     // Load invoices
     final invoicesResult = await getInvoicesForStudent(
@@ -66,7 +53,6 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
 
     // Process results
     final student = studentResult.fold((_) => null, (s) => s);
-    final attendance = attendanceResult.fold((_) => <Attendance>[], (a) => a);
     final invoices = invoicesResult.fold((_) => <Invoice>[], (i) => i);
     final documents = documentsResult.fold(
       (_) => <StudentDocument>[],
@@ -77,7 +63,6 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
       state.copyWith(
         status: StudentDetailsStatus.loaded,
         student: student,
-        attendance: attendance,
         invoices: invoices,
         documents: documents,
       ),
@@ -86,7 +71,7 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
 
   /// Load data for unregistered students (no userId).
   /// Fetches invoices by membershipId and documents by phone number.
-  /// Profile info comes from seatInfo, attendance is empty.
+  /// Profile info comes from seatInfo.
   Future<void> loadUnregisteredData({
     required String membershipId,
     required String phoneNumber,
@@ -94,9 +79,9 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
     emit(state.copyWith(status: StudentDetailsStatus.loading));
 
     // Fetch invoices by membershipId (1 read)
-    final invoicesResult = await invoiceRepository.getInvoicesByMembershipIds(
-      [membershipId],
-    );
+    final invoicesResult = await invoiceRepository.getInvoicesByMembershipIds([
+      membershipId,
+    ]);
 
     // Fetch documents using phone number as studentId key (1 read)
     final documentsResult = await getStudentDocuments(
@@ -118,7 +103,7 @@ class StudentDetailsCubit extends Cubit<StudentDetailsState> {
         status: StudentDetailsStatus.loaded,
         invoices: invoices,
         documents: documents,
-        // student and attendance remain empty/null
+        // student remains null
       ),
     );
   }

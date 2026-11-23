@@ -30,17 +30,26 @@ class LibraryFormCubit extends Cubit<LibraryFormState> {
   String? _ownerId;
 
   /// Loads existing library for editing or creates new one.
+  /// If [forceCreate] is true, always starts a new library even if one exists.
+  /// If [libraryId] is provided, loads that specific branch for editing.
   Future<void> loadLibrary({
     required String ownerId,
     String? ownerPhone,
+    bool forceCreate = false,
+    String? libraryId,
   }) async {
     _ownerPhone = ownerPhone;
     _ownerId = ownerId;
 
     emit(state.copyWith(status: LibraryFormStatus.loading));
 
+    if (forceCreate) {
+      _startNewLibrary(ownerId, ownerPhone);
+      return;
+    }
+
     final result = await getOwnerLibrary(
-      GetOwnerLibraryParams(ownerId: ownerId),
+      GetOwnerLibraryParams(ownerId: ownerId, libraryId: libraryId),
     );
 
     result.fold(
@@ -62,38 +71,39 @@ class LibraryFormCubit extends Cubit<LibraryFormState> {
             ),
           );
         } else {
-          // Creating new library - try to load draft
-          final draft = draftService.loadDraft();
-          if (draft != null && draft.ownerId == ownerId) {
-            // Load from draft
-            emit(
-              state.copyWith(
-                status: LibraryFormStatus.loaded,
-                library: draft.library,
-                currentSection: _validSection(draft.currentSection),
-                isEditing: false,
-              ),
-            );
-          } else {
-            // Create new library
-            final newLibrary = Library(
-              id: const Uuid().v4(),
-              ownerId: ownerId,
-              name: '',
-              capacity: 0,
-              ownerPhone: ownerPhone,
-            );
-            emit(
-              state.copyWith(
-                status: LibraryFormStatus.loaded,
-                library: newLibrary,
-                isEditing: false,
-              ),
-            );
-          }
+          _startNewLibrary(ownerId, ownerPhone);
         }
       },
     );
+  }
+
+  void _startNewLibrary(String ownerId, String? ownerPhone) {
+    final draft = draftService.loadDraft();
+    if (draft != null && draft.ownerId == ownerId) {
+      emit(
+        state.copyWith(
+          status: LibraryFormStatus.loaded,
+          library: draft.library,
+          currentSection: _validSection(draft.currentSection),
+          isEditing: false,
+        ),
+      );
+    } else {
+      final newLibrary = Library(
+        id: const Uuid().v4(),
+        ownerId: ownerId,
+        name: '',
+        capacity: 0,
+        ownerPhone: ownerPhone,
+      );
+      emit(
+        state.copyWith(
+          status: LibraryFormStatus.loaded,
+          library: newLibrary,
+          isEditing: false,
+        ),
+      );
+    }
   }
 
   /// Navigates to next section.
@@ -206,6 +216,22 @@ class LibraryFormCubit extends Cubit<LibraryFormState> {
   void updateOwnerUpiId(String? upiId) {
     if (state.library == null || _ownerId == null) return;
     final updated = state.library!.copyWith(ownerUpiId: upiId);
+    emit(state.copyWith(library: updated));
+    _saveDraft(updated);
+  }
+
+  /// Sets (or clears, with null) the PG's total bed capacity.
+  void updateTotalSeatCapacity(int? total) {
+    if (state.library == null) return;
+    final updated = state.library!.copyWith(totalSeatCapacity: total);
+    emit(state.copyWith(library: updated));
+    _saveDraft(updated);
+  }
+
+  /// Sets (or clears, with null) the owner's UPI QR code image URL.
+  void updateOwnerUpiQrUrl(String? qrUrl) {
+    if (state.library == null) return;
+    final updated = state.library!.copyWith(ownerUpiQrUrl: qrUrl);
     emit(state.copyWith(library: updated));
     _saveDraft(updated);
   }
@@ -346,6 +372,7 @@ class LibraryFormCubit extends Cubit<LibraryFormState> {
   /// Syncs the library state with updated library data (e.g., after photo updates).
   void syncLibraryState(Library library) {
     emit(state.copyWith(library: library));
+    _saveDraft(library);
   }
 
   /// Saves draft data.

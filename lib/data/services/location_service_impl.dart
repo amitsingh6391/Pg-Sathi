@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../domain/core/failure.dart';
-import '../../domain/failures/attendance_failures.dart';
+import '../../domain/failures/location_failures.dart';
 import '../../domain/services/location_service.dart';
 
 /// Implementation of LocationService using Geolocator package.

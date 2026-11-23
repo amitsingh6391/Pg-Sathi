@@ -34,14 +34,6 @@ const INVOICE_STORAGE_PREFIX = 'whatsapp_invoices';
 const WHATSAPP_CREDITS = 'whatsapp_credits';
 const FREE_WHATSAPP_CREDITS = 7;
 
-// ─── Notice broadcasts (WhatsApp) ───────────────────────────────────────────
-// Owners may broadcast up to MAX_NOTICE_WHATSAPP_PER_MONTH notices per calendar
-// month per library, free of charge. Usage is tracked per library per month in
-// the `whatsapp_notice_quota` subcollection (doc id = "YYYY-MM").
-const NOTICE_QUOTA_SUBCOLLECTION = 'whatsapp_notice_quota';
-const MAX_NOTICE_WHATSAPP_PER_MONTH = 5;
-const NOTICE_TEMPLATE = 'notice';
-
 // ─── Credentials ──────────────────────────────────────────────────────────────
 
 /**
@@ -192,67 +184,6 @@ function _normalisePhone(raw) {
   if (p.startsWith('91') && p.length === 12) return p;
   if (p.length === 10) return `91${p}`;
   return null;
-}
-
-/** Current calendar month as "YYYY-MM" in IST (matches billing periods). */
-function _currentMonthKey() {
-  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000); // shift to IST
-  const y = now.getUTCFullYear();
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-}
-
-/** Reference to a library's notice-quota doc for the current month. */
-function _noticeQuotaRef(db, libraryId) {
-  return db
-    .collection('libraries')
-    .doc(libraryId)
-    .collection(NOTICE_QUOTA_SUBCOLLECTION)
-    .doc(_currentMonthKey());
-}
-
-/**
- * Atomically reserves one notice broadcast for the month. Returns true if the
- * library was under its monthly cap (and the count was incremented), false if
- * the cap is already reached.
- */
-async function _reserveNoticeQuota(db, libraryId) {
-  const ref = _noticeQuotaRef(db, libraryId);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const used = snap.exists ? (snap.data().count || 0) : 0;
-    if (used >= MAX_NOTICE_WHATSAPP_PER_MONTH) return false;
-    tx.set(ref, {
-      count: used + 1,
-      month: _currentMonthKey(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-    return true;
-  });
-}
-
-/** Remaining free notice broadcasts for the library this month. */
-async function _remainingNoticeQuota(db, libraryId) {
-  try {
-    const snap = await _noticeQuotaRef(db, libraryId).get();
-    const used = snap.exists ? (snap.data().count || 0) : 0;
-    return Math.max(0, MAX_NOTICE_WHATSAPP_PER_MONTH - used);
-  } catch (_) {
-    return 0;
-  }
-}
-
-/** Rolls back a reserved notice slot when the broadcast reaches nobody. */
-async function _releaseNoticeQuota(db, libraryId) {
-  const ref = _noticeQuotaRef(db, libraryId);
-  try {
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      const used = snap.exists ? (snap.data().count || 0) : 0;
-      if (used <= 0) return;
-      tx.set(ref, { count: used - 1 }, { merge: true });
-    });
-  } catch (_) { /* best-effort */ }
 }
 
 /** Formats a JS Date/ISO string to dd Mon yyyy (en-IN locale). */
@@ -627,13 +558,53 @@ async function _logSent(db, membershipId, type, libraryId) {
 
 // ─── Scheduled: daily expiry reminders ───────────────────────────────────────
 
+const EXPIRY_REMINDER_TEMPLATE = 'pg_reminder_msg';
+
+// Template has an IMAGE header: owner's UPI QR → PG photo → app logo.
+const DEFAULT_REMINDER_HEADER_IMAGE = 'https://pg-sathi.web.app/icons/Icon-512.png';
+
+function _reminderHeaderImage(lib) {
+  if (!lib) return DEFAULT_REMINDER_HEADER_IMAGE;
+  if (typeof lib.ownerUpiQrUrl === 'string' && lib.ownerUpiQrUrl) return lib.ownerUpiQrUrl;
+  const photo = (lib.photos || []).find((u) => typeof u === 'string' && u);
+  return photo || DEFAULT_REMINDER_HEADER_IMAGE;
+}
+
+const PLAN_DAYS ={ daily: 1, weekly: 7, monthly: 30, quarterly: 90, yearly: 365 };
+
+/** Mirrors Membership.effectiveDurationInDays in the Flutter app. */
+function _effectiveDurationDays(m) {
+  if (m.customDurationMonths > 0) return m.customDurationMonths * 30;
+  if (m.customDurationDays > 0) return m.customDurationDays;
+  return PLAN_DAYS[m.plan] || 30;
+}
+
+/**
+ * Renewal amount for the next cycle (mirrors calculateFullPaymentAmount):
+ * current room-type price × duration, else last cycle's pre-discount total,
+ * else the PG's custom monthly price. Returns null when unknown.
+ */
+function _renewalAmount(m, slotPrice, customMonthlyPrice) {
+  const months = _effectiveDurationDays(m) / 30;
+  if (slotPrice > 0) return slotPrice * months;
+  const b = m.paymentBreakdown;
+  if (b) {
+    const total = (Number(b.amountPaid) || 0) + (Number(b.amountRemaining) || 0)
+      + (Number(b.discount) || 0);
+    if (total > 0) return total;
+  }
+  if (customMonthlyPrice > 0) return customMonthlyPrice * months;
+  return null;
+}
+
 /**
  * Runs at 9 AM IST every day.
  * Sends at most 1 WhatsApp reminder per membership:
  *   • one when 1 day remains  (type = '1day')
  *
  * Uses `whatsapp_auto_reminder_logs` collection to enforce the 1-reminder cap.
- * Template: membership_expiry_reminder (7 body params)
+ * Template: pg_reminder_msg (9 body params — name, PG, expiry date, days left,
+ * bed, plan, renewal amount, UPI ID, contact)
  */
 exports.sendWhatsAppExpiryReminders = functions
   .runWith({ timeoutSeconds: 300, memory: '512MB' })
@@ -684,22 +655,34 @@ exports.sendWhatsAppExpiryReminders = functions
         if (!to) { skipped++; continue; }
 
         // Fetch library name + owner phone + ownerId (for credit billing)
-        let libraryName = 'Your Library';
-        let ownerPhone = 'Contact library';
+        let libraryName = 'Your PG';
+        let ownerPhone = 'Contact PG owner';
+        let ownerUpiId = '';
+        let customMonthlyPrice = 0;
         let ownerId = null;
         let seatNumber = m.assignedSeatId || 'N/A';
+        let slotPrice = 0;
+        let headerImage = DEFAULT_REMINDER_HEADER_IMAGE;
 
         try {
           const libSnap = await db.collection('libraries').doc(m.libraryId).get();
           if (libSnap.exists) {
-            libraryName = libSnap.data().name || libraryName;
-            ownerPhone = libSnap.data().ownerPhone || ownerPhone;
-            ownerId = libSnap.data().ownerId || null;
+            const lib = libSnap.data();
+            headerImage = _reminderHeaderImage(lib);
+            libraryName = lib.name || libraryName;
+            ownerPhone = lib.ownerPhone || ownerPhone;
+            ownerUpiId = lib.ownerUpiId || '';
+            customMonthlyPrice = Number(lib.customMonthlyPrice) || 0;
+            ownerId = lib.ownerId || null;
           }
           if (m.assignedSeatId) {
             const seatSnap = await db.collection('libraries').doc(m.libraryId)
               .collection('seats').doc(m.assignedSeatId).get();
             if (seatSnap.exists) seatNumber = seatSnap.data().seatNumber || seatNumber;
+          }
+          if (m.slotId) {
+            const slotSnap = await db.collection('slots').doc(m.slotId).get();
+            if (slotSnap.exists) slotPrice = Number(slotSnap.data().price) || 0;
           }
         } catch (_) { /* non-critical */ }
 
@@ -729,24 +712,33 @@ exports.sendWhatsAppExpiryReminders = functions
         const expiryDate = m.endDate.toDate();
         const planLabel = (m.plan || 'monthly');
         const planCap = planLabel.charAt(0).toUpperCase() + planLabel.slice(1);
-        const studentName = m.studentName || 'Student';
+        const studentName = m.studentName || 'Resident';
         const formattedDate = expiryDate.toLocaleDateString('en-IN',
-          { day: '2-digit', month: '2-digit', year: 'numeric' });
+          { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kolkata' });
+        const daysLeft = `${daysAhead} ${daysAhead === 1 ? 'day' : 'days'} left`;
+        const amount = _renewalAmount(m, slotPrice, customMonthlyPrice);
+        const amountText = amount == null ? 'As per plan' : _fmtAmount(amount);
+        const upiText = ownerUpiId || 'Ask PG owner';
 
         try {
           await _sendTemplate({
             phoneNumberId, accessToken, to,
-            templateName: 'membership_expiry_reminder',
+            templateName: EXPIRY_REMINDER_TEMPLATE,
             components: [{
+              type: 'header',
+              parameters: [{ type: 'image', image: { link: headerImage } }],
+            }, {
               type: 'body',
               parameters: [
-                { type: 'text', text: studentName },
-                { type: 'text', text: libraryName },
-                { type: 'text', text: formattedDate },
-                { type: 'text', text: String(daysAhead) },
-                { type: 'text', text: seatNumber },
-                { type: 'text', text: planCap },
-                { type: 'text', text: ownerPhone },
+                { type: 'text', text: studentName },        // {{1}}
+                { type: 'text', text: libraryName },        // {{2}}
+                { type: 'text', text: formattedDate },      // {{3}}
+                { type: 'text', text: daysLeft },           // {{4}}
+                { type: 'text', text: String(seatNumber) }, // {{5}} bed
+                { type: 'text', text: planCap },            // {{6}}
+                { type: 'text', text: amountText },         // {{7}} ₹ is in template
+                { type: 'text', text: upiText },            // {{8}}
+                { type: 'text', text: ownerPhone },         // {{9}}
               ],
             }],
           });
@@ -772,7 +764,7 @@ exports.sendWhatsAppExpiryReminders = functions
 /**
  * Called from Flutter after payment approval + invoice generation.
  * Generates the invoice PDF server-side, uploads to Storage,
- * and sends it via WhatsApp using the membership_invoice template.
+ * and sends it via WhatsApp using the pg_membership_invoice template.
  *
  * Required payload fields (match Invoice entity in Flutter):
  *   studentPhone, studentName, membershipId, libraryName, libraryAddress,
@@ -861,7 +853,7 @@ exports.sendWhatsAppInvoice = functions
     try {
       await _sendTemplate({
         phoneNumberId, accessToken, to,
-        templateName: 'membership_invoice',
+        templateName: 'pg_membership_invoice',
         components: [
           {
             type: 'header',
@@ -876,13 +868,13 @@ exports.sendWhatsAppInvoice = functions
           {
             type: 'body',
             parameters: [
-              { type: 'text', text: d.studentName || 'Student' },
-              { type: 'text', text: d.libraryName || 'Library' },
+              { type: 'text', text: d.studentName || 'Resident' },
+              { type: 'text', text: d.libraryName || 'Your PG' },
               { type: 'text', text: String(Math.round(d.amountPaid || 0)) },
               { type: 'text', text: d.seatNumber || 'N/A' },
               { type: 'text', text: d.plan || 'Monthly' },
               { type: 'text', text: _fmtDate(d.expiryDate) },
-              { type: 'text', text: d.ownerContact || 'Contact library' },
+              { type: 'text', text: d.ownerContact || 'Contact PG owner' },
             ],
           },
         ],
@@ -905,112 +897,25 @@ exports.sendWhatsAppInvoice = functions
     }
   });
 
-// ─── Notice broadcast (callable) ────────────────────────────────────────────
-
 /**
- * Broadcasts a published notice to a library's active tenants over WhatsApp
- * using the approved `notice` template.
- *
- * Enforces a free monthly cap of MAX_NOTICE_WHATSAPP_PER_MONTH per library,
- * counted server-side so it cannot be bypassed by the client.
- *
- * Payload: { libraryId, noticeId, libraryName, title, description }
- * Returns: { success, sent, failed, remaining } or { skipped, reason, remaining }.
+ * Resolves a resident's name. Memberships written by older app versions have
+ * no `studentName`, so fall back to the linked user profile.
  */
-exports.sendWhatsAppNotice = functions
-  .runWith({ timeoutSeconds: 300, memory: '256MB' })
-  .https.onCall(async (data, context) => {
-    if (!context.auth) {
-      console.warn('[wa] sendWhatsAppNotice called without auth context');
-    }
+async function _studentName(db, m) {
+  if (m.studentName) return m.studentName;
+  if (!m.userId) return 'Resident';
+  try {
+    const snap = await db.collection('users').doc(m.userId).get();
+    if (!snap.exists) return 'Resident';
+    const u = snap.data();
+    return u.name || u.fullName || u.displayName || 'Resident';
+  } catch (_) {
+    return 'Resident';
+  }
+}
 
-    const d = data || {};
-    if (!d.libraryId || !d.title) {
-      throw new functions.https.HttpsError(
-        'invalid-argument', 'libraryId and title are required',
-      );
-    }
-
-    const { phoneNumberId, accessToken } = await _getCredentials();
-    if (!phoneNumberId || !accessToken) {
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'WhatsApp not configured — add credentials to Remote Config',
-      );
-    }
-
-    const db = admin.firestore();
-
-    // Reserve one monthly slot up-front (atomic). Refunded if nobody is reached.
-    const reserved = await _reserveNoticeQuota(db, d.libraryId);
-    if (!reserved) {
-      console.log(`[wa] ⊘ Notice broadcast skipped — monthly limit for ${d.libraryId}`);
-      return { skipped: true, reason: 'monthly_limit', remaining: 0 };
-    }
-
-    // Resolve library name server-side (fall back to any client-supplied name).
-    let libraryName = d.libraryName || 'Your PG';
-    try {
-      const libSnap = await db.collection('libraries').doc(d.libraryId).get();
-      if (libSnap.exists && libSnap.data().name) {
-        libraryName = libSnap.data().name;
-      }
-    } catch (_) { /* non-critical */ }
-
-    let phones = [];
-    try {
-      const snap = await db.collection('memberships')
-        .where('libraryId', '==', d.libraryId)
-        .where('status', '==', 'active')
-        .get();
-
-      phones = snap.docs
-        .map((doc) => _normalisePhone(doc.data().phoneNumber))
-        .filter(Boolean);
-      phones = Array.from(new Set(phones)); // dedupe
-    } catch (err) {
-      await _releaseNoticeQuota(db, d.libraryId);
-      console.error('[wa] Notice recipient query failed:', err.message);
-      throw new functions.https.HttpsError(
-        'internal', `Failed to load recipients: ${err.message}`,
-      );
-    }
-
-    if (phones.length === 0) {
-      await _releaseNoticeQuota(db, d.libraryId);
-      console.log(`[wa] Notice broadcast reached nobody for ${d.libraryId}`);
-      return { skipped: true, reason: 'no_recipients', remaining: await _remainingNoticeQuota(db, d.libraryId) };
-    }
-
-    const title = String(d.title).slice(0, 120);
-    const description = String(d.description || '').slice(0, 600) || 'Please open the app for details.';
-
-    const components = [{
-      type: 'body',
-      parameters: [
-        { type: 'text', text: libraryName },
-        { type: 'text', text: title },
-        { type: 'text', text: description },
-      ],
-    }];
-
-    let sent = 0, failed = 0;
-    for (const to of phones) {
-      try {
-        await _sendTemplate({
-          phoneNumberId, accessToken, to,
-          templateName: NOTICE_TEMPLATE,
-          components,
-        });
-        sent++;
-      } catch (err) {
-        failed++;
-        const metaError = err.response?.data?.error;
-        console.error(`[wa] Notice send failed → ${to}:`, metaError?.message || err.message);
-      }
-    }
-
-    const remaining = await _remainingNoticeQuota(db, d.libraryId);
-    console.log(`[wa] ✓ Notice "${title}" → ${sent} sent, ${failed} failed (${remaining} left this month)`);
-    return { success: true, sent, failed, remaining };
-  });
+// Shared with whatsapp_notice.js; non-enumerable so index.js never deploys it.
+Object.defineProperty(module.exports, '_shared', {
+  enumerable: false,
+  value: { _getCredentials, _sendTemplate, _normalisePhone, _studentName, WHATSAPP_CREDITS, FREE_WHATSAPP_CREDITS },
+});

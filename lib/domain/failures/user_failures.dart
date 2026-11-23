@@ -20,3 +20,12 @@ class UnauthorizedUserFailure extends Failure {
   const UnauthorizedUserFailure({String? message})
     : super(message: message ?? 'User is not authorized for this action');
 }
+
+class ManagerNumberInUseFailure extends Failure {
+  const ManagerNumberInUseFailure({String? message})
+    : super(
+        message:
+            message ??
+            'This number already has an account. Use a number without one.',
+      );
+}

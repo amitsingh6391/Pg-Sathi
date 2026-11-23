@@ -4,9 +4,11 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/entities/notice.dart';
+import '../../../domain/entities/notice_whatsapp_result.dart';
 import '../../../domain/repositories/notice_repository.dart';
-import '../../../domain/repositories/whatsapp_notification_repository.dart';
 import '../../../domain/usecases/notice_usecases.dart';
+import '../../../domain/usecases/send_notice_whatsapp.dart';
+import '../../../domain/usecases/whatsapp_credits_usecases.dart';
 
 /// Cubit for managing notices (Owner side)
 class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
@@ -17,7 +19,8 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
     required this.deleteNotice,
     required this.publishNotice,
     required this.getNoticeAnalytics,
-    required this.whatsAppNotificationRepository,
+    required this.sendNoticeWhatsApp,
+    required this.getWhatsAppCredits,
   }) : super(const OwnerNoticeState());
 
   final GetNoticesByLibrary getNoticesByLibrary;
@@ -26,16 +29,18 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
   final DeleteNotice deleteNotice;
   final PublishNotice publishNotice;
   final GetNoticeAnalytics getNoticeAnalytics;
-  final WhatsAppNotificationRepository whatsAppNotificationRepository;
+  final SendNoticeWhatsApp sendNoticeWhatsApp;
+  final GetWhatsAppCredits getWhatsAppCredits;
 
-  /// Loads how many free WhatsApp notice broadcasts remain this month.
-  Future<void> loadWhatsAppQuota(String libraryId) async {
-    final result =
-        await whatsAppNotificationRepository.getRemainingNoticeQuota(libraryId);
+  /// Loads the owner's available WhatsApp credits into
+  /// [OwnerNoticeState.whatsappCredits].
+  Future<void> loadWhatsAppCredits(String ownerId) async {
+    final result = await getWhatsAppCredits(ownerId);
     if (isClosed) return;
     result.fold(
       (_) {},
-      (remaining) => emit(state.copyWith(whatsAppQuotaRemaining: remaining)),
+      (credits) =>
+          emit(state.copyWith(whatsappCredits: credits.availableCredits)),
     );
   }
 
@@ -50,10 +55,12 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
     result.fold(
       (failure) {
         if (!isClosed) {
-          emit(state.copyWith(
-            status: OwnerNoticeStatus.error,
-            errorMessage: failure.message,
-          ));
+          emit(
+            state.copyWith(
+              status: OwnerNoticeStatus.error,
+              errorMessage: failure.message,
+            ),
+          );
         }
       },
       (notices) {
@@ -61,18 +68,22 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
         // Separate notices by status
         final active = notices.where((n) => n.isActive).toList();
         final scheduled = notices.where((n) => n.isScheduled).toList();
-        final drafts = notices.where((n) => n.status == NoticeStatus.draft).toList();
+        final drafts = notices
+            .where((n) => n.status == NoticeStatus.draft)
+            .toList();
         final expired = notices.where((n) => n.isExpired).toList();
 
         if (!isClosed) {
-          emit(state.copyWith(
-            status: OwnerNoticeStatus.loaded,
-            allNotices: notices,
-            activeNotices: active,
-            scheduledNotices: scheduled,
-            draftNotices: drafts,
-            expiredNotices: expired,
-          ));
+          emit(
+            state.copyWith(
+              status: OwnerNoticeStatus.loaded,
+              allNotices: notices,
+              activeNotices: active,
+              scheduledNotices: scheduled,
+              draftNotices: drafts,
+              expiredNotices: expired,
+            ),
+          );
         }
       },
     );
@@ -82,7 +93,6 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
   Future<void> createNewNotice({
     required String libraryId,
     required String ownerId,
-    required String title,
     required String description,
     required NoticeTargetAudience targetAudience,
     List<File> attachmentFiles = const [],
@@ -100,7 +110,6 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
     final result = await createNotice(
       libraryId: libraryId,
       ownerId: ownerId,
-      title: title,
       description: description,
       targetAudience: targetAudience,
       attachmentFiles: attachmentFiles,
@@ -108,117 +117,51 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
       scheduledFor: scheduledFor,
       expiresAt: expiresAt,
       sendPushNotification: sendPushNotification,
+      sendWhatsApp: sendWhatsApp,
       targetSlotIds: targetSlotIds,
       targetSeatIds: targetSeatIds,
     );
 
     if (isClosed) return;
-    await result.fold(
+    await result.fold<Future<void>>(
       (failure) async {
         if (!isClosed) {
-          emit(state.copyWith(
-            status: OwnerNoticeStatus.error,
-            errorMessage: failure.message,
-          ));
+          emit(
+            state.copyWith(
+              status: OwnerNoticeStatus.error,
+              errorMessage: failure.message,
+            ),
+          );
         }
       },
       (notice) async {
-        // Broadcast on WhatsApp only for notices published immediately.
-        String? whatsAppMessage;
+        String? whatsappMessage;
         if (sendWhatsApp && notice.status == NoticeStatus.published) {
-          whatsAppMessage = await _broadcastNoticeWhatsApp(notice);
+          final wa = await sendNoticeWhatsApp(notice.id);
+          whatsappMessage = wa.fold(
+            (failure) =>
+                'Notice posted, but WhatsApp failed: ${failure.message}',
+            _whatsappSummary,
+          );
         }
-        if (!isClosed) {
-          emit(state.copyWith(
+        if (isClosed) return;
+        emit(
+          state.copyWith(
             status: OwnerNoticeStatus.created,
-            whatsAppMessage: whatsAppMessage,
-          ));
-          // Reload notices to reflect changes
-          loadNotices(libraryId);
-        }
+            whatsappMessage: whatsappMessage,
+          ),
+        );
+        loadNotices(libraryId);
       },
     );
   }
 
-  /// Sends the notice to active tenants over WhatsApp. Returns a short
-  /// user-facing status message (or null when nothing notable happened).
-  Future<String?> _broadcastNoticeWhatsApp(Notice notice) async {
-    final result = await whatsAppNotificationRepository.sendNoticeWhatsApp(
-      libraryId: notice.libraryId,
-      noticeId: notice.id,
-      libraryName: '',
-      title: notice.title,
-      description: notice.description,
-    );
-    return result.fold(
-      (failure) => 'WhatsApp broadcast failed: ${failure.message}',
-      (r) {
-        if (r.wasSkipped) {
-          if (r.skippedReason == 'monthly_limit') {
-            return 'Monthly WhatsApp limit reached — notice posted without WhatsApp.';
-          }
-          if (r.skippedReason == 'no_recipients') {
-            return 'No active tenants with a phone number to WhatsApp.';
-          }
-          return 'WhatsApp broadcast skipped.';
-        }
-        return 'Sent on WhatsApp to ${r.sent} tenant(s) • ${r.remaining} left this month';
-      },
-    );
-  }
-
-  /// Update an existing notice
-  Future<void> updateExistingNotice({
-    required String noticeId,
-    required String libraryId,
-    String? title,
-    String? description,
-    NoticeTargetAudience? targetAudience,
-    List<File>? newAttachmentFiles,
-    List<NoticeAttachment>? existingAttachments,
-    List<NoticeLink>? externalLinks,
-    DateTime? scheduledFor,
-    DateTime? expiresAt,
-    bool? sendPushNotification,
-    List<String>? targetSlotIds,
-    List<String>? targetSeatIds,
-  }) async {
-    if (isClosed) return;
-    emit(state.copyWith(status: OwnerNoticeStatus.updating));
-
-    final result = await updateNotice(
-      noticeId: noticeId,
-      title: title,
-      description: description,
-      targetAudience: targetAudience,
-      newAttachmentFiles: newAttachmentFiles,
-      existingAttachments: existingAttachments,
-      externalLinks: externalLinks,
-      scheduledFor: scheduledFor,
-      expiresAt: expiresAt,
-      sendPushNotification: sendPushNotification,
-      targetSlotIds: targetSlotIds,
-      targetSeatIds: targetSeatIds,
-    );
-
-    if (isClosed) return;
-    result.fold(
-      (failure) {
-        if (!isClosed) {
-          emit(state.copyWith(
-            status: OwnerNoticeStatus.error,
-            errorMessage: failure.message,
-          ));
-        }
-      },
-      (notice) {
-        if (!isClosed) {
-          emit(state.copyWith(status: OwnerNoticeStatus.updated));
-          // Reload notices to reflect changes
-          loadNotices(libraryId);
-        }
-      },
-    );
+  String _whatsappSummary(NoticeWhatsAppResult r) {
+    if (r.total == 0) return 'No residents with a phone number to send to';
+    final parts = ['Sent on WhatsApp to ${r.sent} of ${r.total}'];
+    if (r.noCredit > 0) parts.add('${r.noCredit} skipped — no credits left');
+    if (r.failed > 0) parts.add('${r.failed} failed (credits refunded)');
+    return parts.join(' • ');
   }
 
   /// Delete a notice
@@ -232,42 +175,17 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
     result.fold(
       (failure) {
         if (!isClosed) {
-          emit(state.copyWith(
-            status: OwnerNoticeStatus.error,
-            errorMessage: failure.message,
-          ));
+          emit(
+            state.copyWith(
+              status: OwnerNoticeStatus.error,
+              errorMessage: failure.message,
+            ),
+          );
         }
       },
       (_) {
         if (!isClosed) {
           emit(state.copyWith(status: OwnerNoticeStatus.deleted));
-          // Reload notices to reflect changes
-          loadNotices(libraryId);
-        }
-      },
-    );
-  }
-
-  /// Publish a draft or scheduled notice
-  Future<void> publishExistingNotice(String noticeId, String libraryId) async {
-    if (isClosed) return;
-    emit(state.copyWith(status: OwnerNoticeStatus.publishing));
-
-    final result = await publishNotice(noticeId);
-
-    if (isClosed) return;
-    result.fold(
-      (failure) {
-        if (!isClosed) {
-          emit(state.copyWith(
-            status: OwnerNoticeStatus.error,
-            errorMessage: failure.message,
-          ));
-        }
-      },
-      (notice) {
-        if (!isClosed) {
-          emit(state.copyWith(status: OwnerNoticeStatus.published));
           // Reload notices to reflect changes
           loadNotices(libraryId);
         }
@@ -286,18 +204,22 @@ class OwnerNoticeCubit extends Cubit<OwnerNoticeState> {
     result.fold(
       (failure) {
         if (!isClosed) {
-          emit(state.copyWith(
-            analyticsStatus: AnalyticsStatus.error,
-            analyticsError: failure.message,
-          ));
+          emit(
+            state.copyWith(
+              analyticsStatus: AnalyticsStatus.error,
+              analyticsError: failure.message,
+            ),
+          );
         }
       },
       (analytics) {
         if (!isClosed) {
-          emit(state.copyWith(
-            analyticsStatus: AnalyticsStatus.loaded,
-            analytics: analytics,
-          ));
+          emit(
+            state.copyWith(
+              analyticsStatus: AnalyticsStatus.loaded,
+              analytics: analytics,
+            ),
+          );
         }
       },
     );
@@ -317,8 +239,8 @@ class OwnerNoticeState extends Equatable {
     this.analyticsStatus = AnalyticsStatus.initial,
     this.analytics,
     this.analyticsError,
-    this.whatsAppQuotaRemaining,
-    this.whatsAppMessage,
+    this.whatsappCredits,
+    this.whatsappMessage,
   });
 
   final OwnerNoticeStatus status;
@@ -331,12 +253,8 @@ class OwnerNoticeState extends Equatable {
   final AnalyticsStatus analyticsStatus;
   final NoticeAnalytics? analytics;
   final String? analyticsError;
-
-  /// Remaining free WhatsApp notice broadcasts this month (null = unknown).
-  final int? whatsAppQuotaRemaining;
-
-  /// User-facing result of the last WhatsApp broadcast (null = none).
-  final String? whatsAppMessage;
+  final int? whatsappCredits;
+  final String? whatsappMessage;
 
   OwnerNoticeState copyWith({
     OwnerNoticeStatus? status,
@@ -349,8 +267,8 @@ class OwnerNoticeState extends Equatable {
     AnalyticsStatus? analyticsStatus,
     NoticeAnalytics? analytics,
     String? analyticsError,
-    int? whatsAppQuotaRemaining,
-    String? whatsAppMessage,
+    int? whatsappCredits,
+    String? whatsappMessage,
   }) {
     return OwnerNoticeState(
       status: status ?? this.status,
@@ -363,27 +281,26 @@ class OwnerNoticeState extends Equatable {
       analyticsStatus: analyticsStatus ?? this.analyticsStatus,
       analytics: analytics ?? this.analytics,
       analyticsError: analyticsError ?? this.analyticsError,
-      whatsAppQuotaRemaining:
-          whatsAppQuotaRemaining ?? this.whatsAppQuotaRemaining,
-      whatsAppMessage: whatsAppMessage,
+      whatsappCredits: whatsappCredits ?? this.whatsappCredits,
+      whatsappMessage: whatsappMessage,
     );
   }
 
   @override
   List<Object?> get props => [
-        status,
-        allNotices,
-        activeNotices,
-        scheduledNotices,
-        draftNotices,
-        expiredNotices,
-        errorMessage,
-        analyticsStatus,
-        analytics,
-        analyticsError,
-        whatsAppQuotaRemaining,
-        whatsAppMessage,
-      ];
+    status,
+    allNotices,
+    activeNotices,
+    scheduledNotices,
+    draftNotices,
+    expiredNotices,
+    errorMessage,
+    analyticsStatus,
+    analytics,
+    analyticsError,
+    whatsappCredits,
+    whatsappMessage,
+  ];
 }
 
 enum OwnerNoticeStatus {
@@ -401,9 +318,4 @@ enum OwnerNoticeStatus {
   error,
 }
 
-enum AnalyticsStatus {
-  initial,
-  loading,
-  loaded,
-  error,
-}
+enum AnalyticsStatus { initial, loading, loaded, error }

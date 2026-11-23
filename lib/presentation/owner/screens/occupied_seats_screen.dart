@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -16,9 +16,10 @@ import '../cubit/occupied_seats_state.dart';
 import '../widgets/occupied_seats/occupied_seats_actions.dart';
 import '../widgets/occupied_seats/occupied_seats_empty_views.dart';
 import '../widgets/occupied_seats/occupied_seats_list.dart';
+import '../../core/widgets/premium_kit.dart';
 
-/// Tenant stay screen with tabs: ALL | Plans | Pending | Partial | Expired.
-/// Shows active, pending, and expired tenant stays in each tab.
+/// Residents + bed map screen: summary hero, filter chips, bed map and
+/// resident cards. Filters: All | Plans | Expiring | Reserved | Rent due | Expired.
 class OccupiedSeatsScreen extends StatefulWidget {
   const OccupiedSeatsScreen({super.key, required this.library});
 
@@ -28,9 +29,23 @@ class OccupiedSeatsScreen extends StatefulWidget {
   State<OccupiedSeatsScreen> createState() => _OccupiedSeatsScreenState();
 }
 
-class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
+class _Filter {
+  const _Filter({
+    required this.label,
+    required this.pick,
+    this.emptyMessage,
+    this.emptyIcon,
+    this.showExpired = false,
+  });
+
+  final String label;
+  final List<OccupiedSeatInfo> Function(OccupiedSeatsState state) pick;
+  final String? emptyMessage;
+  final IconData? emptyIcon;
+  final bool showExpired;
+}
+
+class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen> {
   List<CustomSlot> _customSlots = [];
   bool _isLoadingSlots = true;
 
@@ -65,6 +80,7 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
     final slotsResult = await getSlotsUseCase(
       GetSlotsByLibraryParams(libraryId: widget.library.id, activeOnly: true),
     );
+    if (!mounted) return;
 
     slotsResult.fold(
       (_) => setState(() {
@@ -79,12 +95,7 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
       },
     );
 
-    // Initialize tab controller: ALL | Room/bed plans | Pending | Partial Payment | Expired.
-    final tabCount = 4 + _customSlots.length;
-    _tabController = TabController(length: tabCount, vsync: this);
-
     // Load occupied beds
-    if (!mounted) return;
     context.read<OccupiedSeatsCubit>().load(
       libraryId: widget.library.id,
       libraryCapacity: widget.library.capacity,
@@ -97,7 +108,6 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -107,44 +117,99 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
     _searchFocusNode.unfocus();
   }
 
+  /// Filters mapped onto the existing stay lists.
+  List<_Filter> get _filters => [
+    _Filter(label: 'All', pick: (s) => s.occupiedSeats),
+    _Filter(
+      label: 'New joined',
+      pick: (s) => s.occupiedSeats.where((e) => e.isJoinedThisMonth).toList(),
+      emptyMessage: 'No residents joined this month',
+      emptyIcon: Icons.person_add_alt_1_rounded,
+    ),
+    _Filter(
+      label: 'Pending',
+      pick: (s) => s.occupiedSeats.where((e) => e.isReserved).toList(),
+      emptyMessage: 'No pending residents',
+      emptyIcon: Icons.hourglass_empty_rounded,
+    ),
+    _Filter(
+      label: 'Partial',
+      pick: (s) =>
+          s.occupiedSeats.where((e) => e.membership.hasPartialPayment).toList(),
+      emptyMessage: 'No partial payments',
+      emptyIcon: Icons.payment_outlined,
+    ),
+    _Filter(
+      label: 'Expired',
+      pick: (s) => s.expiredSeats,
+      emptyMessage: 'No expired stays',
+      emptyIcon: Icons.event_busy_rounded,
+      showExpired: true,
+    ),
+    _Filter(
+      label: 'Due Today',
+      pick: (s) => s.occupiedSeats.where((e) => e.isExpiringToday).toList(),
+      emptyMessage: 'No rent due today',
+      emptyIcon: Icons.event_repeat_rounded,
+    ),
+    ..._customSlots.map(
+      (slot) => _Filter(
+        label: slot.name,
+        pick: (s) => _filterBySlot(s.occupiedSeats, slot),
+        emptyMessage: 'No residents in ${slot.name}',
+      ),
+    ),
+  ];
+
   // -------------------------------------------------------------------------
   // Build
   // -------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppUIConstants.background,
-      body: _isLoadingSlots
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildHeader(),
-                Expanded(child: _buildContent()),
-              ],
+    final filters = _filters;
+    return DefaultTabController(
+      // Rebuilt when room types load and the tab count changes.
+      key: ValueKey(filters.length),
+      length: filters.length,
+      child: Scaffold(
+        backgroundColor: AppUIConstants.background,
+        body: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: _isLoadingSlots
+                  ? const _ResidentsSkeleton()
+                  : _buildContent(),
             ),
+          ],
+        ),
+      ),
     );
   }
 
   // -------------------------------------------------------------------------
-  // Header
+  // Top bar + search (fixed)
   // -------------------------------------------------------------------------
 
-  Widget _buildHeader() {
+  Widget _buildTopBar() {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: _buildTopBarContent(),
+    );
+  }
+
+  Widget _buildTopBarContent() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppUIConstants.primary, AppUIConstants.primaryLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border(bottom: BorderSide(color: AppUIConstants.border)),
       ),
       child: SafeArea(
         bottom: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Title row
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
               child: Row(
@@ -152,24 +217,24 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_rounded),
-                    color: Colors.white,
+                    color: AppUIConstants.textPrimary,
                   ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Tenants',
+                          'Residents',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppUIConstants.textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
                           widget.library.name,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
+                          style: const TextStyle(
+                            color: AppUIConstants.textSecondary,
                             fontSize: 12,
                           ),
                           maxLines: 1,
@@ -190,7 +255,7 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: AppUIConstants.primary,
                                 ),
                               ),
                             )
@@ -204,7 +269,7 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
                                     );
                               },
                               icon: const Icon(Icons.download_rounded),
-                              color: Colors.white,
+                              color: AppUIConstants.textSecondary,
                               tooltip: 'Export to Excel',
                             );
                     },
@@ -216,13 +281,13 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
                       context.read<OccupiedSeatsCubit>().refresh();
                     },
                     icon: const Icon(Icons.refresh_rounded),
-                    color: Colors.white,
+                    color: AppUIConstants.textSecondary,
                     tooltip: 'Refresh',
                   ),
                   IconButton(
                     onPressed: () => showOccupiedSeatsSortDialog(context),
                     icon: const Icon(Icons.sort_rounded),
-                    color: Colors.white,
+                    color: AppUIConstants.textSecondary,
                     tooltip: 'Sort',
                   ),
                 ],
@@ -236,9 +301,25 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Search bar
-  // -------------------------------------------------------------------------
+  Widget _buildTabBar() {
+    return TabBar(
+      isScrollable: true,
+      onTap: (_) => HapticFeedback.selectionClick(),
+      indicatorColor: AppUIConstants.primary,
+      indicatorWeight: 3,
+      dividerColor: Colors.transparent,
+      labelColor: AppUIConstants.primary,
+      unselectedLabelColor: AppUIConstants.textSecondary,
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+      unselectedLabelStyle: const TextStyle(
+        fontWeight: FontWeight.w500,
+        fontSize: 13,
+      ),
+      tabAlignment: TabAlignment.start,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+      tabs: [for (final f in _filters) Tab(text: f.label)],
+    );
+  }
 
   Widget _buildSearchBar() {
     return BlocBuilder<OccupiedSeatsCubit, OccupiedSeatsState>(
@@ -249,15 +330,9 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
           child: Container(
             height: 46,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppUIConstants.surfaceMuted,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: AppUIConstants.border),
             ),
             child: TextField(
               controller: _searchController,
@@ -270,12 +345,12 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
               cursorColor: AppUIConstants.primary,
               decoration: InputDecoration(
                 hintText: 'Search by name, phone or bed...',
-                hintStyle: TextStyle(
+                hintStyle: const TextStyle(
                   color: AppUIConstants.textTertiary,
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
                 ),
-                prefixIcon: Icon(
+                prefixIcon: const Icon(
                   Icons.search_rounded,
                   color: AppUIConstants.textTertiary,
                   size: 22,
@@ -285,13 +360,11 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
                         onPressed: _clearSearch,
                         icon: Container(
                           padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: AppUIConstants.textTertiary.withValues(
-                              alpha: 0.2,
-                            ),
+                          decoration: const BoxDecoration(
+                            color: AppUIConstants.border,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.close_rounded,
                             color: AppUIConstants.textSecondary,
                             size: 14,
@@ -300,6 +373,9 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
                       )
                     : null,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
                 contentPadding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
@@ -310,36 +386,7 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
   }
 
   // -------------------------------------------------------------------------
-  // Tab bar
-  // -------------------------------------------------------------------------
-
-  Widget _buildTabBar() {
-    return TabBar(
-      controller: _tabController,
-      isScrollable: true,
-      indicatorColor: Colors.white,
-      indicatorWeight: 3,
-      labelColor: Colors.white,
-      unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-      unselectedLabelStyle: const TextStyle(
-        fontWeight: FontWeight.w500,
-        fontSize: 13,
-      ),
-      tabAlignment: TabAlignment.start,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-      tabs: [
-        const Tab(text: 'All'),
-        ..._customSlots.map((slot) => Tab(text: slot.name)),
-        const Tab(text: 'Pending'),
-        const Tab(text: 'Partial'),
-        const Tab(text: 'Expired'),
-      ],
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // Tab content
+  // Scrolling content: hero, filters, bed map, resident cards
   // -------------------------------------------------------------------------
 
   Widget _buildContent() {
@@ -363,7 +410,7 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
       },
       builder: (context, state) {
         if (state.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const _ResidentsSkeleton();
         }
 
         if (state.status == OccupiedSeatsStatus.error) {
@@ -373,81 +420,34 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
           );
         }
 
-        final allSeats = sortOccupiedSeats(
-          state.searchSeats(state.occupiedSeats),
-          state.sortBy,
-        );
-        final hasActiveSearch = state.hasActiveSearch;
-
+        final filters = _filters;
+        final tabs = DefaultTabController.of(context);
         return TabBarView(
-          controller: _tabController,
           children: [
-            // "All" tab
-            _buildSeatsList(
-              seats: allSeats,
-              state: state,
-              hasActiveSearch: hasActiveSearch,
-            ),
-            // Room/bed plan tabs
-            ..._customSlots.map(
-              (slot) => _buildSeatsList(
+            for (var i = 0; i < filters.length; i++)
+              _buildSeatsList(
                 seats: sortOccupiedSeats(
-                  state.searchSeats(_filterBySlot(state.occupiedSeats, slot)),
+                  state.searchSeats(filters[i].pick(state)),
                   state.sortBy,
                 ),
                 state: state,
-                hasActiveSearch: hasActiveSearch,
-                emptyMessage: 'No tenants in ${slot.name}',
+                hasActiveSearch: state.hasActiveSearch,
+                emptyMessage: filters[i].emptyMessage,
+                emptyIcon: filters[i].emptyIcon,
+                showExpired: filters[i].showExpired,
+                header: const SizedBox(height: 16),
+                emptyActionLabel: i != 0 ? 'Show all residents' : 'Refresh',
+                onEmptyAction: i != 0
+                    ? () => tabs.animateTo(0)
+                    : () => context.read<OccupiedSeatsCubit>().refresh(),
               ),
-            ),
-            // Pending tab
-            _buildSeatsList(
-              seats: sortOccupiedSeats(
-                state.searchSeats(
-                  state.occupiedSeats.where((s) => s.isReserved).toList(),
-                ),
-                state.sortBy,
-              ),
-              state: state,
-              hasActiveSearch: hasActiveSearch,
-              emptyMessage: 'No pending tenants',
-              emptyIcon: Icons.hourglass_empty_rounded,
-            ),
-            // Partial Payment tab
-            _buildSeatsList(
-              seats: sortOccupiedSeats(
-                state.searchSeats(
-                  state.occupiedSeats
-                      .where((s) => s.membership.hasPartialPayment)
-                      .toList(),
-                ),
-                state.sortBy,
-              ),
-              state: state,
-              hasActiveSearch: hasActiveSearch,
-              emptyMessage: 'No partial payments',
-              emptyIcon: Icons.payment_outlined,
-            ),
-            // Expired tab
-            _buildSeatsList(
-              seats: sortOccupiedSeats(
-                state.searchSeats(state.expiredSeats),
-                state.sortBy,
-              ),
-              state: state,
-              hasActiveSearch: hasActiveSearch,
-              emptyMessage: 'No expired stays',
-              emptyIcon: Icons.event_busy_rounded,
-              showExpired: true,
-              includeReassign: true,
-            ),
           ],
         );
       },
     );
   }
 
-  /// Builds a single tab's bed list, wiring callbacks to action handlers.
+  /// Builds the resident list, wiring callbacks to action handlers.
   Widget _buildSeatsList({
     required List<OccupiedSeatInfo> seats,
     required OccupiedSeatsState state,
@@ -456,6 +456,9 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
     IconData? emptyIcon,
     bool showExpired = false,
     bool includeReassign = true,
+    Widget? header,
+    String? emptyActionLabel,
+    VoidCallback? onEmptyAction,
   }) {
     return OccupiedSeatsList(
       seats: seats,
@@ -475,6 +478,10 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
       hasActiveSearch: hasActiveSearch,
       searchQuery: state.searchQuery,
       showExpired: showExpired,
+      header: header,
+      onClearSearch: _clearSearch,
+      emptyActionLabel: emptyActionLabel,
+      onEmptyAction: onEmptyAction,
     );
   }
 
@@ -578,6 +585,67 @@ class _OccupiedSeatsScreenState extends State<OccupiedSeatsScreen>
       context,
       seatInfo: seat,
       cubit: context.read<OccupiedSeatsCubit>(),
+    );
+  }
+}
+
+/// Section title with horizontal page padding for use inside list headers.
+class PremiumSectionHeaderPadded extends StatelessWidget {
+  const PremiumSectionHeaderPadded({super.key, required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: PremiumSectionHeader(title),
+  );
+}
+
+/// Pulsing skeleton shown while slots / residents load.
+class _ResidentsSkeleton extends StatefulWidget {
+  const _ResidentsSkeleton();
+
+  @override
+  State<_ResidentsSkeleton> createState() => _ResidentsSkeletonState();
+}
+
+class _ResidentsSkeletonState extends State<_ResidentsSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Widget _block(double h, {double? w, double r = 20}) => Container(
+    height: h,
+    width: w,
+    decoration: BoxDecoration(
+      color: AppUIConstants.surfaceMuted,
+      borderRadius: BorderRadius.circular(r),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1).animate(_c),
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          for (var i = 0; i < 4; i++) ...[
+            _block(190, r: 16),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
     );
   }
 }

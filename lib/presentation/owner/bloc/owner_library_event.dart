@@ -8,14 +8,27 @@ sealed class OwnerLibraryEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Load the owner's library and stats.
+/// Load all libraries for the owner and select the first/default one.
 final class LoadOwnerLibrary extends OwnerLibraryEvent {
-  const LoadOwnerLibrary({required this.ownerId});
+  const LoadOwnerLibrary({required this.ownerId, this.managedLibraryIds});
 
   final String ownerId;
 
+  /// Set for managers: restricts the branches to these libraries.
+  final List<String>? managedLibraryIds;
+
   @override
-  List<Object?> get props => [ownerId];
+  List<Object?> get props => [ownerId, managedLibraryIds];
+}
+
+/// Select a library by index in the list.
+final class SelectLibrary extends OwnerLibraryEvent {
+  const SelectLibrary({required this.index});
+
+  final int index;
+
+  @override
+  List<Object?> get props => [index];
 }
 
 /// Create a new library.

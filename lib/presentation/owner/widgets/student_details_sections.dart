@@ -1,8 +1,7 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,7 +10,6 @@ import 'dart:io';
 
 import '../../../core/di/injection_container.dart';
 import '../../../data/services/invoice_pdf_service.dart';
-import '../../../domain/entities/attendance.dart';
 import '../../../domain/entities/invoice.dart';
 import '../../../domain/entities/student_document.dart';
 import '../../../domain/entities/user.dart';
@@ -19,6 +17,7 @@ import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/student_document_repository.dart';
 import '../../../domain/usecases/approve_student_document.dart';
 import '../cubit/student_details_cubit.dart';
+import '../../core/app_ui_constants.dart';
 
 /// Base collapsible section widget
 class _CollapsibleSection extends StatefulWidget {
@@ -52,9 +51,10 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _iconRotation = Tween<double>(begin: 0, end: 0.5).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _iconRotation = Tween<double>(
+      begin: 0,
+      end: 0.5,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     if (_isExpanded) _controller.value = 1;
   }
 
@@ -68,15 +68,9 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppUIConstants.surfaceMuted.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+        border: Border.all(color: AppUIConstants.border),
       ),
       child: Column(
         children: [
@@ -93,13 +87,13 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      color: AppUIConstants.primarySoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       widget.icon,
                       size: 20,
-                      color: const Color(0xFF6366F1),
+                      color: AppUIConstants.primaryLight,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -107,21 +101,14 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
+                        Text(widget.title, style: AppUIConstants.headingSm),
                         if (widget.itemCount > 0) ...[
                           const SizedBox(height: 2),
                           Text(
                             '${widget.itemCount} ${widget.itemCount == 1 ? 'item' : 'items'}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: AppUIConstants.textSecondary,
                             ),
                           ),
                         ],
@@ -132,7 +119,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
                     turns: _iconRotation,
                     child: Icon(
                       UniconsLine.angle_down,
-                      color: Colors.grey.shade600,
+                      color: AppUIConstants.textSecondary,
                     ),
                   ),
                 ],
@@ -165,13 +152,10 @@ class StudentProfileSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fields = [
-      if (student.name.isNotEmpty)
-        (UniconsLine.user, 'Name', student.name),
+      if (student.name.isNotEmpty) (UniconsLine.user, 'Name', student.name),
       (UniconsLine.phone, 'Phone', student.phone),
       if (student.email?.isNotEmpty ?? false)
         (UniconsLine.envelope, 'Email', student.email!),
-      if (student.examPreparingFor?.isNotEmpty ?? false)
-        (UniconsLine.book_open, 'Preparing For', student.examPreparingFor!),
       if (student.address?.isNotEmpty ?? false)
         (UniconsLine.map_marker, 'Address', student.address!),
       if (student.gender?.isNotEmpty ?? false)
@@ -179,7 +163,7 @@ class StudentProfileSection extends StatelessWidget {
     ];
 
     return _CollapsibleSection(
-      title: 'Profile Information',
+      title: 'Contact & Profile',
       icon: UniconsLine.user_circle,
       itemCount: fields.length,
       child: Padding(
@@ -224,7 +208,7 @@ class _InfoRow extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 18, color: Colors.grey.shade500),
+                Icon(icon, size: 18, color: AppUIConstants.textTertiary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -234,7 +218,7 @@ class _InfoRow extends StatelessWidget {
                         label,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade500,
+                          color: AppUIConstants.textTertiary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -244,6 +228,7 @@ class _InfoRow extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
+                          color: AppUIConstants.textPrimary,
                         ),
                       ),
                     ],
@@ -253,202 +238,7 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
           if (!isLast)
-            Divider(
-              height: 1,
-              thickness: 0.5,
-              color: Colors.grey.shade200,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// =============================================================================
-//  ATTENDANCE SECTION
-// =============================================================================
-
-class StudentAttendanceSection extends StatelessWidget {
-  const StudentAttendanceSection({
-    super.key,
-    required this.todayAttendance,
-    required this.attendanceHistory,
-  });
-
-  final Attendance? todayAttendance;
-  final List<Attendance> attendanceHistory;
-
-  @override
-  Widget build(BuildContext context) {
-    final totalDays = attendanceHistory.length;
-    final rate = totalDays > 0 ? (totalDays / 30 * 100).clamp(0, 100) : 0.0;
-    final isActive = todayAttendance?.checkOutTime == null &&
-        todayAttendance?.checkInTime != null;
-
-    return _CollapsibleSection(
-      title: 'Attendance',
-      icon: UniconsLine.calendar_alt,
-      itemCount: totalDays,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          children: [
-            // Stats
-            Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: UniconsLine.clock,
-                    label: 'Total Days',
-                    value: '$totalDays',
-                    color: const Color(0xFF6366F1),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: UniconsLine.chart_line,
-                    label: 'Rate',
-                    value: '${rate.toStringAsFixed(0)}%',
-                    color: const Color(0xFF10B981),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Today's attendance
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                    : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isActive
-                      ? const Color(0xFF10B981).withValues(alpha: 0.3)
-                      : Colors.grey.shade300,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    isActive ? UniconsLine.check_circle : UniconsLine.clock,
-                    color: isActive
-                        ? const Color(0xFF10B981)
-                        : Colors.grey.shade600,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Today',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          todayAttendance?.checkInTime != null
-                              ? 'In: ${DateFormat('h:mm a').format(todayAttendance!.checkInTime!)}'
-                              : 'Not checked in',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isActive)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            UniconsLine.circle,
-                            size: 8,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'ACTIVE',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+            Divider(height: 1, thickness: 0.5, color: AppUIConstants.border),
         ],
       ),
     );
@@ -467,7 +257,7 @@ class StudentInvoicesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _CollapsibleSection(
-      title: 'Invoices & Payments',
+      title: 'Rent & Payments',
       icon: UniconsLine.receipt,
       itemCount: invoices.length,
       child: invoices.isEmpty
@@ -479,12 +269,12 @@ class StudentInvoicesSection extends StatelessWidget {
                     Icon(
                       UniconsLine.file_search_alt,
                       size: 40,
-                      color: Colors.grey.shade400,
+                      color: AppUIConstants.textTertiary,
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'No invoices found',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      'No rent payments yet',
+                      style: TextStyle(color: AppUIConstants.textSecondary),
                     ),
                   ],
                 ),
@@ -493,10 +283,13 @@ class StudentInvoicesSection extends StatelessWidget {
           : Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
-                children: invoices
-                    .take(5)
-                    .map((inv) => _InvoiceItem(invoice: inv))
-                    .toList(),
+                children: [
+                  for (var i = 0; i < invoices.take(5).length; i++)
+                    _InvoiceItem(
+                      invoice: invoices[i],
+                      isLast: i == invoices.take(5).length - 1,
+                    ),
+                ],
               ),
             ),
     );
@@ -504,78 +297,103 @@ class StudentInvoicesSection extends StatelessWidget {
 }
 
 class _InvoiceItem extends StatelessWidget {
-  const _InvoiceItem({required this.invoice});
+  const _InvoiceItem({required this.invoice, this.isLast = false});
 
   final Invoice invoice;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+    return IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              UniconsLine.check,
-              size: 18,
-              color: Color(0xFF10B981),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
+          // Timeline rail
+          SizedBox(
+            width: 22,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  invoice.invoiceNumber,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppUIConstants.success,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppUIConstants.success.withValues(alpha: 0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  invoice.billingMonth,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
+                if (!isLast)
+                  Expanded(
+                    child: Container(width: 2, color: AppUIConstants.border),
                   ),
-                ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹${invoice.amountPaid.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF10B981),
-                ),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppUIConstants.surface,
+                borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+                border: Border.all(color: AppUIConstants.border),
               ),
-              const SizedBox(height: 4),
-              InkWell(
-                onTap: () => _downloadInvoice(context, invoice),
-                child: Icon(
-                  UniconsLine.download_alt,
-                  size: 18,
-                  color: Colors.grey.shade600,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          invoice.invoiceNumber,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppUIConstants.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          invoice.billingMonth,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppUIConstants.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '₹${invoice.amountPaid.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppUIConstants.success,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: () => _downloadInvoice(context, invoice),
+                        child: const Icon(
+                          UniconsLine.download_alt,
+                          size: 18,
+                          color: AppUIConstants.primaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -634,7 +452,7 @@ class _InvoiceItem extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to download: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppUIConstants.error,
           ),
         );
       }
@@ -679,12 +497,12 @@ class StudentDocumentsSection extends StatelessWidget {
                     Icon(
                       UniconsLine.file_question,
                       size: 40,
-                      color: Colors.grey.shade400,
+                      color: AppUIConstants.textTertiary,
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'No documents uploaded',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(color: AppUIConstants.textSecondary),
                     ),
                   ],
                 ),
@@ -718,8 +536,8 @@ class StudentDocumentsSection extends StatelessWidget {
                         : 'Upload Document (${documents.length}/2)',
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF6366F1),
-                    side: BorderSide(color: Colors.grey.shade300),
+                    foregroundColor: AppUIConstants.primaryLight,
+                    side: BorderSide(color: AppUIConstants.border),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
@@ -735,16 +553,17 @@ class StudentDocumentsSection extends StatelessWidget {
     BuildContext context,
     StudentDetailsCubit cubit,
   ) async {
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
     );
+    final path = file?.path;
 
-    if (result != null && result.files.single.path != null) {
+    if (file != null && path != null) {
       await cubit.uploadNewDocument(
         studentId: studentId,
-        filePath: result.files.single.path!,
-        fileName: result.files.single.name,
+        filePath: path,
+        fileName: file.name,
         libraryId: libraryId,
       );
     }
@@ -770,14 +589,14 @@ class _DocumentItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppUIConstants.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: document.isApproved
-              ? Colors.green.shade200
+              ? AppUIConstants.success.withValues(alpha: 0.4)
               : document.isPending
-                  ? Colors.orange.shade200
-                  : Colors.red.shade200,
+              ? AppUIConstants.primaryLight.withValues(alpha: 0.4)
+              : AppUIConstants.error.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
@@ -786,20 +605,20 @@ class _DocumentItem extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: document.isApproved
-                  ? Colors.green.withValues(alpha: 0.1)
+                  ? AppUIConstants.success.withValues(alpha: 0.1)
                   : document.isPending
-                      ? Colors.orange.withValues(alpha: 0.1)
-                      : Colors.red.withValues(alpha: 0.1),
+                  ? AppUIConstants.primaryLight.withValues(alpha: 0.1)
+                  : AppUIConstants.error.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               isPdf ? UniconsLine.file_alt : UniconsLine.image,
               size: 18,
               color: document.isApproved
-                  ? Colors.green
+                  ? AppUIConstants.success
                   : document.isPending
-                      ? Colors.orange
-                      : Colors.red,
+                  ? AppUIConstants.primaryLight
+                  : AppUIConstants.error,
             ),
           ),
           const SizedBox(width: 12),
@@ -812,6 +631,7 @@ class _DocumentItem extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
+                    color: AppUIConstants.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -823,17 +643,22 @@ class _DocumentItem extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: document.isApproved
-                        ? Colors.green
+                        ? AppUIConstants.success
                         : document.isPending
-                            ? Colors.orange
-                            : Colors.red,
+                        ? AppUIConstants.primaryLight
+                        : AppUIConstants.error,
                   ),
                 ),
               ],
             ),
           ),
           PopupMenuButton<String>(
-            icon: Icon(UniconsLine.ellipsis_v, size: 18, color: Colors.grey.shade600),
+            color: AppUIConstants.surfaceMuted,
+            icon: Icon(
+              UniconsLine.ellipsis_v,
+              size: 18,
+              color: AppUIConstants.textSecondary,
+            ),
             onSelected: (value) {
               switch (value) {
                 case 'view':
@@ -858,9 +683,16 @@ class _DocumentItem extends StatelessWidget {
                 value: 'view',
                 child: Row(
                   children: [
-                    Icon(UniconsLine.eye, size: 18, color: Colors.grey.shade700),
+                    Icon(
+                      UniconsLine.eye,
+                      size: 18,
+                      color: AppUIConstants.textSecondary,
+                    ),
                     const SizedBox(width: 12),
-                    const Text('View'),
+                    const Text(
+                      'View',
+                      style: TextStyle(color: AppUIConstants.textPrimary),
+                    ),
                   ],
                 ),
               ),
@@ -868,9 +700,16 @@ class _DocumentItem extends StatelessWidget {
                 value: 'share',
                 child: Row(
                   children: [
-                    Icon(UniconsLine.share_alt, size: 18, color: Colors.grey.shade700),
+                    Icon(
+                      UniconsLine.share_alt,
+                      size: 18,
+                      color: AppUIConstants.textSecondary,
+                    ),
                     const SizedBox(width: 12),
-                    const Text('Share'),
+                    const Text(
+                      'Share',
+                      style: TextStyle(color: AppUIConstants.textPrimary),
+                    ),
                   ],
                 ),
               ),
@@ -879,9 +718,16 @@ class _DocumentItem extends StatelessWidget {
                   value: 'approve',
                   child: Row(
                     children: [
-                      Icon(UniconsLine.check_circle, size: 18, color: Colors.green),
+                      Icon(
+                        UniconsLine.check_circle,
+                        size: 18,
+                        color: AppUIConstants.success,
+                      ),
                       SizedBox(width: 12),
-                      Text('Approve', style: TextStyle(color: Colors.green)),
+                      Text(
+                        'Approve',
+                        style: TextStyle(color: AppUIConstants.success),
+                      ),
                     ],
                   ),
                 ),
@@ -889,9 +735,16 @@ class _DocumentItem extends StatelessWidget {
                   value: 'reject',
                   child: Row(
                     children: [
-                      Icon(UniconsLine.times_circle, size: 18, color: Colors.red),
+                      Icon(
+                        UniconsLine.times_circle,
+                        size: 18,
+                        color: AppUIConstants.error,
+                      ),
                       SizedBox(width: 12),
-                      Text('Reject', style: TextStyle(color: Colors.red)),
+                      Text(
+                        'Reject',
+                        style: TextStyle(color: AppUIConstants.error),
+                      ),
                     ],
                   ),
                 ),
@@ -900,9 +753,16 @@ class _DocumentItem extends StatelessWidget {
                 value: 'delete',
                 child: Row(
                   children: [
-                    Icon(UniconsLine.trash_alt, size: 18, color: Colors.red.shade700),
+                    Icon(
+                      UniconsLine.trash_alt,
+                      size: 18,
+                      color: AppUIConstants.error,
+                    ),
                     const SizedBox(width: 12),
-                    Text('Delete', style: TextStyle(color: Colors.red.shade700)),
+                    Text(
+                      'Delete',
+                      style: TextStyle(color: AppUIConstants.error),
+                    ),
                   ],
                 ),
               ),
@@ -923,9 +783,9 @@ class _DocumentItem extends StatelessWidget {
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to open: $e')));
       }
     }
   }
@@ -985,7 +845,7 @@ class _DocumentItem extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to share: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppUIConstants.error,
           ),
         );
       }
@@ -997,26 +857,37 @@ class _DocumentItem extends StatelessWidget {
       final approveUseCase = sl<ApproveStudentDocument>();
       final authRepo = sl<AuthRepository>();
       final userResult = await authRepo.getCurrentUser();
-      final ownerId = userResult.fold((_) => null, (user) => user?.id);
+      final ownerId = userResult.fold(
+        (_) => null,
+        (user) => user?.ownerAccountId,
+      );
       if (ownerId == null) throw Exception('Failed to get current user');
 
-      final result = await approveUseCase(ApproveStudentDocumentParams(
-        documentId: document.id,
-        approvedBy: ownerId,
-      ));
+      final result = await approveUseCase(
+        ApproveStudentDocumentParams(
+          documentId: document.id,
+          approvedBy: ownerId,
+        ),
+      );
 
       result.fold(
         (failure) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(failure.message ?? 'Failed'), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(failure.message ?? 'Failed'),
+                backgroundColor: AppUIConstants.error,
+              ),
             );
           }
         },
         (_) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Document approved'), backgroundColor: Colors.green),
+              const SnackBar(
+                content: Text('Document approved'),
+                backgroundColor: AppUIConstants.success,
+              ),
             );
             context.read<StudentDetailsCubit>().refresh(
               studentId: studentId,
@@ -1028,7 +899,10 @@ class _DocumentItem extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed: $e'),
+            backgroundColor: AppUIConstants.error,
+          ),
         );
       }
     }
@@ -1039,7 +913,10 @@ class _DocumentItem extends StatelessWidget {
       final repository = sl<StudentDocumentRepository>();
       final authRepo = sl<AuthRepository>();
       final userResult = await authRepo.getCurrentUser();
-      final ownerId = userResult.fold((_) => null, (user) => user?.id);
+      final ownerId = userResult.fold(
+        (_) => null,
+        (user) => user?.ownerAccountId,
+      );
       if (ownerId == null) throw Exception('Failed to get current user');
 
       final result = await repository.rejectDocument(
@@ -1051,14 +928,20 @@ class _DocumentItem extends StatelessWidget {
         (failure) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(failure.message ?? 'Failed'), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(failure.message ?? 'Failed'),
+                backgroundColor: AppUIConstants.error,
+              ),
             );
           }
         },
         (_) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Document rejected'), backgroundColor: Colors.orange),
+              const SnackBar(
+                content: Text('Document rejected'),
+                backgroundColor: AppUIConstants.primary,
+              ),
             );
             context.read<StudentDetailsCubit>().refresh(
               studentId: studentId,
@@ -1070,7 +953,10 @@ class _DocumentItem extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed: $e'),
+            backgroundColor: AppUIConstants.error,
+          ),
         );
       }
     }
@@ -1080,16 +966,23 @@ class _DocumentItem extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Document'),
-        content: const Text('Are you sure you want to delete this document?'),
+        backgroundColor: AppUIConstants.surface,
+        title: const Text('Delete Document', style: AppUIConstants.headingMd),
+        content: const Text(
+          'Are you sure you want to delete this document?',
+          style: AppUIConstants.bodyMd,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppUIConstants.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppUIConstants.error),
             child: const Text('Delete'),
           ),
         ],
@@ -1106,13 +999,19 @@ class _DocumentItem extends StatelessWidget {
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Document deleted'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Document deleted'),
+            backgroundColor: AppUIConstants.success,
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed: $e'),
+            backgroundColor: AppUIConstants.error,
+          ),
         );
       }
     }

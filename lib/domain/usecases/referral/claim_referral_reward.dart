@@ -10,8 +10,7 @@ import '../../repositories/subscription_repository.dart';
 /// Lets the referrer choose their reward for a successful conversion:
 /// - [ReferralRewardType.freeMonth]: extends current subscription by 1 month
 /// - [ReferralRewardType.walletCredit]: adds ₹149 to referral wallet
-class ClaimReferralReward
-    implements UseCase<void, ClaimReferralRewardParams> {
+class ClaimReferralReward implements UseCase<void, ClaimReferralRewardParams> {
   const ClaimReferralReward({
     required this.referralRepository,
     required this.subscriptionRepository,
@@ -21,9 +20,7 @@ class ClaimReferralReward
   final SubscriptionRepository subscriptionRepository;
 
   @override
-  Future<Either<Failure, void>> call(
-    ClaimReferralRewardParams params,
-  ) async {
+  Future<Either<Failure, void>> call(ClaimReferralRewardParams params) async {
     // Fetch the unclaimed redemption
     final unclaimedResult = await referralRepository.getUnclaimedRewards(
       params.ownerId,
@@ -34,9 +31,7 @@ class ClaimReferralReward
       (list) => list,
     );
 
-    final redemption = unclaimed.where(
-      (r) => r.id == params.redemptionId,
-    );
+    final redemption = unclaimed.where((r) => r.id == params.redemptionId);
 
     if (redemption.isEmpty) {
       return const Left(NoUnclaimedRewardsFailure());
@@ -53,9 +48,7 @@ class ClaimReferralReward
       return subResult.fold(Left.new, (sub) async {
         if (sub == null || !sub.isActive(DateTime.now())) {
           return const Left(
-            ReferralFailure(
-              message: 'No active subscription to extend',
-            ),
+            ReferralFailure(message: 'No active subscription to extend'),
           );
         }
 
@@ -65,7 +58,10 @@ class ClaimReferralReward
           sub.endDate.day,
         );
 
-        final extended = sub.copyWith(endDate: newEnd, updatedAt: DateTime.now());
+        final extended = sub.copyWith(
+          endDate: newEnd,
+          updatedAt: DateTime.now(),
+        );
         await subscriptionRepository.updateSubscription(extended);
 
         // Mark redemption as claimed

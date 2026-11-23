@@ -209,6 +209,7 @@ class UpdateMembership implements UseCase<Membership, UpdateMembershipParams> {
         return 'Cannot edit a suspended membership.';
       case MembershipStatus.active:
       case MembershipStatus.pendingPayment:
+      case MembershipStatus.pendingApproval:
         // Defensive: editable states should never reach this branch.
         return 'Cannot edit this membership.';
     }

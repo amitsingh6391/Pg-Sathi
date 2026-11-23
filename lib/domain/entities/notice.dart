@@ -6,7 +6,6 @@ class Notice extends Equatable {
     required this.id,
     required this.libraryId,
     required this.ownerId,
-    required this.title,
     required this.description,
     required this.targetAudience,
     required this.status,
@@ -18,10 +17,9 @@ class Notice extends Equatable {
     this.publishedAt,
     this.updatedAt,
     this.sendPushNotification = true,
+    this.sendWhatsApp = false,
     this.viewCount = 0,
     this.readCount = 0,
-    this.commentCount = 0,
-    this.lastCommentAt,
     this.targetSlotIds = const [],
     this.targetSeatIds = const [],
   });
@@ -29,12 +27,11 @@ class Notice extends Equatable {
   final String id;
   final String libraryId;
   final String ownerId;
-  final String title;
   final String description;
 
   /// Target audience: 'all', 'active_students', 'slot', 'seat'
   final NoticeTargetAudience targetAudience;
-  
+
   /// Status: 'draft', 'scheduled', 'published', 'expired'
   final NoticeStatus status;
 
@@ -62,17 +59,14 @@ class Notice extends Equatable {
   /// Whether to send push notification on publish
   final bool sendPushNotification;
 
+  /// Broadcast on WhatsApp when published (charged per student).
+  final bool sendWhatsApp;
+
   /// Analytics: how many times viewed
   final int viewCount;
 
   /// Analytics: how many unique students marked as read
   final int readCount;
-
-  /// Analytics: cached comment count (updated when comments are added)
-  final int commentCount;
-
-  /// Last time a comment was added (for cache invalidation)
-  final DateTime? lastCommentAt;
 
   /// For slot-specific targeting (future-safe)
   final List<String> targetSlotIds;
@@ -120,7 +114,6 @@ class Notice extends Equatable {
     String? id,
     String? libraryId,
     String? ownerId,
-    String? title,
     String? description,
     NoticeTargetAudience? targetAudience,
     NoticeStatus? status,
@@ -132,10 +125,9 @@ class Notice extends Equatable {
     DateTime? updatedAt,
     DateTime? createdAt,
     bool? sendPushNotification,
+    bool? sendWhatsApp,
     int? viewCount,
     int? readCount,
-    int? commentCount,
-    DateTime? lastCommentAt,
     List<String>? targetSlotIds,
     List<String>? targetSeatIds,
   }) {
@@ -143,7 +135,6 @@ class Notice extends Equatable {
       id: id ?? this.id,
       libraryId: libraryId ?? this.libraryId,
       ownerId: ownerId ?? this.ownerId,
-      title: title ?? this.title,
       description: description ?? this.description,
       targetAudience: targetAudience ?? this.targetAudience,
       status: status ?? this.status,
@@ -155,10 +146,9 @@ class Notice extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       createdAt: createdAt ?? this.createdAt,
       sendPushNotification: sendPushNotification ?? this.sendPushNotification,
+      sendWhatsApp: sendWhatsApp ?? this.sendWhatsApp,
       viewCount: viewCount ?? this.viewCount,
       readCount: readCount ?? this.readCount,
-      commentCount: commentCount ?? this.commentCount,
-      lastCommentAt: lastCommentAt ?? this.lastCommentAt,
       targetSlotIds: targetSlotIds ?? this.targetSlotIds,
       targetSeatIds: targetSeatIds ?? this.targetSeatIds,
     );
@@ -166,28 +156,26 @@ class Notice extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        libraryId,
-        ownerId,
-        title,
-        description,
-        targetAudience,
-        status,
-        attachments,
-        externalLinks,
-        scheduledFor,
-        expiresAt,
-        publishedAt,
-        updatedAt,
-        createdAt,
-        sendPushNotification,
-        viewCount,
-        readCount,
-        commentCount,
-        lastCommentAt,
-        targetSlotIds,
-        targetSeatIds,
-      ];
+    id,
+    libraryId,
+    ownerId,
+    description,
+    targetAudience,
+    status,
+    attachments,
+    externalLinks,
+    scheduledFor,
+    expiresAt,
+    publishedAt,
+    updatedAt,
+    createdAt,
+    sendPushNotification,
+    sendWhatsApp,
+    viewCount,
+    readCount,
+    targetSlotIds,
+    targetSeatIds,
+  ];
 }
 
 /// Notice attachment (image or PDF)
@@ -209,7 +197,9 @@ class NoticeAttachment extends Equatable {
   /// Get file size in human-readable format
   String get fileSizeFormatted {
     if (fileSize < 1024) return '$fileSize B';
-    if (fileSize < 1024 * 1024) return '${(fileSize / 1024).toStringAsFixed(1)} KB';
+    if (fileSize < 1024 * 1024) {
+      return '${(fileSize / 1024).toStringAsFixed(1)} KB';
+    }
     return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
@@ -242,22 +232,14 @@ class NoticeAttachment extends Equatable {
 
 /// Notice external link
 class NoticeLink extends Equatable {
-  const NoticeLink({
-    required this.id,
-    required this.url,
-    required this.title,
-  });
+  const NoticeLink({required this.id, required this.url, required this.title});
 
   final String id;
   final String url;
   final String title;
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'url': url,
-      'title': title,
-    };
+    return {'id': id, 'url': url, 'title': title};
   }
 
   factory NoticeLink.fromMap(Map<String, dynamic> map) {
@@ -273,10 +255,7 @@ class NoticeLink extends Equatable {
 }
 
 /// Attachment file types
-enum AttachmentType {
-  image,
-  pdf,
-}
+enum AttachmentType { image, pdf }
 
 /// Notice target audience options
 enum NoticeTargetAudience {
@@ -287,12 +266,7 @@ enum NoticeTargetAudience {
 }
 
 /// Notice status
-enum NoticeStatus {
-  draft,
-  scheduled,
-  published,
-  expired,
-}
+enum NoticeStatus { draft, scheduled, published, expired }
 
 /// Notice read status for a specific student
 class NoticeReadStatus extends Equatable {

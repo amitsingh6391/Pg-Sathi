@@ -48,38 +48,33 @@ void main() {
   );
 
   group('RejectSubscription', () {
-    test(
-      'should return failure when subscription is not found',
-      () async {
-        // Arrange
-        when(mockRepository.getSubscriptionById(any)).thenAnswer(
-          (_) async => const Left(
-            _SubscriptionDataFailure(message: 'Subscription not found'),
-          ),
-        );
+    test('should return failure when subscription is not found', () async {
+      // Arrange
+      when(mockRepository.getSubscriptionById(any)).thenAnswer(
+        (_) async => const Left(
+          _SubscriptionDataFailure(message: 'Subscription not found'),
+        ),
+      );
 
-        // Act
-        final result = await useCase(testParams);
+      // Act
+      final result = await useCase(testParams);
 
-        // Assert
-        expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
-            expect(failure.message, 'Subscription not found');
-          },
-          (_) => fail('Should return failure'),
-        );
-        verify(mockRepository.getSubscriptionById('sub-1')).called(1);
-        verifyNever(mockRepository.updateSubscription(any));
-      },
-    );
+      // Assert
+      expect(result.isLeft(), true);
+      result.fold((failure) {
+        expect(failure.message, 'Subscription not found');
+      }, (_) => fail('Should return failure'));
+      verify(mockRepository.getSubscriptionById('sub-1')).called(1);
+      verifyNever(mockRepository.updateSubscription(any));
+    });
 
     test(
       'should successfully reject subscription with pendingVerification status',
       () async {
         // Arrange
-        when(mockRepository.getSubscriptionById(any))
-            .thenAnswer((_) async => Right(testSubscription));
+        when(
+          mockRepository.getSubscriptionById(any),
+        ).thenAnswer((_) async => Right(testSubscription));
         when(mockRepository.updateSubscription(any)).thenAnswer(
           (invocation) async => Right(invocation.positionalArguments[0]),
         );
@@ -89,14 +84,13 @@ void main() {
 
         // Assert
         expect(result.isRight(), true);
-        result.fold(
-          (_) => fail('Should not return failure'),
-          (rejectedSubscription) {
-            expect(rejectedSubscription.status, SubscriptionStatus.rejected);
-            expect(rejectedSubscription.approvedBy, 'admin-1');
-            expect(rejectedSubscription.rejectionReason, 'Invalid transaction');
-          },
-        );
+        result.fold((_) => fail('Should not return failure'), (
+          rejectedSubscription,
+        ) {
+          expect(rejectedSubscription.status, SubscriptionStatus.rejected);
+          expect(rejectedSubscription.approvedBy, 'admin-1');
+          expect(rejectedSubscription.rejectionReason, 'Invalid transaction');
+        });
         verify(mockRepository.getSubscriptionById('sub-1')).called(1);
         verify(mockRepository.updateSubscription(any)).called(1);
       },
@@ -109,8 +103,9 @@ void main() {
         final pendingSubscription = testSubscription.copyWith(
           status: SubscriptionStatus.pending,
         );
-        when(mockRepository.getSubscriptionById(any))
-            .thenAnswer((_) async => Right(pendingSubscription));
+        when(
+          mockRepository.getSubscriptionById(any),
+        ).thenAnswer((_) async => Right(pendingSubscription));
         when(mockRepository.updateSubscription(any)).thenAnswer(
           (invocation) async => Right(invocation.positionalArguments[0]),
         );
@@ -120,49 +115,40 @@ void main() {
 
         // Assert
         expect(result.isRight(), true);
-        result.fold(
-          (_) => fail('Should not return failure'),
-          (rejectedSubscription) {
-            expect(rejectedSubscription.status, SubscriptionStatus.rejected);
-            expect(rejectedSubscription.approvedBy, 'admin-1');
-            expect(rejectedSubscription.rejectionReason, 'Invalid transaction');
-          },
-        );
+        result.fold((_) => fail('Should not return failure'), (
+          rejectedSubscription,
+        ) {
+          expect(rejectedSubscription.status, SubscriptionStatus.rejected);
+          expect(rejectedSubscription.approvedBy, 'admin-1');
+          expect(rejectedSubscription.rejectionReason, 'Invalid transaction');
+        });
         verify(mockRepository.getSubscriptionById('sub-1')).called(1);
         verify(mockRepository.updateSubscription(any)).called(1);
       },
     );
 
-    test(
-      'should return failure when subscription is already active',
-      () async {
-        // Arrange
-        final activeSubscription = testSubscription.copyWith(
-          status: SubscriptionStatus.active,
-        );
-        when(mockRepository.getSubscriptionById(any))
-            .thenAnswer((_) async => Right(activeSubscription));
+    test('should return failure when subscription is already active', () async {
+      // Arrange
+      final activeSubscription = testSubscription.copyWith(
+        status: SubscriptionStatus.active,
+      );
+      when(
+        mockRepository.getSubscriptionById(any),
+      ).thenAnswer((_) async => Right(activeSubscription));
 
-        // Act
-        final result = await useCase(testParams);
+      // Act
+      final result = await useCase(testParams);
 
-        // Assert
-        expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
-            expect(failure, isA<SubscriptionFailure>());
-            expect(
-              failure.message,
-              contains('Subscription cannot be rejected'),
-            );
-            expect(failure.message, contains('Active'));
-          },
-          (_) => fail('Should return failure'),
-        );
-        verify(mockRepository.getSubscriptionById('sub-1')).called(1);
-        verifyNever(mockRepository.updateSubscription(any));
-      },
-    );
+      // Assert
+      expect(result.isLeft(), true);
+      result.fold((failure) {
+        expect(failure, isA<SubscriptionFailure>());
+        expect(failure.message, contains('Subscription cannot be rejected'));
+        expect(failure.message, contains('Active'));
+      }, (_) => fail('Should return failure'));
+      verify(mockRepository.getSubscriptionById('sub-1')).called(1);
+      verifyNever(mockRepository.updateSubscription(any));
+    });
 
     test(
       'should return failure when subscription is already expired',
@@ -171,25 +157,20 @@ void main() {
         final expiredSubscription = testSubscription.copyWith(
           status: SubscriptionStatus.expired,
         );
-        when(mockRepository.getSubscriptionById(any))
-            .thenAnswer((_) async => Right(expiredSubscription));
+        when(
+          mockRepository.getSubscriptionById(any),
+        ).thenAnswer((_) async => Right(expiredSubscription));
 
         // Act
         final result = await useCase(testParams);
 
         // Assert
         expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
-            expect(failure, isA<SubscriptionFailure>());
-            expect(
-              failure.message,
-              contains('Subscription cannot be rejected'),
-            );
-            expect(failure.message, contains('Expired'));
-          },
-          (_) => fail('Should return failure'),
-        );
+        result.fold((failure) {
+          expect(failure, isA<SubscriptionFailure>());
+          expect(failure.message, contains('Subscription cannot be rejected'));
+          expect(failure.message, contains('Expired'));
+        }, (_) => fail('Should return failure'));
         verify(mockRepository.getSubscriptionById('sub-1')).called(1);
         verifyNever(mockRepository.updateSubscription(any));
       },
@@ -202,88 +183,69 @@ void main() {
         final rejectedSubscription = testSubscription.copyWith(
           status: SubscriptionStatus.rejected,
         );
-        when(mockRepository.getSubscriptionById(any))
-            .thenAnswer((_) async => Right(rejectedSubscription));
+        when(
+          mockRepository.getSubscriptionById(any),
+        ).thenAnswer((_) async => Right(rejectedSubscription));
 
         // Act
         final result = await useCase(testParams);
 
         // Assert
         expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
-            expect(failure, isA<SubscriptionFailure>());
-            expect(
-              failure.message,
-              contains('Subscription cannot be rejected'),
-            );
-            expect(failure.message, contains('Rejected'));
-          },
-          (_) => fail('Should return failure'),
-        );
+        result.fold((failure) {
+          expect(failure, isA<SubscriptionFailure>());
+          expect(failure.message, contains('Subscription cannot be rejected'));
+          expect(failure.message, contains('Rejected'));
+        }, (_) => fail('Should return failure'));
         verify(mockRepository.getSubscriptionById('sub-1')).called(1);
         verifyNever(mockRepository.updateSubscription(any));
       },
     );
 
-    test(
-      'should return failure when subscription is cancelled',
-      () async {
-        // Arrange
-        final cancelledSubscription = testSubscription.copyWith(
-          status: SubscriptionStatus.cancelled,
-        );
-        when(mockRepository.getSubscriptionById(any))
-            .thenAnswer((_) async => Right(cancelledSubscription));
+    test('should return failure when subscription is cancelled', () async {
+      // Arrange
+      final cancelledSubscription = testSubscription.copyWith(
+        status: SubscriptionStatus.cancelled,
+      );
+      when(
+        mockRepository.getSubscriptionById(any),
+      ).thenAnswer((_) async => Right(cancelledSubscription));
 
-        // Act
-        final result = await useCase(testParams);
+      // Act
+      final result = await useCase(testParams);
 
-        // Assert
-        expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
-            expect(failure, isA<SubscriptionFailure>());
-            expect(
-              failure.message,
-              contains('Subscription cannot be rejected'),
-            );
-            expect(failure.message, contains('Cancelled'));
-          },
-          (_) => fail('Should return failure'),
-        );
-        verify(mockRepository.getSubscriptionById('sub-1')).called(1);
-        verifyNever(mockRepository.updateSubscription(any));
-      },
-    );
+      // Assert
+      expect(result.isLeft(), true);
+      result.fold((failure) {
+        expect(failure, isA<SubscriptionFailure>());
+        expect(failure.message, contains('Subscription cannot be rejected'));
+        expect(failure.message, contains('Cancelled'));
+      }, (_) => fail('Should return failure'));
+      verify(mockRepository.getSubscriptionById('sub-1')).called(1);
+      verifyNever(mockRepository.updateSubscription(any));
+    });
 
-    test(
-      'should return failure when repository update fails',
-      () async {
-        // Arrange
-        when(mockRepository.getSubscriptionById(any))
-            .thenAnswer((_) async => Right(testSubscription));
-        when(mockRepository.updateSubscription(any)).thenAnswer(
-          (_) async => const Left(
-            _SubscriptionDataFailure(message: 'Update failed'),
-          ),
-        );
+    test('should return failure when repository update fails', () async {
+      // Arrange
+      when(
+        mockRepository.getSubscriptionById(any),
+      ).thenAnswer((_) async => Right(testSubscription));
+      when(mockRepository.updateSubscription(any)).thenAnswer(
+        (_) async =>
+            const Left(_SubscriptionDataFailure(message: 'Update failed')),
+      );
 
-        // Act
-        final result = await useCase(testParams);
+      // Act
+      final result = await useCase(testParams);
 
-        // Assert
-        expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
-            expect(failure.message, 'Update failed');
-          },
-          (_) => fail('Should return failure'),
-        );
-        verify(mockRepository.getSubscriptionById('sub-1')).called(1);
-        verify(mockRepository.updateSubscription(any)).called(1);
-      },
-    );
+      // Assert
+      expect(result.isLeft(), true);
+      result.fold((failure) {
+        expect(failure.message, 'Update failed');
+      }, (_) => fail('Should return failure'));
+      verify(mockRepository.getSubscriptionById('sub-1')).called(1);
+      verify(mockRepository.updateSubscription(any)).called(1);
+    });
   });
 }
 

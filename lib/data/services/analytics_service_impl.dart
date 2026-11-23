@@ -8,10 +8,7 @@ import '../../core/services/analytics_service.dart';
 
 /// Firebase implementation of AnalyticsService.
 class AnalyticsServiceImpl implements AnalyticsService {
-  AnalyticsServiceImpl({
-    required this.analytics,
-    required this.firestore,
-  });
+  AnalyticsServiceImpl({required this.analytics, required this.firestore});
 
   final FirebaseAnalytics analytics;
   final FirebaseFirestore firestore;
@@ -54,7 +51,7 @@ class AnalyticsServiceImpl implements AnalyticsService {
       _libraryId = null;
 
       await analytics.setUserId(id: null);
-      
+
       debugPrint('📊 Analytics: User context cleared');
     } catch (e, stackTrace) {
       debugPrint('❌ Analytics: Failed to clear user context: $e');
@@ -69,15 +66,15 @@ class AnalyticsServiceImpl implements AnalyticsService {
   }) async {
     try {
       final enrichedParams = _enrichParameters(parameters ?? {});
-      
+
       // Firebase Analytics has a 100-character limit for event names
       final sanitizedEventName = _sanitizeEventName(eventName);
-      
+
       // Convert dynamic values to Object for Firebase Analytics
       final sanitizedParams = enrichedParams.map(
         (key, value) => MapEntry(key, value as Object),
       );
-      
+
       // Log to Firebase Analytics
       await analytics.logEvent(
         name: sanitizedEventName,

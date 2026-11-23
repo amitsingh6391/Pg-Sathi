@@ -1,11 +1,22 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:unicons/unicons.dart';
+
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/reminder_qr_share.dart';
 import '../../../../core/utils/whatsapp_launcher.dart';
 import '../../../../domain/entities/library.dart';
+import '../../../../domain/entities/reminder_template.dart';
 import '../../../../domain/usecases/get_occupied_seats.dart';
+import '../../../core/app_ui_constants.dart';
+import '../../cubit/reminder_template_cubit.dart';
+import '../../cubit/reminder_template_state.dart';
+import 'reminder_delivery_selector.dart';
+import 'reminder_template_actions.dart';
 import 'reminder_whatsapp_helper.dart';
 
-/// Shows a bottom sheet for sending reminders with Push Notification and/or WhatsApp options.
 void showReminderBottomSheet({
   required BuildContext context,
   required OccupiedSeatInfo seatInfo,
@@ -21,20 +32,23 @@ void showReminderBottomSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => ReminderBottomSheet(
-      seatInfo: seatInfo,
-      library: library,
-      notificationTitle: notificationTitle,
-      notificationBody: notificationBody,
-      amount: amount,
-      reminderType: reminderType,
-      onSendPushNotification: onSendPushNotification,
-      customMessage: customMessage,
+    builder: (context) => BlocProvider(
+      create: (_) => sl<ReminderTemplateCubit>()..load(),
+      child: ReminderBottomSheet(
+        seatInfo: seatInfo,
+        library: library,
+        notificationTitle: notificationTitle,
+        notificationBody: notificationBody,
+        amount: amount,
+        reminderType: reminderType,
+        onSendPushNotification: onSendPushNotification,
+        customMessage: customMessage,
+      ),
     ),
   );
 }
 
-/// Modern bottom sheet for sending reminders.
+/// Bottom sheet for sending a reminder by push notification and/or WhatsApp.
 class ReminderBottomSheet extends StatefulWidget {
   const ReminderBottomSheet({
     super.key,
@@ -63,11 +77,44 @@ class ReminderBottomSheet extends StatefulWidget {
 
 class _ReminderBottomSheetState extends State<ReminderBottomSheet> {
   late final TextEditingController _bodyController;
+  late ReminderDeliveryOption _selectedOption;
+  Future<File>? _qrFile;
+  bool _isSending = false;
+
+  bool get _hasPhone =>
+      (widget.seatInfo.studentPhone?.isNotEmpty ?? false) ||
+      widget.seatInfo.membership.phoneNumber.isNotEmpty;
+
+  ReminderTemplateValues get _templateValues {
+    final endDate = widget.seatInfo.membership.endDate;
+    final amount = widget.amount;
+    return ReminderTemplateValues(
+      studentName: widget.seatInfo.displayName,
+      libraryName: widget.library.name,
+      expiry: '${endDate.day}/${endDate.month}/${endDate.year}',
+      amountText: amount == null ? null : '₹${amount.toStringAsFixed(0)}',
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    _bodyController = TextEditingController(text: widget.notificationBody);
+    _bodyController = TextEditingController(
+      text: ReminderWhatsAppHelper.buildReminderMessage(
+        seatInfo: widget.seatInfo,
+        library: widget.library,
+        type: widget.reminderType,
+        amount: widget.amount,
+        customMessage: widget.customMessage,
+      ),
+    );
+    _selectedOption = _hasPhone
+        ? ReminderDeliveryOption.both
+        : ReminderDeliveryOption.pushOnly;
+    final qrUrl = widget.library.ownerUpiQrUrl;
+    if (widget.library.hasUpiQr && qrUrl != null) {
+      _qrFile = prepareReminderQr(qrUrl)..ignore();
+    }
   }
 
   @override
@@ -78,61 +125,65 @@ class _ReminderBottomSheetState extends State<ReminderBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 24),
-                    _buildRecipientInfo(),
-                    const SizedBox(height: 20),
-                    _buildNotificationPreview(),
-                    if (widget.amount != null) ...[
-                      const SizedBox(height: 16),
-                      _buildAmountInfo(),
-                    ],
-                    const SizedBox(height: 24),
-                    _ReminderOptionsSection(
-                      seatInfo: widget.seatInfo,
-                      library: widget.library,
-                      reminderType: widget.reminderType,
-                      amount: widget.amount,
-                      notificationTitle: widget.notificationTitle,
-                      bodyController: _bodyController,
-                      customMessage: widget.customMessage,
-                      onSendPushNotification: widget.onSendPushNotification,
-                    ),
-                  ],
+    return BlocListener<ReminderTemplateCubit, ReminderTemplateState>(
+      listenWhen: (previous, current) =>
+          current.template != null && current.template != previous.template,
+      listener: (_, state) {
+        _bodyController.text = ReminderTemplate.render(
+          state.template!,
+          _templateValues,
+        );
+      },
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: AppUIConstants.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppUIConstants.border,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(),
+                      const SizedBox(height: 16),
+                      _buildRecipientInfo(),
+                      const SizedBox(height: 16),
+                      _buildNotificationPreview(),
+                      if (widget.amount != null) ...[
+                        const SizedBox(height: 12),
+                        _buildAmountInfo(),
+                      ],
+                      const SizedBox(height: 20),
+                      ReminderDeliverySelector(
+                        selected: _selectedOption,
+                        hasPhone: _hasPhone,
+                        onChanged: (option) =>
+                            setState(() => _selectedOption = option),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _buildFooter(context),
+            ],
+          ),
         ),
       ),
     );
@@ -141,55 +192,34 @@ class _ReminderBottomSheetState extends State<ReminderBottomSheet> {
   Widget _buildHeader() {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            Icons.notifications_active_rounded,
-            color: Colors.orange.shade700,
-            size: 24,
-          ),
-        ),
+        _IconBadge(icon: UniconsLine.bell, color: AppUIConstants.primary),
         const SizedBox(width: 12),
-        const Expanded(
-          child: Text(
-            'Send Reminder',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        Expanded(child: Text('Send Reminder', style: AppUIConstants.headingLg)),
       ],
     );
   }
 
   Widget _buildRecipientInfo() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.shade100),
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+        border: Border.all(color: AppUIConstants.border),
       ),
       child: Row(
         children: [
           Icon(
-            Icons.person_rounded,
-            color: Colors.blue.shade700,
+            UniconsLine.user_circle,
+            color: AppUIConstants.primary,
             size: 20,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Send reminder to ${widget.seatInfo.displayName}',
-              style: TextStyle(
-                fontSize: 15,
+              style: AppUIConstants.bodyLg.copyWith(
                 fontWeight: FontWeight.w600,
-                color: Colors.blue.shade900,
               ),
             ),
           ),
@@ -200,73 +230,54 @@ class _ReminderBottomSheetState extends State<ReminderBottomSheet> {
 
   Widget _buildNotificationPreview() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppUIConstants.surface,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+        border: Border.all(color: AppUIConstants.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.preview_rounded,
-                size: 18,
-                color: Colors.grey.shade600,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Notification Preview',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            widget.notificationTitle,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-            ),
-          ),
+          Text(widget.notificationTitle, style: AppUIConstants.headingSm),
           const SizedBox(height: 8),
           TextField(
             controller: _bodyController,
             maxLines: 4,
             minLines: 2,
             textInputAction: TextInputAction.done,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey.shade700,
+            style: AppUIConstants.bodyMd.copyWith(
+              color: AppUIConstants.textPrimary,
               height: 1.4,
             ),
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
+              filled: true,
+              fillColor: AppUIConstants.background,
+              contentPadding: const EdgeInsets.all(12),
+              border: _inputBorder(AppUIConstants.border),
+              enabledBorder: _inputBorder(AppUIConstants.border),
+              focusedBorder: _inputBorder(AppUIConstants.primary),
               hintText: 'Edit message...',
-              hintStyle: TextStyle(color: Colors.grey.shade400),
+              hintStyle: AppUIConstants.bodyMd.copyWith(
+                color: AppUIConstants.textTertiary,
+              ),
             ),
+          ),
+          const SizedBox(height: 4),
+          ReminderTemplateActions(
+            bodyController: _bodyController,
+            values: _templateValues,
           ),
         ],
       ),
+    );
+  }
+
+  OutlineInputBorder _inputBorder(Color color) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+      borderSide: BorderSide(color: color),
     );
   }
 
@@ -276,25 +287,19 @@ class _ReminderBottomSheetState extends State<ReminderBottomSheet> {
     final amountText = '₹${widget.amount!.toStringAsFixed(0)}';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.shade200),
+        color: AppUIConstants.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+        border: Border.all(
+          color: AppUIConstants.warning.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.payment_outlined,
-              size: 20,
-              color: Colors.orange.shade700,
-            ),
+          _IconBadge(
+            icon: UniconsLine.rupee_sign,
+            color: AppUIConstants.warning,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -303,20 +308,14 @@ class _ReminderBottomSheetState extends State<ReminderBottomSheet> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.orange.shade700,
-                    fontWeight: FontWeight.w500,
+                  style: AppUIConstants.caption.copyWith(
+                    color: AppUIConstants.warning,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   amountText,
-                  style: TextStyle(
-                    color: Colors.orange.shade900,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+                  style: AppUIConstants.statValue.copyWith(fontSize: 18),
                 ),
               ],
             ),
@@ -325,270 +324,86 @@ class _ReminderBottomSheetState extends State<ReminderBottomSheet> {
       ),
     );
   }
-}
 
-/// Section showing reminder delivery options (Push, WhatsApp, or Both).
-class _ReminderOptionsSection extends StatefulWidget {
-  const _ReminderOptionsSection({
-    required this.seatInfo,
-    required this.library,
-    required this.reminderType,
-    required this.amount,
-    required this.notificationTitle,
-    required this.bodyController,
-    required this.onSendPushNotification,
-    this.customMessage,
-  });
-
-  final OccupiedSeatInfo seatInfo;
-  final Library library;
-  final ReminderType reminderType;
-  final double? amount;
-  final String notificationTitle;
-  final TextEditingController bodyController;
-  final Future<void> Function(String editedBody) onSendPushNotification;
-  final String? customMessage;
-
-  @override
-  State<_ReminderOptionsSection> createState() =>
-      _ReminderOptionsSectionState();
-}
-
-class _ReminderOptionsSectionState extends State<_ReminderOptionsSection> {
-  ReminderDeliveryOption _selectedOption = ReminderDeliveryOption.both;
-  bool _isSending = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasPhone = (widget.seatInfo.studentPhone?.isNotEmpty ?? false) ||
-        (widget.seatInfo.membership.phoneNumber.isNotEmpty);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Choose delivery method',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey.shade900,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildOptionTile(
-          option: ReminderDeliveryOption.pushOnly,
-          icon: Icons.notifications_rounded,
-          label: 'Push Notification',
-          description: 'Send in-app notification',
-        ),
-        const SizedBox(height: 12),
-        if (hasPhone)
-          _buildOptionTile(
-            option: ReminderDeliveryOption.whatsappOnly,
-            icon: Icons.chat_rounded,
-            label: 'WhatsApp',
-            description: 'Open WhatsApp chat',
-          ),
-        if (hasPhone) const SizedBox(height: 12),
-        if (hasPhone)
-          _buildOptionTile(
-            option: ReminderDeliveryOption.both,
-            icon: Icons.notifications_active_rounded,
-            label: 'Both',
-            description: 'Push notification + WhatsApp',
-            isRecommended: true,
-          ),
-        if (!hasPhone) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+  Widget _buildFooter(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        12 + MediaQuery.paddingOf(context).bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: AppUIConstants.surface,
+        border: Border(top: BorderSide(color: AppUIConstants.border)),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppUIConstants.primary,
+            foregroundColor: AppUIConstants.surface,
+            disabledBackgroundColor: AppUIConstants.disabled,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'WhatsApp not available - phone number not found',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          onPressed: _isSending ? null : () => _handleSend(context),
+          icon: _isSending
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppUIConstants.surface,
                     ),
                   ),
-                ),
-              ],
+                )
+              : const Icon(UniconsLine.message, size: 18),
+          label: Text(
+            _isSending ? 'Sending...' : 'Send Reminder',
+            style: AppUIConstants.headingSm.copyWith(
+              color: AppUIConstants.surface,
             ),
           ),
-        ],
-        const SizedBox(height: 24),
-        _buildSendButton(context),
-      ],
-    );
-  }
-
-  Widget _buildOptionTile({
-    required ReminderDeliveryOption option,
-    required IconData icon,
-    required String label,
-    required String description,
-    bool isRecommended = false,
-  }) {
-    final isSelected = _selectedOption == option;
-
-    return InkWell(
-      onTap: () => setState(() => _selectedOption = option),
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.orange.shade50 : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? Colors.orange.shade700
-                : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.orange.shade100
-                    : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: isSelected
-                    ? Colors.orange.shade700
-                    : Colors.grey.shade600,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: isSelected
-                                ? Colors.orange.shade800
-                                : Colors.grey.shade800,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isRecommended) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade700,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Recommended',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected
-                      ? Colors.orange.shade700
-                      : Colors.grey.shade400,
-                  width: 2,
-                ),
-                color: isSelected ? Colors.orange.shade700 : Colors.transparent,
-              ),
-              child: isSelected
-                  ? const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: Colors.white,
-                    )
-                  : null,
-            ),
-          ],
         ),
       ),
     );
   }
 
-  Widget _buildSendButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange.shade700,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          elevation: 0,
+  /// Sends the reminder text with the owner's UPI QR image to the resident's chat.
+  Future<void> _sendWithQr(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box == null
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size;
+    File? qrFile;
+    try {
+      qrFile = await (_qrFile ??= prepareReminderQr(
+        widget.library.ownerUpiQrUrl!,
+      ));
+    } catch (_) {
+      _qrFile = null;
+    }
+    final needsPaste = await shareReminderWithQr(
+      phone: ReminderWhatsAppHelper.formatPhoneForWhatsApp(
+        widget.seatInfo.studentPhone ?? widget.seatInfo.membership.phoneNumber,
+      ),
+      message: _bodyController.text,
+      qrFile: qrFile,
+      origin: origin,
+    );
+    if (!context.mounted || (!needsPaste && qrFile != null)) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          needsPaste
+              ? 'QR copied. In WhatsApp, long-press the message box and tap Paste.'
+              : 'Could not attach the UPI QR. Message sent without it.',
         ),
-        onPressed: _isSending ? null : () => _handleSend(context),
-        child: _isSending
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : const Text(
-                'Send Reminder',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -600,7 +415,7 @@ class _ReminderOptionsSectionState extends State<_ReminderOptionsSection> {
       // Send push notification if selected
       if (_selectedOption == ReminderDeliveryOption.pushOnly ||
           _selectedOption == ReminderDeliveryOption.both) {
-        await widget.onSendPushNotification(widget.bodyController.text);
+        await widget.onSendPushNotification(_bodyController.text);
       }
 
       // Send WhatsApp if selected
@@ -611,18 +426,23 @@ class _ReminderOptionsSectionState extends State<_ReminderOptionsSection> {
           library: widget.library,
           type: widget.reminderType,
           amount: widget.amount,
-          customMessage: widget.customMessage,
+          customMessage: _bodyController.text,
         );
 
         if (whatsappUrl != null && whatsappUrl.isNotEmpty) {
           try {
-            await WhatsAppLauncher.launchFromWaUrl(whatsappUrl);
+            if (widget.library.hasUpiQr) {
+              if (context.mounted) await _sendWithQr(context);
+            } else {
+              await WhatsAppLauncher.launchFromWaUrl(whatsappUrl);
+            }
           } catch (e) {
+            _qrFile = null;
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Failed to open WhatsApp: $e'),
-                  backgroundColor: Colors.red,
+                  backgroundColor: AppUIConstants.error,
                   behavior: SnackBarBehavior.floating,
                 ),
               );
@@ -631,9 +451,9 @@ class _ReminderOptionsSectionState extends State<_ReminderOptionsSection> {
         } else {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Phone number not available for WhatsApp'),
-                backgroundColor: Colors.orange,
+              SnackBar(
+                content: const Text('Phone number not available for WhatsApp'),
+                backgroundColor: AppUIConstants.warning,
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -653,9 +473,22 @@ class _ReminderOptionsSectionState extends State<_ReminderOptionsSection> {
   }
 }
 
-/// Reminder delivery options.
-enum ReminderDeliveryOption {
-  pushOnly,
-  whatsappOnly,
-  both,
+/// Rounded icon tile used in the sheet header and cards.
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
 }

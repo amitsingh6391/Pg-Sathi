@@ -257,4 +257,11 @@ exports.sendSmsOtp = functions.https.onCall(async (data) => {
 const wa = require('./whatsapp');
 exports.sendWhatsAppInvoice = wa.sendWhatsAppInvoice;
 exports.sendWhatsAppExpiryReminders = wa.sendWhatsAppExpiryReminders;
-exports.sendWhatsAppNotice = wa.sendWhatsAppNotice;
+exports.sendWhatsAppNotice = require('./whatsapp_notice').sendWhatsAppNotice;
+
+// Scheduled notices — publish daily at 9 AM IST
+exports.publishScheduledNotices = require('./notice_scheduler').publishScheduledNotices;
+
+// PG registration QR landing page (/pg/**)
+const pgPage = require('./pg_page');
+exports.getPgPage = pgPage.getPgPage;

@@ -1,6 +1,7 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
   "storage": [
     {
@@ -12,11 +13,16 @@
     "public": "build/deploy",
     "ignore": [
       "firebase.json",
-      "**/.*",
+      "**/.git/**",
+      "**/.DS_Store",
       "**/node_modules/**",
       "functions/**"
     ],
     "rewrites": [
+      {
+        "source": "/pg/**",
+        "function": "getPgPage"
+      },
       {
         "source": "/app/**",
         "destination": "/app/index.html"
@@ -33,6 +39,15 @@
           {
             "key": "Cache-Control",
             "value": "max-age=604800"
+          }
+        ]
+      },
+      {
+        "source": "/.well-known/@(assetlinks.json|apple-app-site-association)",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
           }
         ]
       },
@@ -66,6 +81,6 @@
   },
   "functions": {
     "source": "functions",
-    "runtime": "nodejs20"
+    "runtime": "nodejs22"
   }
 }

@@ -3,8 +3,9 @@ import 'dart:developer' as developer;
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:unicons/unicons.dart';
 
 import '../../../core/di/injection_container.dart';
 import '../../../core/router/app_router.dart';
@@ -30,6 +31,11 @@ import '../widgets/seat_stats_card.dart';
 import '../widgets/subscription_guard.dart';
 import '../widgets/tutorial_videos_banner.dart';
 import 'owner_dashboard_navigation.dart';
+import 'owner_profile_wrapper.dart';
+import '../../../domain/repositories/membership_repository.dart';
+import '../widgets/pg_qr/registration_qr_section.dart';
+import 'bed_requests_screen.dart';
+import 'pg_qr_screen.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   const OwnerDashboardScreen({super.key});
@@ -49,6 +55,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
 
   RevenueAnalyticsCubit? _revenueCubit;
   String? _revenueLibraryId;
+
+  /// Library whose pending bed requests were last loaded.
+  String? _requestsLibraryId;
 
   @override
   void onLibraryReloaded() => _loadLibrary();
@@ -82,10 +91,24 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
     return _revenueCubit!;
   }
 
+  /// Number of resident bed requests waiting for approval (grid badge).
+  int _pendingRequests = 0;
+
+  Future<void> _loadPendingRequests(String libraryId) async {
+    _requestsLibraryId = libraryId;
+    final result = await sl<MembershipRepository>()
+        .getPendingSeatRequestMemberships(libraryId);
+    if (!mounted) return;
+    setState(
+      () => _pendingRequests = result.fold((_) => 0, (list) => list.length),
+    );
+  }
+
   void _reloadDashboardRevenue() {
     if (!mounted) return;
     final id = context.read<OwnerLibraryBloc>().state.library?.id;
     if (id == null) return;
+    _loadPendingRequests(id);
     if (_revenueCubit == null || _revenueLibraryId != id) {
       _revenueCubitForLibrary(id);
     } else {
@@ -195,7 +218,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
     if (user != null) {
       _hasLoadedSubscription = false;
       _lastLoadedLibraryId = null;
-      context.read<OwnerLibraryBloc>().add(LoadOwnerLibrary(ownerId: user.id));
+      context.read<OwnerLibraryBloc>().add(
+        LoadOwnerLibrary(
+          ownerId: user.ownerAccountId,
+          managedLibraryIds: user.isManager ? user.managedLibraryIds : null,
+        ),
+      );
     }
   }
 
@@ -247,7 +275,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
                 user != null &&
                 subState.subscriptionStatus != null) {
               _checkAndShowPromoPopup(
-                ownerId: user.id,
+                ownerId: user.ownerAccountId,
                 libraryId: libraryState.library!.id,
                 accessStatus: subState.subscriptionStatus!.accessStatus,
               );
@@ -261,40 +289,75 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
                 prev.isLoading &&
                 !curr.isLoading,
             listener: (context, state) => _reloadDashboardRevenue(),
-            child: Scaffold(
-              backgroundColor: AppUIConstants.background,
-              body: BlocBuilder<OwnerLibraryBloc, OwnerLibraryState>(
-                builder: (context, state) {
-                  final user = context.read<PhoneAuthCubit>().state.currentUser;
+            child: BlocListener<OwnerLibraryBloc, OwnerLibraryState>(
+              listenWhen: (prev, curr) =>
+                  curr.library != null &&
+                  (prev.stats != curr.stats ||
+                      _requestsLibraryId != curr.library!.id),
+              listener: (context, state) =>
+                  _loadPendingRequests(state.library!.id),
+              child: Scaffold(
+                backgroundColor: AppUIConstants.background,
+                floatingActionButton: _buildNewResidentFab(),
+                body: BlocBuilder<OwnerLibraryBloc, OwnerLibraryState>(
+                  builder: (context, state) {
+                    final user = context
+                        .read<PhoneAuthCubit>()
+                        .state
+                        .currentUser;
 
-                  if (state.library != null && user != null) {
-                    _loadSubscriptionStatus(
-                      user.id,
-                      state.library!.id,
-                      user.createdAt,
-                    );
-                  }
+                    if (state.library != null && user != null) {
+                      _loadSubscriptionStatus(
+                        user.ownerAccountId,
+                        state.library!.id,
+                        user.createdAt,
+                      );
+                    }
 
-                  return CustomScrollView(
-                    slivers: [
-                      OwnerHeader(
-                        libraryName: state.library?.name,
-                        user: user,
-                        onRefresh: _loadLibrary,
-                        onProfile: () => navigateToProfile(context, user),
-                        onSignOut: () => showSignOutDialog(context),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(
-                            AppUIConstants.spacingLg,
+                    return RefreshIndicator(
+                      color: AppUIConstants.primary,
+                      onRefresh: () async {
+                        _loadLibrary();
+                        await Future<void>.delayed(
+                          const Duration(milliseconds: 700),
+                        );
+                      },
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          OwnerHeader(
+                            libraryName: state.library?.name,
+                            user: user,
+                            hasMultipleBranches: state.hasMultipleLibraries,
+                            onSwitchBranch: state.hasMultipleLibraries
+                                ? () => OwnerProfileWrapper.showBranchSwitcher(
+                                    context,
+                                  )
+                                : null,
+                            onRefresh: _loadLibrary,
+                            onProfile: () => navigateToProfile(context, user),
+                            onSignOut: () => showSignOutDialog(context),
+                            onPgDetails: state.hasLibrary
+                                ? () => navigateToForm(context)
+                                : null,
+                            onAddBranch:
+                                (user?.isManager ?? false) || !state.hasLibrary
+                                ? null
+                                : () => navigateToAddBranch(context),
                           ),
-                          child: _buildContent(context, state, user),
-                        ),
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.all(
+                                AppUIConstants.spacingLg,
+                              ),
+                              child: _buildContent(context, state, user),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -342,11 +405,23 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
               ],
               if (state.hasLibrary) ...[
                 _buildSeatSection(context, state, subState),
-                _buildQuickActionsSection(context, state, subState),
+                const SizedBox(height: 20),
+                RegistrationQrSection(
+                  library: state.library!,
+                  onOpen: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PgQrScreen(library: state.library!),
+                    ),
+                  ),
+                ),
+                _buildActionGrid(context, state, subState),
                 const SizedBox(height: 20),
                 _buildRevenueSection(context, state),
+                const SizedBox(height: 20),
+                TutorialVideosBanner(remoteConfig: sl<FirebaseRemoteConfig>()),
                 _buildLibraryPhotosSection(context, state),
-                const SizedBox(height: 24),
+                // Room for the "New Resident" FAB.
+                const SizedBox(height: 88),
               ],
             ],
           ],
@@ -391,45 +466,66 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
   ) {
     final hasAccess = subState.subscriptionStatus?.hasAccess ?? false;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SeatStatsCard(
-          availableSeats: state.stats.availableSeats,
-          pendingSeats: state.stats.reservedSeats,
-          occupiedSeats: state.occupiedSeats,
-          isLocked: !hasAccess,
-          onLockedTap: () =>
-              showSubscriptionRequired(context, state, subState: subState),
-          onTap: () => navigateToSeatOverview(context, state),
-        ),
-        const SizedBox(height: 20),
-      ],
+    return SeatStatsCard(
+      availableSeats: state.stats.availableSeats,
+      pendingSeats: state.stats.reservedSeats,
+      occupiedSeats: state.occupiedSeats,
+      isLocked: !hasAccess,
+      onLockedTap: () =>
+          showSubscriptionRequired(context, state, subState: subState),
+      onTap: () => navigateToSeatOverview(context, state),
     );
   }
 
   Widget _buildRevenueSection(BuildContext context, OwnerLibraryState state) {
     final libraryId = state.library!.id;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        BlocProvider.value(
-          value: _revenueCubitForLibrary(libraryId),
-          child: RevenueAnalyticsCard(
-            libraryId: libraryId,
-            onTap: () => navigateToRevenue(context, state),
-            onViewCashApprovals: () => navigateToCashApprovals(context, state),
-            onViewUpiApprovals: () => navigateToUpiApprovals(context, state),
-          ),
-        ),
-        const SizedBox(height: 20),
-        TutorialVideosBanner(remoteConfig: sl<FirebaseRemoteConfig>()),
-        const SizedBox(height: 12),
-      ],
+    return BlocProvider.value(
+      value: _revenueCubitForLibrary(libraryId),
+      child: RevenueAnalyticsCard(
+        libraryId: libraryId,
+        onTap: () => navigateToRevenue(context, state),
+        onViewCashApprovals: () => navigateToCashApprovals(context, state),
+        onViewUpiApprovals: () => navigateToUpiApprovals(context, state),
+      ),
     );
   }
 
-  Widget _buildQuickActionsSection(
+  /// "New Resident" lives in a FAB so the quick-action grid stays two rows.
+  Widget _buildNewResidentFab() {
+    return BlocBuilder<OwnerLibraryBloc, OwnerLibraryState>(
+      builder: (context, state) {
+        if (!state.hasLibrary) return const SizedBox.shrink();
+        return BlocBuilder<SubscriptionCubit, SubscriptionState>(
+          builder: (context, subState) {
+            final hasAccess = subState.subscriptionStatus?.hasAccess ?? false;
+            return FloatingActionButton.extended(
+              heroTag: 'owner_new_resident_fab',
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              onPressed: hasAccess
+                  ? () => navigateToMembershipAssignment(context, state)
+                  : () => showSubscriptionRequired(
+                      context,
+                      state,
+                      subState: subState,
+                    ),
+              icon: Icon(
+                hasAccess
+                    ? Icons.person_add_alt_1_rounded
+                    : Icons.lock_outline_rounded,
+              ),
+              label: const Text(
+                'New Resident',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildActionGrid(
     BuildContext context,
     OwnerLibraryState state,
     SubscriptionState subState,
@@ -442,79 +538,70 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
         ? action
         : () => showSubscriptionRequired(context, state, subState: subState);
 
-    VoidCallback lockedOrPaidReferral(VoidCallback action) => hasPaidPlan
-        ? action
-        : () => showSubscriptionRequired(context, state, subState: subState);
-
-    const memberColor = Color(0xFF2563EB);
-    const bedsColor = Color(0xFF0F766E);
-    const invoicesColor = Color(0xFFD97706);
-    const subscriptionColor = Color(0xFF7C3AED);
-    const notificationColor = Color(0xFFF59E0B);
-    const paymentsColor = Color(0xFF4F46E5);
-    const referralColor = Color(0xFFE11D48);
-
     return QuickActionsGridView(
       actions: [
         QuickActionItem(
-          icon: Icons.person_add_rounded,
-          label: 'New\nMember',
-          color: memberColor,
-          onTap: lockedOr(() => navigateToMembershipAssignment(context, state)),
+          icon: Icons.how_to_reg_rounded,
+          label: 'Bed\nRequests',
+          color: AppUIConstants.accent,
+          badge: _pendingRequests,
+          onTap: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => BedRequestsScreen(library: state.library!),
+              ),
+            );
+            _loadPendingRequests(state.library!.id);
+          },
+        ),
+        QuickActionItem(
+          icon: Icons.payments_outlined,
+          label: 'Approve\nPayments',
+          color: const Color(0xFF6366F1),
+          onTap: lockedOr(() => showPaymentOptions(context, state)),
           isLocked: !hasAccess,
         ),
         QuickActionItem(
-          icon: Icons.bed_rounded,
-          label: 'Beds',
-          color: bedsColor,
-          onTap: lockedOr(() => navigateToSlotManagement(context, state)),
-          isLocked: !hasAccess,
-        ),
-        QuickActionItem(
-          icon: Icons.receipt_long_rounded,
+          icon: Icons.receipt_long_outlined,
           label: 'Invoices',
-          color: invoicesColor,
+          color: AppUIConstants.warning,
           onTap: lockedOr(() => navigateToInvoices(context, state)),
           isLocked: !hasAccess,
         ),
         QuickActionItem(
-          icon: Icons.workspace_premium_rounded,
+          icon: Icons.workspace_premium_outlined,
           label: 'Subscription',
-          color: subscriptionColor,
+          color: const Color(0xFFEC4899),
           onTap: () =>
               navigateToSubscription(context, state, subState: subState),
         ),
         QuickActionItem(
-          icon: Icons.notifications_active_rounded,
-          label: 'Send\nNotification',
-          color: notificationColor,
-          onTap: lockedOr(() => navigateToNotifications(context, state)),
-          isLocked: !hasAccess,
+          icon: UniconsLine.whatsapp,
+          label: 'WhatsApp\nCredits',
+          color: const Color(0xFF25D366),
+          onTap: () => navigateToWhatsAppCredits(context, state),
         ),
         QuickActionItem(
-          icon: Icons.payment_rounded,
-          label: 'Approve\nPayments',
-          color: paymentsColor,
-          onTap: lockedOr(() => showPaymentOptions(context, state)),
+          icon: Icons.bed_outlined,
+          label: 'Room\nTypes',
+          color: const Color(0xFF0EA5E9),
+          onTap: lockedOr(() => navigateToSlotManagement(context, state)),
           isLocked: !hasAccess,
         ),
         if (!isIosApp)
           QuickActionItem(
             icon: Icons.card_giftcard_rounded,
             label: 'Refer &\nEarn',
-            color: referralColor,
-            onTap: lockedOrPaidReferral(
-              () => navigateToReferral(context, state, subState),
-            ),
+            color: AppUIConstants.primary,
+            onTap: hasPaidPlan
+                ? () => navigateToReferral(context, state, subState)
+                : () => showSubscriptionRequired(
+                    context,
+                    state,
+                    subState: subState,
+                  ),
             isLocked: !hasPaidPlan,
-            badge: 'NEW',
           ),
-        QuickActionItem(
-          icon: Icons.settings_rounded,
-          label: 'Edit\nPG',
-          color: AppUIConstants.textSecondary,
-          onTap: () => navigateToForm(context),
-        ),
       ],
     );
   }

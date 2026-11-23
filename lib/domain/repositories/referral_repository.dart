@@ -47,8 +47,7 @@ abstract class ReferralRepository {
   );
 
   /// Admin: fetch all pending withdrawal requests across all owners.
-  Future<Either<Failure, List<WithdrawalRequest>>>
-      getAllPendingWithdrawals();
+  Future<Either<Failure, List<WithdrawalRequest>>> getAllPendingWithdrawals();
 
   /// Admin: update a withdrawal request (approve/reject).
   Future<Either<Failure, WithdrawalRequest>> updateWithdrawalRequest(

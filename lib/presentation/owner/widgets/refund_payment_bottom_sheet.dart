@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -49,7 +49,10 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
               SnackBar(
                 content: Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, color: Colors.white),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppUIConstants.background,
+                    ),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text('Payment refunded successfully'),
@@ -68,7 +71,10 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
               SnackBar(
                 content: Row(
                   children: [
-                    Icon(Icons.error_rounded, color: Colors.white),
+                    const Icon(
+                      Icons.error_rounded,
+                      color: AppUIConstants.background,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -87,10 +93,12 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
           }
         },
         builder: (context, state) {
+          final amountText = '₹${widget.payment.amount.toStringAsFixed(0)}';
           return Container(
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: AppUIConstants.surface,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border(top: BorderSide(color: AppUIConstants.border)),
             ),
             child: SingleChildScrollView(
               child: Padding(
@@ -102,33 +110,30 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Drag handle
                       Container(
                         margin: const EdgeInsets.only(top: 12, bottom: 8),
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: AppUIConstants.border,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-
-                      // Header
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 8, 16),
                         child: Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppUIConstants.primary.withValues(
-                                  alpha: 0.1,
+                                color: AppUIConstants.primaryLight.withValues(
+                                  alpha: 0.15,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Icon(
-                                Icons.money_off_outlined,
-                                color: AppUIConstants.primary,
+                              child: const Icon(
+                                Icons.undo_rounded,
+                                color: AppUIConstants.primaryLight,
                                 size: 24,
                               ),
                             ),
@@ -138,19 +143,13 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    'Refund Payment',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    'Refund payment',
+                                    style: AppUIConstants.headingMd,
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 2),
                                   Text(
                                     widget.studentName,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade600,
-                                    ),
+                                    style: AppUIConstants.bodySm,
                                   ),
                                 ],
                               ),
@@ -160,93 +159,55 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
                               onPressed: state.isLoading
                                   ? null
                                   : () => Navigator.of(context).pop(false),
-                              color: Colors.grey.shade600,
+                              color: AppUIConstants.textSecondary,
                             ),
                           ],
                         ),
                       ),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Warning message
+                            // Receipt-style amount card
                             Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.orange.shade200,
-                                ),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.info_outline_rounded,
-                                    color: Colors.orange.shade700,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Important',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.grey.shade800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'This will cancel the membership, remove payment from revenue, and delete all invoices.',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Payment details card
-                            Container(
+                              width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(12),
+                                color: AppUIConstants.surfaceMuted,
+                                borderRadius: BorderRadius.circular(
+                                  AppUIConstants.radiusMd,
+                                ),
+                                border: Border.all(
+                                  color: AppUIConstants.border,
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Payment Details',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
+                                    'REFUND AMOUNT',
+                                    style: AppUIConstants.caption.copyWith(
+                                      letterSpacing: 1.2,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    amountText,
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppUIConstants.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 12),
-                                  _buildDetailRow(
-                                    'Student',
-                                    widget.studentName,
+                                  const Divider(
+                                    height: 1,
+                                    color: AppUIConstants.border,
                                   ),
-                                  _buildDetailRow(
-                                    'Amount',
-                                    '₹${widget.payment.amount.toStringAsFixed(0)}',
-                                    isBold: true,
-                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildDetailRow('Tenant', widget.studentName),
                                   _buildDetailRow(
                                     'Method',
                                     widget.payment.mode.displayName,
@@ -254,43 +215,96 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
                                   _buildDetailRow(
                                     'Status',
                                     widget.payment.status.displayName,
-                                    valueColor: Colors.green.shade700,
+                                    valueColor: AppUIConstants.success,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppUIConstants.surfaceMuted,
+                                borderRadius: BorderRadius.circular(
+                                  AppUIConstants.radiusMd,
+                                ),
+                                border: Border.all(
+                                  color: AppUIConstants.primaryLight.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
+                              ),
+                              child: const Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: AppUIConstants.primaryLight,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'This will cancel the stay, remove the payment from revenue, and delete all invoices. It cannot be undone.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1.4,
+                                        color: AppUIConstants.textPrimary,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 20),
-
-                            // Reason input
-                            Text(
-                              'Refund Reason',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
-                              ),
+                            const Text(
+                              'Refund reason',
+                              style: AppUIConstants.headingSm,
                             ),
                             const SizedBox(height: 8),
                             TextFormField(
                               controller: _reasonController,
                               decoration: InputDecoration(
                                 hintText:
-                                    'E.g., Seat assigned by mistake, Student cancelled',
-                                hintStyle: TextStyle(
-                                  color: Colors.grey.shade400,
+                                    'E.g., Bed assigned by mistake, Tenant cancelled',
+                                hintStyle: const TextStyle(
+                                  color: AppUIConstants.textTertiary,
                                   fontSize: 14,
                                 ),
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
+                                fillColor: AppUIConstants.surfaceMuted,
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(
+                                    AppUIConstants.radiusMd,
+                                  ),
+                                  borderSide: BorderSide.none,
                                 ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppUIConstants.radiusMd,
+                                  ),
+                                  borderSide: const BorderSide(
+                                    color: AppUIConstants.border,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppUIConstants.radiusMd,
+                                  ),
+                                  borderSide: const BorderSide(
+                                    color: AppUIConstants.primaryLight,
+                                  ),
+                                ),
+                                counterStyle: AppUIConstants.caption,
                                 contentPadding: const EdgeInsets.all(16),
                               ),
                               maxLines: 3,
                               maxLength: 200,
                               textInputAction: TextInputAction.done,
-                              style: const TextStyle(fontSize: 14),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppUIConstants.textPrimary,
+                              ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Please enter a reason';
@@ -302,9 +316,7 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
                               },
                               enabled: !state.isLoading,
                             ),
-
-                            // Action buttons
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             Row(
                               children: [
                                 Expanded(
@@ -318,18 +330,20 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
                                         vertical: 14,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(
+                                          AppUIConstants.radiusMd,
+                                        ),
                                       ),
-                                      side: BorderSide(
-                                        color: Colors.grey.shade300,
+                                      side: const BorderSide(
+                                        color: AppUIConstants.border,
                                       ),
                                     ),
-                                    child: Text(
+                                    child: const Text(
                                       'Cancel',
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.grey.shade700,
+                                        color: AppUIConstants.textSecondary,
                                       ),
                                     ),
                                   ),
@@ -358,34 +372,44 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
                                           },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppUIConstants.primary,
-                                      foregroundColor: Colors.white,
+                                      foregroundColor:
+                                          AppUIConstants.background,
+                                      disabledBackgroundColor:
+                                          AppUIConstants.disabled,
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 14,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(
+                                          AppUIConstants.radiusMd,
+                                        ),
                                       ),
                                       elevation: 0,
                                     ),
-                                    child: state.isLoading
-                                        ? const SizedBox(
-                                            height: 20,
-                                            width: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                    Colors.white,
-                                                  ),
+                                    child: AnimatedSwitcher(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      child: state.isLoading
+                                          ? const SizedBox(
+                                              key: ValueKey('busy'),
+                                              height: 20,
+                                              width: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color:
+                                                    AppUIConstants.textPrimary,
+                                              ),
+                                            )
+                                          : Text(
+                                              'Refund $amountText',
+                                              key: const ValueKey('idle'),
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                             ),
-                                          )
-                                        : const Text(
-                                            'Process Refund',
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -405,12 +429,7 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
     );
   }
 
-  Widget _buildDetailRow(
-    String label,
-    String value, {
-    Color? valueColor,
-    bool isBold = false,
-  }) {
+  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -418,22 +437,15 @@ class _RefundPaymentBottomSheetState extends State<RefundPaymentBottomSheet> {
         children: [
           SizedBox(
             width: 70,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade500,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: Text(label, style: AppUIConstants.caption),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
                 fontSize: 13,
-                color: valueColor ?? Colors.grey.shade800,
-                fontWeight: isBold ? FontWeight.w600 : FontWeight.w500,
+                color: valueColor ?? AppUIConstants.textPrimary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

@@ -163,9 +163,7 @@ class DeviceSessionRepositoryImpl implements DeviceSessionRepository {
       final isRevoked = doc.data()['isRevoked'] as bool? ?? false;
       return Right(isRevoked);
     } catch (e) {
-      return Left(
-        ServerFailure(message: 'Failed to check session status: $e'),
-      );
+      return Left(ServerFailure(message: 'Failed to check session status: $e'));
     }
   }
 }

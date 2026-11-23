@@ -327,6 +327,25 @@ class OccupiedSeatInfo extends Equatable {
   bool get isExpiringSoon =>
       isOccupied && daysRemaining <= 7 && daysRemaining >= 0;
 
+  /// Rent period ends today.
+  bool get isExpiringToday => isOccupied && daysRemaining == 0;
+
+  /// Stay created in the current calendar month.
+  bool get isJoinedThisMonth {
+    final created = membership.createdAt;
+    if (created == null) return false;
+    final now = DateTime.now();
+    return created.year == now.year && created.month == now.month;
+  }
+
+  /// Future-dated stay that has not started yet (date-only comparison).
+  bool get isUpcoming {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = membership.startDate;
+    return DateTime(start.year, start.month, start.day).isAfter(today);
+  }
+
   /// Display name for UI (falls back to phone number).
   String get displayName =>
       studentName ?? studentPhone ?? membership.phoneNumber;

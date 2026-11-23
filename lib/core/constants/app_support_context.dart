@@ -12,7 +12,7 @@ For study-related questions, continue helping as a study assistant.
 
 === ABOUT PG SATHI ===
 PG Sathi is a mobile app for managing PGs, hostels, and co-living properties in India.
-- Owners: Manage tenants, rooms, beds, rent dues, deposits, attendance, and notices
+- Owners: Manage tenants, rooms, beds, rent dues, deposits, and notices
 - Tenants: View stay details, track payments, access notices, and manage documents
 
 === SUBSCRIPTION & PRICING (FOR OWNERS) ===
@@ -62,30 +62,24 @@ IMPORTANT PRICING RULES:
    - Payment options: Cash, UPI (owner marks as paid later)
    - Partial payments supported with breakdown
 
-5. ATTENDANCE
-   - Students check-in/out via app (geo-fenced to library location)
-   - Owner sees: Who's present, session duration, history
-   - Analytics: Daily/weekly/monthly attendance patterns
-   - Manual attendance marking also available
-
-6. FEES & PAYMENTS
+5. FEES & PAYMENTS
    - View pending payments, approve cash/UPI payments
    - Payment breakdown: Total, paid, remaining
    - Invoice generation (PDF download)
    - UPI approvals: Students upload screenshot, owner verifies
 
-7. NOTICES
+6. NOTICES
    - Post announcements to all students or specific slots
    - Attach images, PDFs, external links
    - Schedule notices for later
    - Track views and reads
 
-8. NOTIFICATIONS
+7. NOTIFICATIONS
    - Payment reminders (7, 3, 1 days before expiry)
    - New student requests, payment approvals needed
    - Expiring memberships alerts
 
-9. SUBSCRIPTION (OWNER)
+8. SUBSCRIPTION (OWNER)
    - View current plan, days remaining
    - Subscription management is handled from the subscription screen
 
@@ -93,7 +87,6 @@ IMPORTANT PRICING RULES:
 
 1. HOME
    - View current library membership
-   - Check-in/check-out button (geo-fenced)
    - Quick access to features
 
 2. EXPLORE LIBRARIES
@@ -101,34 +94,28 @@ IMPORTANT PRICING RULES:
    - View library details: facilities, pricing, photos
    - Request seat (pending owner approval)
 
-3. ATTENDANCE
-   - Check-in when entering library (within 100m)
-   - Check-out when leaving
-   - View attendance history and stats
-   - Multiple sessions per day supported
-
-4. PAYMENTS
+3. PAYMENTS
    - View fee details and due dates
    - Pay via UPI: Upload screenshot after payment
    - View payment history and invoices
 
-5. NOTICES
+4. NOTICES
    - Read library announcements
    - View attachments and links
 
-6. CURRENT AFFAIRS
+5. CURRENT AFFAIRS
    - Daily news articles for exam prep (UPSC/SSC/Banking)
    - Categories: National, International, Economy, Science, etc.
    - 3 updates daily: Morning, Afternoon, Evening
    - Bookmark articles, like/view counts
 
-7. AI DOUBT SOLVER (THIS CHAT!)
+6. AI DOUBT SOLVER (THIS CHAT!)
    - Ask study questions
    - Upload images of problems
    - Get instant AI-powered answers
    - Ask about PG Sathi app features
 
-8. AI TOOLS
+7. AI TOOLS
    - Quiz Generator: Upload PDF/text → Get MCQ quiz
    - Summary Generator: Summarize long content
 
@@ -139,9 +126,6 @@ A: Go to Seats tab → Tap any empty seat → Enter student's phone number → S
 
 Q: How to extend a membership?
 A: Seats tab → Tap the student's seat → "Extend/Renew" → Select duration → Confirm
-
-Q: How to check my attendance?
-A: Students: Home tab shows check-in button when near library. Tap to check-in. Attendance tab shows history.
 
 Q: How to pay my fees?
 A: Students: Payments tab → View due amount → Pay via UPI → Upload screenshot → Wait for owner approval
@@ -158,9 +142,6 @@ A: Owners: Notices tab → "+" button → Enter title, message → Add attachmen
 Q: How to renew my subscription?
 A: Owners: Open Profile → Subscription to view subscription status and available options.
 
-Q: How to check who's present in library?
-A: Owners: Attendance tab → Today's attendance shows all checked-in students with times
-
 Q: What if student doesn't have the app?
 A: Owner can assign "unregistered" membership by phone number. Student can join later by installing app and logging in with same phone.
 
@@ -170,16 +151,10 @@ A: Owners: Seats → Tap student's seat → "Cancel Membership" → Confirm (sea
 Q: How to change seat capacity?
 A: Owners: More → Slot Management → Edit slot → Change capacity → Save. Or create new slot.
 
-Q: What is geo-fencing?
-A: Students must be within 100 meters of library to check-in/out. This ensures accurate attendance.
-
 Q: How to contact support?
 A: WhatsApp: 9548582776 (tap support button in app)
 
 === TROUBLESHOOTING ===
-
-Q: Check-in button not working?
-A: 1) Enable location permission 2) Ensure GPS is on 3) Be within 100m of library 4) Check if membership is active
 
 Q: Payment not approved?
 A: Owner approves tenant payments manually. Contact your PG owner if a tenant payment is pending.
@@ -193,9 +168,6 @@ A: Enable notification permission in phone settings. Ensure battery optimization
 Q: Can't find my library?
 A: Ask owner for library name. Search in Explore tab. If not found, owner may not have completed profile.
 
-Q: Seat shows occupied but student left?
-A: Student should check-out from app. Owner can also mark attendance manually.
-
 === SUPPORT ===
 WhatsApp Support: +91 9548582776
 Available for: Account, tenant payment, and technical support
@@ -203,7 +175,6 @@ Available for: Account, tenant payment, and technical support
 === IMPORTANT NOTES ===
 - App works offline for viewing, but needs internet for actions
 - All prices are in INR (₹)
-- Attendance is tracked with multiple sessions per day
 - PDF invoices can be downloaded for payments
 - Current affairs updated 3 times daily automatically
 ''';

@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/utils/indian_currency_format.dart';
 import '../../../domain/entities/expense.dart';
 import '../../../domain/usecases/get_revenue_analytics.dart';
 import '../../core/app_ui_constants.dart';
+import '../../core/widgets/premium_kit.dart';
 
 /// Month-wise profit view: Revenue − Expenses = Profit.
 ///
@@ -55,14 +56,12 @@ class ProfitSection extends StatelessWidget {
     final revenue = _monthRevenue;
     final profit = revenue - monthExpenses;
     final isPositive = profit >= 0;
+    final tone = isPositive ? AppUIConstants.success : AppUIConstants.error;
+    final total = revenue + monthExpenses;
+    final revenueFlex = total <= 0 ? 1 : (revenue / total * 100).round();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppUIConstants.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppUIConstants.border),
-      ),
+    return PremiumCard(
+      padding: const EdgeInsets.all(AppUIConstants.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -72,35 +71,72 @@ class ProfitSection extends StatelessWidget {
             onPrevious: onPreviousMonth,
             onNext: onNextMonth,
           ),
-          const SizedBox(height: 16),
-
-          // Revenue − Expenses = Profit
+          const SizedBox(height: 18),
+          Text(
+            isPositive ? 'NET PROFIT' : 'NET LOSS',
+            style: TextStyle(
+              color: tone,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${isPositive ? '+' : '-'}${indianRupeeCurrencyFormat.format(profit.abs())}',
+              style: const TextStyle(
+                color: AppUIConstants.textPrimary,
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 8,
+              child: total <= 0
+                  ? const ColoredBox(color: AppUIConstants.surfaceMuted)
+                  : Row(
+                      children: [
+                        Expanded(
+                          flex: revenueFlex.clamp(1, 99),
+                          child: const ColoredBox(
+                            color: AppUIConstants.success,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          flex: (100 - revenueFlex).clamp(1, 99),
+                          child: const ColoredBox(color: AppUIConstants.error),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: _MiniStat(
-                  label: 'Revenue',
+                  label: 'Rent collected',
                   value: indianRupeeCurrencyFormat.format(revenue),
                   color: AppUIConstants.success,
+                  icon: Icons.south_west_rounded,
                 ),
               ),
-              _Operator('−'),
+              const SizedBox(width: 10),
               Expanded(
                 child: _MiniStat(
                   label: 'Expenses',
                   value: indianRupeeCurrencyFormat.format(monthExpenses),
                   color: AppUIConstants.error,
-                ),
-              ),
-              _Operator('='),
-              Expanded(
-                child: _MiniStat(
-                  label: 'Profit',
-                  value: indianRupeeCurrencyFormat.format(profit.abs()),
-                  color: isPositive
-                      ? AppUIConstants.success
-                      : AppUIConstants.error,
-                  prefix: isPositive ? '+' : '-',
+                  icon: Icons.north_east_rounded,
                 ),
               ),
             ],
@@ -110,21 +146,21 @@ class ProfitSection extends StatelessWidget {
           if (expenses.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(color: AppUIConstants.divider),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              'Expenses',
+              'Expenses this month',
               style: AppUIConstants.bodySm.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppUIConstants.textSecondary,
               ),
             ),
-            const SizedBox(height: 8),
-            ...expenses.take(5).map(
-              (e) => _ExpenseRow(
-                expense: e,
-                onDelete: () => onDelete(e.id),
-              ),
-            ),
+            const SizedBox(height: 4),
+            ...expenses
+                .take(5)
+                .map(
+                  (e) =>
+                      _ExpenseRow(expense: e, onDelete: () => onDelete(e.id)),
+                ),
             if (expenses.length > 5)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -160,30 +196,49 @@ class _MonthNavigator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Monthly Profit', style: AppUIConstants.headingSm),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _NavButton(
-              icon: Icons.chevron_left_rounded,
-              onTap: onPrevious,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                DateFormat('MMM yyyy').format(selectedMonth),
-                style: AppUIConstants.bodySm.copyWith(
-                  fontWeight: FontWeight.w600,
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppUIConstants.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+          ),
+          child: const Icon(
+            Icons.savings_rounded,
+            size: 18,
+            color: AppUIConstants.primaryLight,
+          ),
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text('PG profit', style: AppUIConstants.headingSm),
+        ),
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: AppUIConstants.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppUIConstants.radiusFull),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _NavButton(icon: Icons.chevron_left_rounded, onTap: onPrevious),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  DateFormat('MMM yyyy').format(selectedMonth),
+                  style: AppUIConstants.bodySm.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppUIConstants.textPrimary,
+                  ),
                 ),
               ),
-            ),
-            _NavButton(
-              icon: Icons.chevron_right_rounded,
-              onTap: isCurrentMonth ? null : onNext,
-            ),
-          ],
+              _NavButton(
+                icon: Icons.chevron_right_rounded,
+                onTap: isCurrentMonth ? null : onNext,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -205,16 +260,14 @@ class _NavButton extends StatelessWidget {
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: enabled
-              ? AppUIConstants.primary.withValues(alpha: 0.08)
-              : AppUIConstants.divider,
-          borderRadius: BorderRadius.circular(6),
+          color: enabled ? AppUIConstants.primarySoft : Colors.transparent,
+          shape: BoxShape.circle,
         ),
         child: Icon(
           icon,
           size: 18,
           color: enabled
-              ? AppUIConstants.primary
+              ? AppUIConstants.primaryLight
               : AppUIConstants.disabled,
         ),
       ),
@@ -226,56 +279,58 @@ class _NavButton extends StatelessWidget {
 // Sub-widgets
 // ---------------------------------------------------------------------------
 
-class _Operator extends StatelessWidget {
-  const _Operator(this.symbol);
-
-  final String symbol;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        symbol,
-        style: TextStyle(
-          fontSize: 20,
-          color: AppUIConstants.textTertiary,
-        ),
-      ),
-    );
-  }
-}
-
 class _MiniStat extends StatelessWidget {
   const _MiniStat({
     required this.label,
     required this.value,
     required this.color,
-    this.prefix,
+    required this.icon,
   });
 
   final String label;
   final String value;
   final Color color;
-  final String? prefix;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label, style: AppUIConstants.caption),
-        const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            prefix != null ? '$prefix$value' : value,
-            style: AppUIConstants.bodySm.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppUIConstants.caption,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -296,8 +351,8 @@ class _ExpenseRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppUIConstants.error.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: AppUIConstants.error.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               Icons.receipt_long_rounded,

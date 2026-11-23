@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/app_ui_constants.dart';
 import '../../cubit/bulk_import_state.dart';
@@ -19,49 +19,65 @@ class ImportingSection extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 120,
-              height: 120,
+            Container(
+              width: 156,
+              height: 156,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppUIConstants.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppUIConstants.primaryLight.withValues(alpha: 0.18),
+                    blurRadius: 32,
+                  ),
+                ],
+              ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   SizedBox(
-                    width: 120,
-                    height: 120,
+                    width: 128,
+                    height: 128,
                     child: CircularProgressIndicator(
                       value: state.importProgress,
-                      strokeWidth: 8,
-                      backgroundColor: Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation(
-                        AppUIConstants.primary,
+                      strokeWidth: 9,
+                      strokeCap: StrokeCap.round,
+                      backgroundColor: AppUIConstants.border,
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppUIConstants.primaryLight,
                       ),
                     ),
                   ),
-                  Text(
-                    '$percentage%',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('$percentage%', style: AppUIConstants.headingLg),
                 ],
               ),
             ),
             const SizedBox(height: 32),
-            Text(
-              'Importing students...',
-              style: Theme.of(context).textTheme.titleLarge,
+            const Text(
+              'Importing residents...',
+              style: AppUIConstants.headingMd,
             ),
             const SizedBox(height: 8),
             Text(
               'Processing row ${state.currentRowIndex + 1} of ${state.validRows.length}',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: AppUIConstants.bodyMd,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Keep this screen open until it finishes',
+              style: AppUIConstants.caption,
             ),
             const SizedBox(height: 24),
-            LinearProgressIndicator(
-              value: state.importProgress,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation(AppUIConstants.primary),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: state.importProgress,
+                minHeight: 6,
+                backgroundColor: AppUIConstants.border,
+                valueColor: const AlwaysStoppedAnimation(
+                  AppUIConstants.primaryLight,
+                ),
+              ),
             ),
           ],
         ),

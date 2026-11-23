@@ -39,8 +39,12 @@ class WithdrawalApprovalState extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [status, pendingRequests, errorMessage, successMessage];
+  List<Object?> get props => [
+    status,
+    pendingRequests,
+    errorMessage,
+    successMessage,
+  ];
 }
 
 class WithdrawalApprovalCubit extends Cubit<WithdrawalApprovalState> {
@@ -57,22 +61,28 @@ class WithdrawalApprovalCubit extends Cubit<WithdrawalApprovalState> {
   final SubscriptionNotificationService notificationService;
 
   Future<void> load() async {
-    emit(state.copyWith(
-      status: WithdrawalApprovalStatus.loading,
-      clearMessages: true,
-    ));
+    emit(
+      state.copyWith(
+        status: WithdrawalApprovalStatus.loading,
+        clearMessages: true,
+      ),
+    );
 
     final result = await getPendingWithdrawals(NoParams());
 
     result.fold(
-      (f) => emit(state.copyWith(
-        status: WithdrawalApprovalStatus.error,
-        errorMessage: f.message ?? 'Failed to load withdrawals',
-      )),
-      (list) => emit(state.copyWith(
-        status: WithdrawalApprovalStatus.loaded,
-        pendingRequests: list,
-      )),
+      (f) => emit(
+        state.copyWith(
+          status: WithdrawalApprovalStatus.error,
+          errorMessage: f.message ?? 'Failed to load withdrawals',
+        ),
+      ),
+      (list) => emit(
+        state.copyWith(
+          status: WithdrawalApprovalStatus.loaded,
+          pendingRequests: list,
+        ),
+      ),
     );
   }
 
@@ -88,9 +98,8 @@ class WithdrawalApprovalCubit extends Cubit<WithdrawalApprovalState> {
     );
 
     result.fold(
-      (f) => emit(state.copyWith(
-        errorMessage: f.message ?? 'Failed to approve',
-      )),
+      (f) =>
+          emit(state.copyWith(errorMessage: f.message ?? 'Failed to approve')),
       (_) {
         if (request != null) {
           notificationService.notifyOwnerWithdrawalApproved(
@@ -116,9 +125,8 @@ class WithdrawalApprovalCubit extends Cubit<WithdrawalApprovalState> {
     );
 
     result.fold(
-      (f) => emit(state.copyWith(
-        errorMessage: f.message ?? 'Failed to reject',
-      )),
+      (f) =>
+          emit(state.copyWith(errorMessage: f.message ?? 'Failed to reject')),
       (_) {
         if (request != null) {
           notificationService.notifyOwnerWithdrawalRejected(
@@ -127,9 +135,11 @@ class WithdrawalApprovalCubit extends Cubit<WithdrawalApprovalState> {
             reason: reason,
           );
         }
-        emit(state.copyWith(
-          successMessage: 'Withdrawal rejected, balance refunded',
-        ));
+        emit(
+          state.copyWith(
+            successMessage: 'Withdrawal rejected, balance refunded',
+          ),
+        );
         load();
       },
     );

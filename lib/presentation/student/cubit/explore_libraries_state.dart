@@ -59,12 +59,20 @@ class ExploreLibrariesState extends Equatable {
     // Apply sorting - create a new sorted list
     final sortedResult = List<LibraryWithStats>.from(result);
     switch (sortBy) {
+      case SortOption.recent:
+        sortedResult.sort(_byNewest);
+        break;
       case SortOption.distance:
+        // Nearest first; ties and PGs without a distance (e.g. location
+        // denied) fall back to newest first.
         sortedResult.sort((a, b) {
-          if (a.distanceKm == null && b.distanceKm == null) return 0;
-          if (a.distanceKm == null) return 1;
-          if (b.distanceKm == null) return -1;
-          return a.distanceKm!.compareTo(b.distanceKm!);
+          final aKm = a.distanceKm;
+          final bKm = b.distanceKm;
+          if (aKm == null && bKm == null) return _byNewest(a, b);
+          if (aKm == null) return 1;
+          if (bKm == null) return -1;
+          final byDistance = aKm.compareTo(bKm);
+          return byDistance != 0 ? byDistance : _byNewest(a, b);
         });
         break;
       case SortOption.name:
@@ -73,6 +81,16 @@ class ExploreLibrariesState extends Equatable {
     }
 
     return sortedResult;
+  }
+
+  /// Newest listings first; PGs without a createdAt go last.
+  static int _byNewest(LibraryWithStats a, LibraryWithStats b) {
+    final aDate = a.library.createdAt;
+    final bDate = b.library.createdAt;
+    if (aDate == null && bDate == null) return 0;
+    if (aDate == null) return 1;
+    if (bDate == null) return -1;
+    return bDate.compareTo(aDate);
   }
 
   ExploreLibrariesState copyWith({
@@ -119,4 +137,4 @@ class ExploreLibrariesState extends Equatable {
 enum ExploreLibrariesStatus { initial, loading, loaded, error }
 
 /// Sort options for libraries.
-enum SortOption { distance, name }
+enum SortOption { distance, recent, name }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/user_activity_stats.dart';
 import '../../core/app_ui_constants.dart';
@@ -14,7 +14,7 @@ class AdminActivityChart extends StatelessWidget {
   });
 
   final List<HourlyActivity> hourlyActivity;
-  
+
   /// Date for which hourly activity is shown.
   /// Defaults to today if not provided.
   final DateTime? date;
@@ -57,12 +57,12 @@ class AdminActivityChart extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: displayHours.map((activity) {
-            final barHeight = maxCheckIns > 0
-                ? (activity.checkIns / maxCheckIns) *
-                      (constraints.maxHeight - 20)
-                : 0.0;
+                final barHeight = maxCheckIns > 0
+                    ? (activity.checkIns / maxCheckIns) *
+                          (constraints.maxHeight - 20)
+                    : 0.0;
 
-            final isActive = activity.checkIns > 0;
+                final isActive = activity.checkIns > 0;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -84,13 +84,14 @@ class AdminActivityChart extends StatelessWidget {
                               width: barWidth * 0.7,
                               decoration: BoxDecoration(
                                 color: isActive
-                                    ? AppUIConstants.accent.withValues(
+                                    ? AppUIConstants.primaryLight.withValues(
                                         alpha:
                                             0.3 +
-                                            (activity.checkIns / maxCheckIns) * 0.7,
+                                            (activity.checkIns / maxCheckIns) *
+                                                0.7,
                                       )
-                                    : AppUIConstants.divider,
-                                borderRadius: BorderRadius.circular(2),
+                                    : AppUIConstants.surfaceMuted,
+                                borderRadius: BorderRadius.circular(4),
                               ),
                             ),
                             const SizedBox(height: 4),

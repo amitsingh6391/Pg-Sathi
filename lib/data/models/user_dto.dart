@@ -22,6 +22,8 @@ class UserDto {
     this.autoWhatsAppInvoicesEnabled = true,
     this.autoWhatsAppFeeRemindersEnabled = true,
     this.createdAt,
+    this.managedByOwnerId,
+    this.managedLibraryIds = const [],
   });
 
   final String id;
@@ -42,6 +44,8 @@ class UserDto {
   final bool autoWhatsAppInvoicesEnabled;
   final bool autoWhatsAppFeeRemindersEnabled;
   final Timestamp? createdAt;
+  final String? managedByOwnerId;
+  final List<String> managedLibraryIds;
 
   factory UserDto.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
@@ -66,6 +70,8 @@ class UserDto {
       autoWhatsAppFeeRemindersEnabled:
           data['autoWhatsAppFeeRemindersEnabled'] as bool? ?? true,
       createdAt: data['createdAt'] as Timestamp?,
+      managedByOwnerId: data['managedByOwnerId'] as String?,
+      managedLibraryIds: readManagedLibraryIds(data),
     );
   }
 
@@ -88,7 +94,25 @@ class UserDto {
       'autoWhatsAppInvoicesEnabled': autoWhatsAppInvoicesEnabled,
       'autoWhatsAppFeeRemindersEnabled': autoWhatsAppFeeRemindersEnabled,
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
+      if (managedByOwnerId != null) 'managedByOwnerId': managedByOwnerId,
+      if (managedLibraryIds.isNotEmpty) ...{
+        'managedLibraryIds': managedLibraryIds,
+        // Legacy single-id field, kept for compatibility.
+        'managedLibraryId': managedLibraryIds.first,
+      },
     };
+  }
+
+  /// Reads a library id list, falling back to the legacy single id field.
+  static List<String> readManagedLibraryIds(
+    Map<String, dynamic>? data, {
+    String listKey = 'managedLibraryIds',
+    String legacyKey = 'managedLibraryId',
+  }) {
+    final ids = data?[listKey];
+    if (ids is List) return ids.whereType<String>().toList();
+    final legacy = data?[legacyKey];
+    return legacy is String ? [legacy] : const [];
   }
 
   static const String collectionName = 'users';

@@ -72,25 +72,24 @@ class HandlePaymentFailure
               cancelledMembership,
             );
 
-            return updateResult.fold(
-              (failure) => Left(failure),
-              (savedMembership) async {
-                // Track payment failed event
-                await analyticsService.trackPaymentFailed(
-                  paymentId: savedPayment.id,
-                  paymentMethod: savedPayment.mode.name,
-                  amount: savedPayment.amount,
-                  failureReason: params.reason,
-                );
-                
-                return Right(
-                  PaymentFailureResult(
-                    payment: savedPayment,
-                    membership: savedMembership,
-                  ),
-                );
-              },
-            );
+            return updateResult.fold((failure) => Left(failure), (
+              savedMembership,
+            ) async {
+              // Track payment failed event
+              await analyticsService.trackPaymentFailed(
+                paymentId: savedPayment.id,
+                paymentMethod: savedPayment.mode.name,
+                amount: savedPayment.amount,
+                failureReason: params.reason,
+              );
+
+              return Right(
+                PaymentFailureResult(
+                  payment: savedPayment,
+                  membership: savedMembership,
+                ),
+              );
+            });
           }
 
           // Track payment failed event even if membership wasn't cancelled
@@ -100,7 +99,7 @@ class HandlePaymentFailure
             amount: savedPayment.amount,
             failureReason: params.reason,
           );
-          
+
           return Right(
             PaymentFailureResult(payment: savedPayment, membership: membership),
           );

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/whatsapp_launcher.dart';
 import '../../../domain/usecases/get_owner_subscription.dart';
@@ -35,7 +35,8 @@ class SubscriptionRequiredBanner extends StatelessWidget {
       return _buildBanner(
         icon: Icons.upgrade_rounded,
         title: 'Plan Upgrade Pending',
-        subtitle: 'Your ${subscriptionStatus!.pendingUpgrade!.durationInMonths}-month upgrade is being verified',
+        subtitle:
+            'Your ${subscriptionStatus!.pendingUpgrade!.durationInMonths}-month upgrade is being verified',
         amount: subscriptionStatus!.pendingUpgrade!.finalAmount,
       );
     }
@@ -67,13 +68,13 @@ class SubscriptionRequiredBanner extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppUIConstants.primary.withValues(alpha: 0.08),
-            AppUIConstants.primary.withValues(alpha: 0.03),
+            AppUIConstants.warning.withValues(alpha: 0.16),
+            AppUIConstants.warning.withValues(alpha: 0.04),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
         border: Border.all(
-          color: AppUIConstants.primary.withValues(alpha: 0.2),
+          color: AppUIConstants.warning.withValues(alpha: 0.4),
         ),
       ),
       child: Column(
@@ -84,10 +85,10 @@ class SubscriptionRequiredBanner extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppUIConstants.primary.withValues(alpha: 0.12),
+                  color: AppUIConstants.warning.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: AppUIConstants.primary, size: 22),
+                child: Icon(icon, color: AppUIConstants.warning, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -99,7 +100,7 @@ class SubscriptionRequiredBanner extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
+                        color: AppUIConstants.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -120,7 +121,7 @@ class SubscriptionRequiredBanner extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppUIConstants.primary.withValues(alpha: 0.12),
+                    color: AppUIConstants.warning.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -128,7 +129,7 @@ class SubscriptionRequiredBanner extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: AppUIConstants.primary,
+                      color: AppUIConstants.warning,
                     ),
                   ),
                 ),
@@ -138,9 +139,7 @@ class SubscriptionRequiredBanner extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _WhatsAppHelpButton(
-                  onTap: () => _launchWhatsApp(),
-                ),
+                child: _WhatsAppHelpButton(onTap: () => _launchWhatsApp()),
               ),
               const SizedBox(width: 12),
               TextButton(
@@ -154,7 +153,7 @@ class SubscriptionRequiredBanner extends StatelessWidget {
                 child: Text(
                   'View Status',
                   style: TextStyle(
-                    color: AppUIConstants.primary,
+                    color: AppUIConstants.primaryLight,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -167,7 +166,8 @@ class SubscriptionRequiredBanner extends StatelessWidget {
   }
 
   Future<void> _launchWhatsApp() async {
-    const message = 'Hi, I have submitted my subscription payment and it\'s pending verification. Please help.';
+    const message =
+        'Hi, I have submitted my subscription payment and it\'s pending verification. Please help.';
     await WhatsAppLauncher.launch(phone: _supportPhone, message: message);
   }
 }
@@ -181,7 +181,7 @@ class _WhatsAppHelpButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppUIConstants.primary.withValues(alpha: 0.1),
+      color: AppUIConstants.primarySoft,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
@@ -194,7 +194,7 @@ class _WhatsAppHelpButton extends StatelessWidget {
               Icon(
                 Icons.support_agent_rounded,
                 size: 18,
-                color: AppUIConstants.primary,
+                color: AppUIConstants.primaryLight,
               ),
               const SizedBox(width: 8),
               Text(
@@ -202,7 +202,7 @@ class _WhatsAppHelpButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppUIConstants.primary,
+                  color: AppUIConstants.primaryLight,
                 ),
               ),
             ],

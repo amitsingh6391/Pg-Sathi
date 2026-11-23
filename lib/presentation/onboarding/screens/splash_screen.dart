@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/app_ui_constants.dart';
 import '../../core/cubit/version_check_cubit.dart';
 
-/// Splash screen shown on app launch.
-/// Minimal, professional design with logo and tagline.
+/// Splash screen shown on app launch: logo, tagline and a small loader on
+/// white, matching the native launch screen.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, required this.onInitializationComplete});
 
@@ -19,8 +20,9 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
+  late final AnimationController _introController;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
   bool _hasNavigated = false;
 
   @override
@@ -31,17 +33,15 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _setupAnimations() {
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+    _introController = AnimationController(
+      duration: const Duration(milliseconds: 700),
       vsync: this,
     );
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
+    _fade = CurvedAnimation(parent: _introController, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.92, end: 1).animate(
+      CurvedAnimation(parent: _introController, curve: Curves.easeOutCubic),
     );
-
-    _fadeController.forward();
+    _introController.forward();
   }
 
   Future<void> _initialize() async {
@@ -92,62 +92,49 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _fadeController.dispose();
+    _introController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFBFC),
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SizedBox(
-            width: double.infinity,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Spacer(flex: 3),
-
-                // Logo
-                _buildLogo(),
-
-                const SizedBox(height: 20),
-
-                // App Name
-                Text(
-                  'PG Sathi',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppUIConstants.textPrimary,
-                    letterSpacing: -0.5,
+    // White to match the native launch screen, so there is no colour flash.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppUIConstants.surface,
+        body: SafeArea(
+          child: FadeTransition(
+            opacity: _fade,
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                children: [
+                  const Spacer(flex: 5),
+                  ScaleTransition(scale: _scale, child: _buildLogo()),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Smart living for every PG',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppUIConstants.textSecondary,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.2,
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Tagline
-                Text(
-                  'Manage your PG or hostel. Smartly.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: AppUIConstants.textSecondary,
-                    fontWeight: FontWeight.w400,
+                  const Spacer(flex: 4),
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: AppUIConstants.accent,
+                    ),
                   ),
-                ),
-
-                const Spacer(flex: 3),
-
-                // Loading Indicator
-                _buildLoadingIndicator(),
-
-                const SizedBox(height: 48),
-              ],
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ),
@@ -155,51 +142,29 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  /// The logo file is a complete app icon (rounded tile, name, soft shadow on
+  /// white), so it is shown as-is: no extra frame, crop or glow.
   Widget _buildLogo() {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppUIConstants.primary.withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Image.asset(
-          'assets/images/app_logo.png',
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
-    return Column(
-      children: [
-        SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              AppUIConstants.primary.withValues(alpha: 0.7),
+    return Image.asset(
+      'assets/images/app_logo.png',
+      width: 200,
+      height: 200,
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) => const SizedBox(
+        width: 200,
+        height: 200,
+        child: Center(
+          child: Text(
+            'PG Sathi',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: AppUIConstants.primary,
+              letterSpacing: -1,
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          'Loading...',
-          style: TextStyle(fontSize: 13, color: AppUIConstants.textTertiary),
-        ),
-      ],
+      ),
     );
   }
 }

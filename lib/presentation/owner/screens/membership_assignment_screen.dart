@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pg_manager/presentation/core/app_ui_constants.dart';
+import 'package:pg_manager/presentation/core/widgets/premium_kit.dart';
 
 import '../../../core/di/injection_container.dart' as di;
 import '../../../core/di/injection_container.dart';
@@ -21,7 +22,7 @@ import '../screens/owner_in_app_purchase_screen.dart';
 import '../widgets/membership_assignment/membership_assignment_widgets.dart';
 
 /// Screen for assigning tenant stays.
-/// Premium, guided two-phase UX: Select Bed -> Add Tenant.
+/// Stepped flow: Resident details -> Choose bed -> Rent & plan.
 class MembershipAssignmentScreen extends StatefulWidget {
   const MembershipAssignmentScreen({
     super.key,
@@ -70,6 +71,7 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
   late AnimationController _animationController;
   final _scrollController = ScrollController();
   final _planSectionKey = GlobalKey();
+  final _residentSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -378,7 +380,7 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppUIConstants.background,
       body: BlocConsumer<MembershipAssignmentCubit, MembershipAssignmentState>(
         listener: _handleStateChange,
         builder: (context, state) {
@@ -386,16 +388,34 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
             return _buildLoadingState();
           }
 
+          final seatDone =
+              state.selectedSeatId != null &&
+              state.selectedCustomSlotId != null;
+
           return Column(
             children: [
-              // Fixed Header
-              MembershipAppHeader(library: widget.library),
+              // Hero header with step indicator
+              AnimatedBuilder(
+                animation: _phoneController,
+                builder: (context, _) {
+                  final residentDone =
+                      _phoneController.text.trim().length == 10;
+                  final done = [residentDone, seatDone, false];
+                  final current = !residentDone ? 0 : (!seatDone ? 1 : 2);
+                  return MembershipAppHeader(
+                    library: widget.library,
+                    stepper: MembershipStepper(done: done, current: current),
+                  );
+                },
+              ),
 
-              // Scrollable Content
+              // Scrollable content
               Expanded(
                 child: SingleChildScrollView(
                   controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   child: FadeTransition(
                     opacity: _animationController,
                     child: SlideTransition(
@@ -411,30 +431,23 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
                           ),
                       child: Column(
                         children: [
-                          // Bulk Import Prominent Button
                           _buildBulkImportButton(context),
-                          const SizedBox(height: 20),
-
-                          // Progress Indicator
-                          MembershipProgressIndicator(
-                            step1Complete:
-                                state.selectedSeatId != null &&
-                                state.selectedCustomSlotId != null,
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Main Content Area
+                          const SizedBox(height: 16),
                           _buildMainContent(state),
-
-                          const SizedBox(height: 20),
-
-                          // Banner Ad - Clean placement at bottom
-                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
                   ),
                 ),
+              ),
+
+              // Sticky summary + CTA
+              AnimatedBuilder(
+                animation: Listenable.merge([
+                  _discountController,
+                  _phoneController,
+                ]),
+                builder: (context, _) => _buildStickyBar(state, seatDone),
               ),
             ],
           );
@@ -443,83 +456,94 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
     );
   }
 
+  Widget _buildStickyBar(MembershipAssignmentState state, bool seatDone) {
+    double? total;
+    if (seatDone) {
+      final discount = double.tryParse(_discountController.text) ?? 0.0;
+      total = (_calculateTotalPrice() - discount).clamp(0.0, double.infinity);
+    }
+    final residentDone = _phoneController.text.trim().length == 10;
+    final String cta;
+    if (!seatDone) {
+      cta = 'Choose bed';
+    } else if (!residentDone) {
+      cta = 'Add phone';
+    } else {
+      cta = 'Review & assign';
+    }
+    return MembershipStickyBar(
+      bedLabel: state.selectedSeatId,
+      roomLabel: state.selectedCustomSlot?.name,
+      total: total,
+      ctaLabel: cta,
+      ready: seatDone && residentDone,
+      isSubmitting: state.isSubmitting,
+      onPressed: () {
+        if (!seatDone) {
+          HapticFeedback.selectionClick();
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+          );
+        }
+        _onSubmit();
+      },
+    );
+  }
+
   Widget _buildBulkImportButton(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: AppUIConstants.primary,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => BlocProvider(
-                  create: (_) => di.sl<BulkImportCubit>()
-                    ..initialize(
-                      libraryId: widget.library.id,
-                      ownerId: widget.library.ownerId,
-                    ),
-                  child: BulkImportScreen(
-                    library: widget.library,
-                    ownerId: widget.library.ownerId,
-                  ),
+    return PremiumCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BlocProvider(
+              create: (_) => di.sl<BulkImportCubit>()
+                ..initialize(
+                  libraryId: widget.library.id,
+                  ownerId: widget.library.ownerId,
                 ),
+              child: BulkImportScreen(
+                library: widget.library,
+                ownerId: widget.library.ownerId,
               ),
-            );
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
+            ),
+          ),
+        );
+      },
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: AppUIConstants.primaryLight.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusSm),
+            ),
+            child: const Icon(
+              Icons.upload_file_rounded,
+              color: AppUIConstants.primaryLight,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.upload_file_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Bulk Upload Tenants',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Import multiple tenants from Excel file',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: Colors.white,
-                  size: 18,
+                Text('Bulk upload residents', style: AppUIConstants.bodyLg),
+                Text(
+                  'Import many tenants at once from an Excel file',
+                  style: AppUIConstants.bodySm,
                 ),
               ],
             ),
           ),
-        ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppUIConstants.textTertiary,
+          ),
+        ],
       ),
     );
   }
@@ -527,23 +551,24 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
   Widget _buildLoadingState() {
     return Column(
       children: [
-        MembershipAppHeader(library: widget.library),
-        const Expanded(
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(
-                  color: Color(0xFF6366F1),
-                  strokeWidth: 3,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Loading beds...',
-                  style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
-                ),
-              ],
-            ),
+        MembershipAppHeader(
+          library: widget.library,
+          stepper: const MembershipStepper(
+            done: [false, false, false],
+            current: 0,
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            children: const [
+              _SkeletonBlock(height: 64),
+              SizedBox(height: 16),
+              _SkeletonBlock(height: 170),
+              SizedBox(height: 16),
+              _SkeletonBlock(height: 260),
+            ],
           ),
         ),
       ],
@@ -561,7 +586,7 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
     if (existing == null) return const SizedBox.shrink();
 
     final d = existing.endDate;
-    final months = [
+    const months = [
       'Jan',
       'Feb',
       'Mar',
@@ -582,24 +607,26 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.blue.shade50,
+          color: AppUIConstants.warning.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
-          border: Border.all(color: Colors.blue.shade200),
+          border: Border.all(
+            color: AppUIConstants.warning.withValues(alpha: 0.4),
+          ),
         ),
         child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.info_outline_rounded,
               size: 18,
-              color: Colors.blue.shade700,
+              color: AppUIConstants.warning,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'This bed is occupied until $endStr. Set a start date after that to book in advance.',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.blue.shade800,
+                  color: AppUIConstants.textPrimary,
                   height: 1.4,
                 ),
               ),
@@ -610,181 +637,233 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
     );
   }
 
+  /// Builds either the resident or rent part of the form with all the
+  /// existing wiring (controllers, callbacks, validation).
+  Widget _buildFormPart(
+    MembershipAssignmentState state,
+    MembershipFormPart part,
+  ) {
+    return MembershipAssignmentFormCard(
+      part: part,
+      formKey: _formKey,
+      phoneController: _phoneController,
+      nameController: _nameController,
+      selectedSeatId: state.selectedSeatId ?? '',
+      selectedCustomSlotId: state.selectedCustomSlotId,
+      selectedCustomSlot: state.selectedCustomSlot,
+      expiryDate: _expiryDate,
+      selectedPlan: _selectedPlan,
+      isSubmitting: state.isSubmitting,
+      paymentMethod: _paymentMethod,
+      markCashReceived: _markCashReceived,
+      startDate: _startDate,
+      onStartDateChanged: (date) {
+        setState(() {
+          _startDate = date;
+          _updateExpiryDate();
+        });
+      },
+      customDurationDays: _customDurationDays,
+      onCustomDurationDaysChanged: (days) {
+        setState(() {
+          _customDurationDays = days;
+          if (days != null) {
+            _customDurationDaysController.text = days.toString();
+          }
+          _updateExpiryDate();
+        });
+      },
+      customDurationMonths: _customDurationMonths,
+      onCustomDurationMonthsChanged: (months) {
+        setState(() {
+          _customDurationMonths = months;
+          if (months != null) {
+            _customDurationMonthsController.text = months.toString();
+          }
+          _updateExpiryDate();
+        });
+      },
+      useCustomDuration: _useCustomDuration,
+      onUseCustomDurationChanged: (value) {
+        setState(() {
+          _useCustomDuration = value;
+          if (!value) {
+            _customDurationDays = null;
+            _customDurationMonths = null;
+            _customDurationDaysController.clear();
+            _customDurationMonthsController.clear();
+          }
+          _updateExpiryDate();
+        });
+      },
+      customDurationDaysController: _customDurationDaysController,
+      customDurationMonthsController: _customDurationMonthsController,
+      onExpiryDateChanged: (date) => setState(() => _expiryDate = date),
+      onPlanChanged: (plan) {
+        setState(() {
+          _selectedPlan = plan;
+          _updateExpiryDate();
+        });
+        if (_isPartialPayment) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _calculateRemainingAmount();
+          });
+        }
+      },
+      onPaymentMethodChanged: (method) {
+        setState(() {
+          _paymentMethod = method;
+          if (method != PaymentMode.cash && method != PaymentMode.upi) {
+            _markCashReceived = false;
+          }
+        });
+      },
+      onMarkCashReceivedChanged: (value) {
+        setState(() => _markCashReceived = value);
+      },
+      paymentReceivedDate: _paymentReceivedDate,
+      onPaymentReceivedDateChanged: (date) {
+        setState(() => _paymentReceivedDate = date);
+      },
+      amountPaidController: _amountPaidController,
+      amountRemainingController: _amountRemainingController,
+      paymentNotesController: _paymentNotesController,
+      discountController: _discountController,
+      isPartialPayment: _isPartialPayment,
+      onPartialPaymentChanged: (value) {
+        setState(() {
+          _isPartialPayment = value;
+          if (value) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _calculateRemainingAmount();
+            });
+          } else {
+            _amountPaidController.clear();
+            _amountRemainingController.clear();
+            _discountController.clear();
+          }
+        });
+      },
+      onSubmit: _onSubmit,
+      onCalculateTotalPrice: _calculateTotalPrice,
+      onCancel: () {
+        context.read<MembershipAssignmentCubit>().clearSelection();
+      },
+    );
+  }
+
   Widget _buildMainContent(MembershipAssignmentState state) {
     final hasSeatSelected = state.selectedSeatId != null;
     final isSelectionComplete =
         hasSeatSelected && state.selectedCustomSlotId != null;
 
-    return Column(
-      children: [
-        // Phase 1: Plan & Bed Selection
-        SeatSelectionCard(
-          library: widget.library,
-          state: state,
-          isCollapsed: isSelectionComplete,
-          enabled: !state.isSubmitting,
-          useNewLayout: true,
-          slotSectionKey: _planSectionKey,
-          onCustomSlotSelected: (slotId) {
-            HapticFeedback.selectionClick();
-            context.read<MembershipAssignmentCubit>().selectCustomSlot(slotId);
-            // Recalculate remaining amount when slot changes
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (_isPartialPayment) {
-                _calculateRemainingAmount();
-              }
-            });
-          },
-          onSeatSelected: (seatId) {
-            HapticFeedback.mediumImpact();
-            context.read<MembershipAssignmentCubit>().selectSeat(
-              seatId,
-              clearCustomSlot: true,
-            );
-            _scrollToPlanSection();
-          },
-          onChangeSelection: () {
-            context.read<MembershipAssignmentCubit>().clearSelection();
-          },
-        ),
-
-        // Advance booking hint when an occupied bed+plan is selected
-        if (isSelectionComplete) _buildOccupiedSeatHint(state),
-
-        // Phase 2: Assignment Form (appears after bed and plan selection)
-        if (isSelectionComplete) ...[
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          // Step 1: Resident details
+          MembershipStepCard(
+            icon: Icons.person_add_alt_1_rounded,
+            title: 'Resident details',
+            subtitle: 'Phone number is required, name is optional',
+            child: Container(
+              key: _residentSectionKey,
+              child: _buildFormPart(state, MembershipFormPart.resident),
+            ),
+          ),
           const SizedBox(height: 16),
-          AnimatedFadeSlide(
-            child: BlocBuilder<MembershipAssignmentCubit, MembershipAssignmentState>(
-              buildWhen: (previous, current) =>
-                  previous.selectedCustomSlotId != current.selectedCustomSlotId,
-              builder: (context, slotState) {
-                // Recalculate remaining amount when slot changes
-                if (_isPartialPayment && slotState.selectedCustomSlot != null) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _calculateRemainingAmount();
-                  });
+
+          // Step 2: Bed map + room plan
+          SeatSelectionCard(
+            library: widget.library,
+            state: state,
+            isCollapsed: isSelectionComplete,
+            enabled: !state.isSubmitting,
+            useNewLayout: true,
+            slotSectionKey: _planSectionKey,
+            onCustomSlotSelected: (slotId) {
+              HapticFeedback.selectionClick();
+              context.read<MembershipAssignmentCubit>().selectCustomSlot(
+                slotId,
+              );
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_isPartialPayment) {
+                  _calculateRemainingAmount();
                 }
-                return MembershipAssignmentFormCard(
-                  formKey: _formKey,
-                  phoneController: _phoneController,
-                  nameController: _nameController,
-                  selectedSeatId: state.selectedSeatId!,
-                  selectedCustomSlotId: state.selectedCustomSlotId,
-                  selectedCustomSlot: state.selectedCustomSlot,
-                  expiryDate: _expiryDate,
-                  selectedPlan: _selectedPlan,
-                  isSubmitting: state.isSubmitting,
-                  paymentMethod: _paymentMethod,
-                  markCashReceived: _markCashReceived,
-                  startDate: _startDate,
-                  onStartDateChanged: (date) {
-                    setState(() {
-                      _startDate = date;
-                      // Recalculate expiry date based on new start date
-                      _updateExpiryDate();
-                    });
-                  },
-                  customDurationDays: _customDurationDays,
-                  onCustomDurationDaysChanged: (days) {
-                    setState(() {
-                      _customDurationDays = days;
-                      if (days != null) {
-                        _customDurationDaysController.text = days.toString();
-                      }
-                      _updateExpiryDate();
-                    });
-                  },
-                  customDurationMonths: _customDurationMonths,
-                  onCustomDurationMonthsChanged: (months) {
-                    setState(() {
-                      _customDurationMonths = months;
-                      if (months != null) {
-                        _customDurationMonthsController.text = months
-                            .toString();
-                      }
-                      _updateExpiryDate();
-                    });
-                  },
-                  useCustomDuration: _useCustomDuration,
-                  onUseCustomDurationChanged: (value) {
-                    setState(() {
-                      _useCustomDuration = value;
-                      if (!value) {
-                        _customDurationDays = null;
-                        _customDurationMonths = null;
-                        _customDurationDaysController.clear();
-                        _customDurationMonthsController.clear();
-                      }
-                      _updateExpiryDate();
-                    });
-                  },
-                  customDurationDaysController: _customDurationDaysController,
-                  customDurationMonthsController:
-                      _customDurationMonthsController,
-                  onExpiryDateChanged: (date) =>
-                      setState(() => _expiryDate = date),
-                  onPlanChanged: (plan) {
-                    setState(() {
-                      _selectedPlan = plan;
-                      _updateExpiryDate();
-                    });
-                    // Recalculate remaining amount when plan changes
-                    if (_isPartialPayment) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _calculateRemainingAmount();
-                      });
-                    }
-                  },
-                  onPaymentMethodChanged: (method) {
-                    setState(() {
-                      _paymentMethod = method;
-                      // Reset cash received toggle when changing payment method
-                      if (method != PaymentMode.cash &&
-                          method != PaymentMode.upi) {
-                        _markCashReceived = false;
-                      }
-                    });
-                  },
-                  onMarkCashReceivedChanged: (value) {
-                    setState(() => _markCashReceived = value);
-                  },
-                  paymentReceivedDate: _paymentReceivedDate,
-                  onPaymentReceivedDateChanged: (date) {
-                    setState(() => _paymentReceivedDate = date);
-                  },
-                  amountPaidController: _amountPaidController,
-                  amountRemainingController: _amountRemainingController,
-                  paymentNotesController: _paymentNotesController,
-                  discountController: _discountController,
-                  isPartialPayment: _isPartialPayment,
-                  onPartialPaymentChanged: (value) {
-                    setState(() {
-                      _isPartialPayment = value;
-                      if (value) {
-                        // Calculate remaining when partial payment is enabled
+              });
+            },
+            onSeatSelected: (seatId) {
+              HapticFeedback.mediumImpact();
+              context.read<MembershipAssignmentCubit>().selectSeat(
+                seatId,
+                clearCustomSlot: true,
+              );
+              _scrollToPlanSection();
+            },
+            onChangeSelection: () {
+              context.read<MembershipAssignmentCubit>().clearSelection();
+            },
+          ),
+
+          // Advance booking hint when an occupied bed+plan is selected
+          if (isSelectionComplete) _buildOccupiedSeatHint(state),
+          const SizedBox(height: 16),
+
+          // Step 3: Rent & plan (unlocks after bed and plan selection)
+          if (!isSelectionComplete)
+            const MembershipStepCard(
+              icon: Icons.payments_rounded,
+              iconColor: AppUIConstants.primaryLight,
+              title: 'Rent & plan',
+              subtitle: 'Choose a bed and room type to unlock',
+              dimmed: true,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    size: 16,
+                    color: AppUIConstants.textTertiary,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Stay duration, rent and payment details appear here.',
+                      style: AppUIConstants.bodySm,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            AnimatedFadeSlide(
+              child:
+                  BlocBuilder<
+                    MembershipAssignmentCubit,
+                    MembershipAssignmentState
+                  >(
+                    buildWhen: (previous, current) =>
+                        previous.selectedCustomSlotId !=
+                        current.selectedCustomSlotId,
+                    builder: (context, slotState) {
+                      if (_isPartialPayment &&
+                          slotState.selectedCustomSlot != null) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           _calculateRemainingAmount();
                         });
-                      } else {
-                        // Clear fields when disabled
-                        _amountPaidController.clear();
-                        _amountRemainingController.clear();
-                        _discountController.clear();
                       }
-                    });
-                  },
-                  onSubmit: _onSubmit,
-                  onCalculateTotalPrice: _calculateTotalPrice,
-                  onCancel: () {
-                    context.read<MembershipAssignmentCubit>().clearSelection();
-                  },
-                );
-              },
+                      return MembershipStepCard(
+                        icon: Icons.payments_rounded,
+                        iconColor: AppUIConstants.primaryLight,
+                        title: 'Rent & plan',
+                        subtitle:
+                            '${state.selectedCustomSlot?.name ?? 'Room type'} · ${state.selectedCustomSlot?.displayTime ?? ''}',
+                        child: _buildFormPart(state, MembershipFormPart.rent),
+                      );
+                    },
+                  ),
             ),
-          ),
         ],
-      ],
+      ),
     );
   }
 
@@ -813,6 +892,7 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => Dialog(
+        backgroundColor: AppUIConstants.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -834,12 +914,16 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
               const SizedBox(height: 20),
               const Text(
                 'Free Quota Reached',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppUIConstants.textPrimary,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
-                'You have used all ${SubscriptionPlan.freeSeatsLimit} free beds. Subscribe to a plan to add more tenants.',
+                'You have used all ${SubscriptionPlan.freeSeatsLimit} free beds. Subscribe to a plan to add more residents.',
                 style: TextStyle(
                   fontSize: 14,
                   color: AppUIConstants.textSecondary,
@@ -854,7 +938,7 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: AppUIConstants.primary.withValues(alpha: 0.08),
+                  color: AppUIConstants.primaryLight.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -863,14 +947,14 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
                     Icon(
                       Icons.info_outline_rounded,
                       size: 16,
-                      color: AppUIConstants.primary,
+                      color: AppUIConstants.primaryLight,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Plans start at just ₹149/month',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppUIConstants.primary,
+                        color: AppUIConstants.primaryLight,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -934,12 +1018,12 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
             Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
             SizedBox(width: 12),
             Text(
-              'Tenant stay assigned successfully!',
+              'Tenant added to bed successfully!',
               style: TextStyle(fontWeight: FontWeight.w500),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF10B981),
+        backgroundColor: AppUIConstants.success,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -962,7 +1046,7 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: const Color(0xFFDC2626),
+        backgroundColor: AppUIConstants.error,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -977,8 +1061,8 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
     if (state.selectedCustomSlotId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a room or bed plan'),
-          backgroundColor: Color(0xFFDC2626),
+          content: Text('Please select a room type and a bed'),
+          backgroundColor: AppUIConstants.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1012,6 +1096,16 @@ class _MembershipAssignmentScreenState extends State<MembershipAssignmentScreen>
         amountRemaining: amountRemaining,
         state: state,
       );
+    } else {
+      final target = _residentSectionKey.currentContext;
+      if (target != null) {
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          alignment: 0.1,
+        );
+      }
     }
   }
 
@@ -1135,7 +1229,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppUIConstants.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Padding(
@@ -1152,7 +1246,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppUIConstants.border,
                 borderRadius: BorderRadius.circular(2),
               ),
               alignment: Alignment.center,
@@ -1166,12 +1260,12 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      color: AppUIConstants.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.receipt_long_rounded,
-                      color: Color(0xFF10B981),
+                      color: AppUIConstants.success,
                       size: 20,
                     ),
                   ),
@@ -1181,14 +1275,14 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
+                      color: AppUIConstants.textPrimary,
                     ),
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1),
+            const Divider(height: 1, color: AppUIConstants.divider),
 
             // Content
             Padding(
@@ -1210,7 +1304,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                       label: 'Discount',
                       value: '-₹${discount.toStringAsFixed(0)}',
                       isHighlighted: false,
-                      valueColor: const Color(0xFF10B981),
+                      valueColor: AppUIConstants.success,
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -1223,7 +1317,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  const Divider(height: 1),
+                  const Divider(height: 1, color: AppUIConstants.divider),
                   const SizedBox(height: 16),
 
                   // Partial Payment Details
@@ -1238,7 +1332,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                       label: 'Remaining Balance',
                       value: '₹${amountRemaining.toStringAsFixed(0)}',
                       isHighlighted: true,
-                      valueColor: const Color(0xFFDC2626),
+                      valueColor: AppUIConstants.error,
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -1255,7 +1349,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: BorderSide(color: Colors.grey.shade300),
+                            side: BorderSide(color: AppUIConstants.border),
                           ),
                           child: const Text(
                             'Cancel',
@@ -1274,8 +1368,10 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              side: const BorderSide(color: Color(0xFF10B981)),
-                              foregroundColor: const Color(0xFF10B981),
+                              side: const BorderSide(
+                                color: AppUIConstants.success,
+                              ),
+                              foregroundColor: AppUIConstants.success,
                             ),
                             child: const Text(
                               'Apply Discount',
@@ -1293,7 +1389,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                           onPressed: onConfirm,
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: const Color(0xFF10B981),
+                            backgroundColor: AppUIConstants.success,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -1301,7 +1397,7 @@ class _AssignmentConfirmationBottomSheet extends StatelessWidget {
                             ),
                           ),
                           child: const Text(
-                            'Assign Stay',
+                            'Assign Bed',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -1346,7 +1442,7 @@ class _SummaryRow extends StatelessWidget {
           style: TextStyle(
             fontSize: isHighlighted ? 15 : 14,
             fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-            color: Colors.grey.shade700,
+            color: AppUIConstants.textSecondary,
           ),
         ),
         Text(
@@ -1357,11 +1453,54 @@ class _SummaryRow extends StatelessWidget {
             color:
                 valueColor ??
                 (isHighlighted
-                    ? const Color(0xFF1E293B)
-                    : Colors.grey.shade800),
+                    ? AppUIConstants.textPrimary
+                    : AppUIConstants.textPrimary),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Pulsing placeholder block for the loading skeleton.
+class _SkeletonBlock extends StatefulWidget {
+  const _SkeletonBlock({required this.height});
+
+  final double height;
+
+  @override
+  State<_SkeletonBlock> createState() => _SkeletonBlockState();
+}
+
+class _SkeletonBlockState extends State<_SkeletonBlock>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => Container(
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: Color.lerp(
+            AppUIConstants.surface,
+            AppUIConstants.surfaceMuted,
+            _c.value,
+          ),
+          borderRadius: BorderRadius.circular(AppUIConstants.radiusLg),
+          border: Border.all(color: AppUIConstants.border),
+        ),
+      ),
     );
   }
 }

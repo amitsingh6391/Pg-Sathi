@@ -15,19 +15,13 @@ class PromoSeenService {
   final Set<String> _sessionSeenPromos = {};
 
   /// Check if owner has ever seen this promo (for 'once' frequency)
-  bool hasSeenPromoEver({
-    required String promoId,
-    required String ownerId,
-  }) {
+  bool hasSeenPromoEver({required String promoId, required String ownerId}) {
     final key = '$_seenEverPrefix${promoId}_$ownerId';
     return _prefs.getBool(key) ?? false;
   }
 
   /// Check if owner has seen this promo today (for 'daily' frequency)
-  bool hasSeenPromoToday({
-    required String promoId,
-    required String ownerId,
-  }) {
+  bool hasSeenPromoToday({required String promoId, required String ownerId}) {
     final key = '$_seenDatePrefix${promoId}_$ownerId';
     final seenDate = _prefs.getString(key);
 
@@ -75,8 +69,7 @@ class PromoSeenService {
 
     final keys = _prefs.getKeys();
     for (final key in keys) {
-      if (key.startsWith(_seenEverPrefix) ||
-          key.startsWith(_seenDatePrefix)) {
+      if (key.startsWith(_seenEverPrefix) || key.startsWith(_seenDatePrefix)) {
         await _prefs.remove(key);
       }
     }

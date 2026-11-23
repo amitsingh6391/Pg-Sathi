@@ -1,12 +1,7 @@
 part of 'activity_drill_down_cubit.dart';
 
 /// Status of activity drill-down data fetching.
-enum ActivityDrillDownStatus {
-  initial,
-  loading,
-  loaded,
-  error,
-}
+enum ActivityDrillDownStatus { initial, loading, loaded, error }
 
 /// State for activity drill-down views.
 class ActivityDrillDownState extends Equatable {
@@ -45,19 +40,18 @@ class ActivityDrillDownState extends Equatable {
   bool get isLoading => status == ActivityDrillDownStatus.loading;
   bool get isLoaded => status == ActivityDrillDownStatus.loaded;
   bool get hasError => status == ActivityDrillDownStatus.error;
-  bool get isEmpty =>
-      isLoaded && activeUsers.isEmpty && userTimeline.isEmpty;
+  bool get isEmpty => isLoaded && activeUsers.isEmpty && userTimeline.isEmpty;
 
   @override
   List<Object?> get props => [
-        status,
-        activeUsers,
-        userTimeline,
-        selectedDate,
-        selectedHour,
-        selectedUserId,
-        errorMessage,
-      ];
+    status,
+    activeUsers,
+    userTimeline,
+    selectedDate,
+    selectedHour,
+    selectedUserId,
+    errorMessage,
+  ];
 
   ActivityDrillDownState copyWith({
     ActivityDrillDownStatus? status,

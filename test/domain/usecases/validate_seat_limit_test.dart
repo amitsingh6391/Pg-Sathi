@@ -81,13 +81,16 @@ void main() {
           status: SubscriptionStatus.active,
         );
 
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => Right(testLibrary));
-        when(() => mockMembershipRepository
-                .getActiveAndReservedMembershipsForLibrary(testLibraryId))
-            .thenAnswer((_) async => Right(createMemberships(45)));
-        when(() => mockSubscriptionRepository.getActiveSubscription(testOwnerId))
-            .thenAnswer((_) async => Right(subscription));
+        when(
+          () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+        ).thenAnswer((_) async => Right(testLibrary));
+        when(
+          () => mockMembershipRepository
+              .getActiveAndReservedMembershipsForLibrary(testLibraryId),
+        ).thenAnswer((_) async => Right(createMemberships(45)));
+        when(
+          () => mockSubscriptionRepository.getActiveSubscription(testOwnerId),
+        ).thenAnswer((_) async => Right(subscription));
 
         // Act
         final result = await useCase(
@@ -98,59 +101,64 @@ void main() {
         expect(result.isRight(), true);
       });
 
-      test('should return failure when adding seat exceeds plan limit',
-          () async {
-        // Arrange - Already at 50 seats, plan allows 50
-        final subscription = Subscription(
-          id: 'sub_1',
-          ownerId: testOwnerId,
-          libraryId: testLibraryId,
-          seatCount: 50,
-          planId: 'tier_99',
-          baseMonthlyPrice: 99,
-          durationInMonths: 1,
-          discountPercent: 0,
-          finalAmount: 99,
-          startDate: DateTime.now().subtract(const Duration(days: 5)),
-          endDate: DateTime.now().add(const Duration(days: 25)),
-          status: SubscriptionStatus.active,
-        );
+      test(
+        'should return failure when adding seat exceeds plan limit',
+        () async {
+          // Arrange - Already at 50 seats, plan allows 50
+          final subscription = Subscription(
+            id: 'sub_1',
+            ownerId: testOwnerId,
+            libraryId: testLibraryId,
+            seatCount: 50,
+            planId: 'tier_99',
+            baseMonthlyPrice: 99,
+            durationInMonths: 1,
+            discountPercent: 0,
+            finalAmount: 99,
+            startDate: DateTime.now().subtract(const Duration(days: 5)),
+            endDate: DateTime.now().add(const Duration(days: 25)),
+            status: SubscriptionStatus.active,
+          );
 
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => Right(testLibrary));
-        when(() => mockMembershipRepository
-                .getActiveAndReservedMembershipsForLibrary(testLibraryId))
-            .thenAnswer((_) async => Right(createMemberships(50)));
-        when(() => mockSubscriptionRepository.getActiveSubscription(testOwnerId))
-            .thenAnswer((_) async => Right(subscription));
+          when(
+            () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+          ).thenAnswer((_) async => Right(testLibrary));
+          when(
+            () => mockMembershipRepository
+                .getActiveAndReservedMembershipsForLibrary(testLibraryId),
+          ).thenAnswer((_) async => Right(createMemberships(50)));
+          when(
+            () => mockSubscriptionRepository.getActiveSubscription(testOwnerId),
+          ).thenAnswer((_) async => Right(subscription));
 
-        // Act
-        final result = await useCase(
-          const ValidateSeatLimitParams(ownerId: testOwnerId),
-        );
+          // Act
+          final result = await useCase(
+            const ValidateSeatLimitParams(ownerId: testOwnerId),
+          );
 
-        // Assert
-        expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
+          // Assert
+          expect(result.isLeft(), true);
+          result.fold((failure) {
             expect(failure, isA<SeatLimitExceededFailure>());
             expect((failure as SeatLimitExceededFailure).maxSeats, 50);
-          },
-          (_) => fail('Should return failure'),
-        );
-      });
+          }, (_) => fail('Should return failure'));
+        },
+      );
     });
 
     group('freemium model (no subscription)', () {
       test('should return true when under free seat limit', () async {
         // Arrange - Has 5 seats, free limit is 7
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => Right(testLibrary));
-        when(() => mockMembershipRepository
-                .getActiveAndReservedMembershipsForLibrary(testLibraryId))
-            .thenAnswer((_) async => Right(createMemberships(5)));
-        when(() => mockSubscriptionRepository.getActiveSubscription(testOwnerId))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+        ).thenAnswer((_) async => Right(testLibrary));
+        when(
+          () => mockMembershipRepository
+              .getActiveAndReservedMembershipsForLibrary(testLibraryId),
+        ).thenAnswer((_) async => Right(createMemberships(5)));
+        when(
+          () => mockSubscriptionRepository.getActiveSubscription(testOwnerId),
+        ).thenAnswer((_) async => const Right(null));
 
         // Act
         final result = await useCase(
@@ -163,13 +171,16 @@ void main() {
 
       test('should return true when at free limit minus one', () async {
         // Arrange - Has 6 seats, adding 7th is allowed (free limit is 7)
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => Right(testLibrary));
-        when(() => mockMembershipRepository
-                .getActiveAndReservedMembershipsForLibrary(testLibraryId))
-            .thenAnswer((_) async => Right(createMemberships(6)));
-        when(() => mockSubscriptionRepository.getActiveSubscription(testOwnerId))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+        ).thenAnswer((_) async => Right(testLibrary));
+        when(
+          () => mockMembershipRepository
+              .getActiveAndReservedMembershipsForLibrary(testLibraryId),
+        ).thenAnswer((_) async => Right(createMemberships(6)));
+        when(
+          () => mockSubscriptionRepository.getActiveSubscription(testOwnerId),
+        ).thenAnswer((_) async => const Right(null));
 
         // Act
         final result = await useCase(
@@ -182,13 +193,16 @@ void main() {
 
       test('should return failure when trying to exceed free limit', () async {
         // Arrange - Already has 7 seats, trying to add 8th
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => Right(testLibrary));
-        when(() => mockMembershipRepository
-                .getActiveAndReservedMembershipsForLibrary(testLibraryId))
-            .thenAnswer((_) async => Right(createMemberships(7)));
-        when(() => mockSubscriptionRepository.getActiveSubscription(testOwnerId))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+        ).thenAnswer((_) async => Right(testLibrary));
+        when(
+          () => mockMembershipRepository
+              .getActiveAndReservedMembershipsForLibrary(testLibraryId),
+        ).thenAnswer((_) async => Right(createMemberships(7)));
+        when(
+          () => mockSubscriptionRepository.getActiveSubscription(testOwnerId),
+        ).thenAnswer((_) async => const Right(null));
 
         // Act
         final result = await useCase(
@@ -197,98 +211,108 @@ void main() {
 
         // Assert
         expect(result.isLeft(), true);
-        result.fold(
-          (failure) {
-            expect(failure, isA<SeatLimitExceededFailure>());
-            expect((failure as SeatLimitExceededFailure).maxSeats,
-                SubscriptionPlan.freeSeatsLimit);
-          },
-          (_) => fail('Should return failure'),
-        );
+        result.fold((failure) {
+          expect(failure, isA<SeatLimitExceededFailure>());
+          expect(
+            (failure as SeatLimitExceededFailure).maxSeats,
+            SubscriptionPlan.freeSeatsLimit,
+          );
+        }, (_) => fail('Should return failure'));
       });
     });
 
     group('expired subscription falls back to freemium', () {
-      test('should allow if under free limit with expired subscription',
-          () async {
-        // Arrange - Expired subscription, has 5 seats
-        final expiredSubscription = Subscription(
-          id: 'sub_1',
-          ownerId: testOwnerId,
-          libraryId: testLibraryId,
-          seatCount: 50,
-          planId: 'tier_99',
-          baseMonthlyPrice: 99,
-          durationInMonths: 1,
-          discountPercent: 0,
-          finalAmount: 99,
-          startDate: DateTime.now().subtract(const Duration(days: 35)),
-          endDate: DateTime.now().subtract(const Duration(days: 5)),
-          status: SubscriptionStatus.expired,
-        );
+      test(
+        'should allow if under free limit with expired subscription',
+        () async {
+          // Arrange - Expired subscription, has 5 seats
+          final expiredSubscription = Subscription(
+            id: 'sub_1',
+            ownerId: testOwnerId,
+            libraryId: testLibraryId,
+            seatCount: 50,
+            planId: 'tier_99',
+            baseMonthlyPrice: 99,
+            durationInMonths: 1,
+            discountPercent: 0,
+            finalAmount: 99,
+            startDate: DateTime.now().subtract(const Duration(days: 35)),
+            endDate: DateTime.now().subtract(const Duration(days: 5)),
+            status: SubscriptionStatus.expired,
+          );
 
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => Right(testLibrary));
-        when(() => mockMembershipRepository
-                .getActiveAndReservedMembershipsForLibrary(testLibraryId))
-            .thenAnswer((_) async => Right(createMemberships(5)));
-        when(() => mockSubscriptionRepository.getActiveSubscription(testOwnerId))
-            .thenAnswer((_) async => Right(expiredSubscription));
+          when(
+            () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+          ).thenAnswer((_) async => Right(testLibrary));
+          when(
+            () => mockMembershipRepository
+                .getActiveAndReservedMembershipsForLibrary(testLibraryId),
+          ).thenAnswer((_) async => Right(createMemberships(5)));
+          when(
+            () => mockSubscriptionRepository.getActiveSubscription(testOwnerId),
+          ).thenAnswer((_) async => Right(expiredSubscription));
 
-        // Act
-        final result = await useCase(
-          const ValidateSeatLimitParams(ownerId: testOwnerId),
-        );
+          // Act
+          final result = await useCase(
+            const ValidateSeatLimitParams(ownerId: testOwnerId),
+          );
 
-        // Assert
-        expect(result.isRight(), true);
-      });
+          // Assert
+          expect(result.isRight(), true);
+        },
+      );
 
-      test('should block if over free limit with expired subscription',
-          () async {
-        // Arrange - Expired subscription, has 7 seats
-        final expiredSubscription = Subscription(
-          id: 'sub_1',
-          ownerId: testOwnerId,
-          libraryId: testLibraryId,
-          seatCount: 50,
-          planId: 'tier_99',
-          baseMonthlyPrice: 99,
-          durationInMonths: 1,
-          discountPercent: 0,
-          finalAmount: 99,
-          startDate: DateTime.now().subtract(const Duration(days: 35)),
-          endDate: DateTime.now().subtract(const Duration(days: 5)),
-          status: SubscriptionStatus.expired,
-        );
+      test(
+        'should block if over free limit with expired subscription',
+        () async {
+          // Arrange - Expired subscription, has 7 seats
+          final expiredSubscription = Subscription(
+            id: 'sub_1',
+            ownerId: testOwnerId,
+            libraryId: testLibraryId,
+            seatCount: 50,
+            planId: 'tier_99',
+            baseMonthlyPrice: 99,
+            durationInMonths: 1,
+            discountPercent: 0,
+            finalAmount: 99,
+            startDate: DateTime.now().subtract(const Duration(days: 35)),
+            endDate: DateTime.now().subtract(const Duration(days: 5)),
+            status: SubscriptionStatus.expired,
+          );
 
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => Right(testLibrary));
-        when(() => mockMembershipRepository
-                .getActiveAndReservedMembershipsForLibrary(testLibraryId))
-            .thenAnswer((_) async => Right(createMemberships(7)));
-        when(() => mockSubscriptionRepository.getActiveSubscription(testOwnerId))
-            .thenAnswer((_) async => Right(expiredSubscription));
+          when(
+            () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+          ).thenAnswer((_) async => Right(testLibrary));
+          when(
+            () => mockMembershipRepository
+                .getActiveAndReservedMembershipsForLibrary(testLibraryId),
+          ).thenAnswer((_) async => Right(createMemberships(7)));
+          when(
+            () => mockSubscriptionRepository.getActiveSubscription(testOwnerId),
+          ).thenAnswer((_) async => Right(expiredSubscription));
 
-        // Act
-        final result = await useCase(
-          const ValidateSeatLimitParams(ownerId: testOwnerId),
-        );
+          // Act
+          final result = await useCase(
+            const ValidateSeatLimitParams(ownerId: testOwnerId),
+          );
 
-        // Assert
-        expect(result.isLeft(), true);
-        result.fold(
-          (failure) => expect(failure, isA<SeatLimitExceededFailure>()),
-          (_) => fail('Should return failure'),
-        );
-      });
+          // Assert
+          expect(result.isLeft(), true);
+          result.fold(
+            (failure) => expect(failure, isA<SeatLimitExceededFailure>()),
+            (_) => fail('Should return failure'),
+          );
+        },
+      );
     });
 
     group('new owner (no library)', () {
       test('should return true for new owner without library', () async {
         // Arrange - No library yet
-        when(() => mockLibraryRepository.getLibraryByOwnerId(testOwnerId))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockLibraryRepository.getLibraryByOwnerId(testOwnerId),
+        ).thenAnswer((_) async => const Right(null));
 
         // Act
         final result = await useCase(

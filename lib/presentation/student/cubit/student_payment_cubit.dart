@@ -53,7 +53,7 @@ class StudentPaymentCubit extends Cubit<StudentPaymentState> {
     result.fold(
       (failure) {
         // No existing payment or error - continue normally
-        log('StudentPaymentCubit: No existing payment found for membership');
+        log('StudentPaymentCubit: No existing payment found for stay');
       },
       (payment) {
         if (payment != null && payment.status == PaymentStatus.initiated) {
@@ -245,10 +245,7 @@ class StudentPaymentCubit extends Cubit<StudentPaymentState> {
         if (payment == null) {
           // Membership created but payment failed - show success but note payment needed
           emit(
-            state.copyWith(
-              status: StudentPaymentStatus.success,
-              payment: null,
-            ),
+            state.copyWith(status: StudentPaymentStatus.success, payment: null),
           );
         } else if (payment.mode == PaymentMode.cash) {
           emit(

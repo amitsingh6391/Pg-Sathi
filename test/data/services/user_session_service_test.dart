@@ -7,12 +7,11 @@ import 'package:pg_manager/domain/entities/user_session.dart';
 import 'package:pg_manager/domain/repositories/user_session_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockUserSessionRepository extends Mock
-    implements UserSessionRepository {}
+class MockUserSessionRepository extends Mock implements UserSessionRepository {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  
+
   late MockUserSessionRepository mockRepository;
   late UserSessionService service;
 
@@ -72,20 +71,15 @@ void main() {
           ),
         ).thenAnswer((_) async => Right(testSession));
 
-        when(() => mockRepository.endSession(any()))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockRepository.endSession(any()),
+        ).thenAnswer((_) async => const Right(null));
 
         // Start first session
-        await service.startSession(
-          userId: 'user_1',
-          role: UserRole.student,
-        );
+        await service.startSession(userId: 'user_1', role: UserRole.student);
 
         // Start second session (should end first)
-        await service.startSession(
-          userId: 'user_1',
-          role: UserRole.student,
-        );
+        await service.startSession(userId: 'user_1', role: UserRole.student);
 
         verify(() => mockRepository.endSession('session_1')).called(1);
       });
@@ -97,15 +91,10 @@ void main() {
             role: any(named: 'role'),
             deviceId: any(named: 'deviceId'),
           ),
-        ).thenAnswer(
-          (_) async => Left(ServerFailure(message: 'Failed')),
-        );
+        ).thenAnswer((_) async => Left(ServerFailure(message: 'Failed')));
 
         // Should not throw
-        await service.startSession(
-          userId: 'user_1',
-          role: UserRole.student,
-        );
+        await service.startSession(userId: 'user_1', role: UserRole.student);
       });
     });
 
@@ -119,14 +108,12 @@ void main() {
           ),
         ).thenAnswer((_) async => Right(testSession));
 
-        when(() => mockRepository.endSession(any()))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockRepository.endSession(any()),
+        ).thenAnswer((_) async => const Right(null));
 
         // Start session
-        await service.startSession(
-          userId: 'user_1',
-          role: UserRole.student,
-        );
+        await service.startSession(userId: 'user_1', role: UserRole.student);
 
         // End session
         await service.endSession();
@@ -151,14 +138,12 @@ void main() {
           ),
         ).thenAnswer((_) async => Right(testSession));
 
-        when(() => mockRepository.updateLastActive(any()))
-            .thenAnswer((_) async => const Right(null));
+        when(
+          () => mockRepository.updateLastActive(any()),
+        ).thenAnswer((_) async => const Right(null));
 
         // Start session
-        await service.startSession(
-          userId: 'user_1',
-          role: UserRole.student,
-        );
+        await service.startSession(userId: 'user_1', role: UserRole.student);
 
         // Update last active
         await service.updateLastActive();

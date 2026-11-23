@@ -131,6 +131,40 @@ class SubscriptionNotificationService {
     }
   }
 
+  /// Notifies all admins of a successful App Store subscription purchase.
+  Future<void> notifyAdminAppStorePayment({
+    required String ownerName,
+    required String libraryName,
+    required double amount,
+    required int durationMonths,
+    required String transactionId,
+  }) async {
+    try {
+      final adminsResult = await userRepository.getUsersByRole(UserRole.admin);
+
+      await adminsResult.fold((_) {}, (admins) async {
+        if (admins.isEmpty) return;
+
+        await notificationRepository.sendNotificationsToUsers(
+          userIds: admins.map((a) => a.id).toList(),
+          title: '🍎 App Store Payment Success',
+          body:
+              '$ownerName ($libraryName) paid ₹${amount.toStringAsFixed(0)} via App Store - Auto-activated',
+          data: {
+            'type': 'app_store_payment',
+            'ownerName': ownerName,
+            'libraryName': libraryName,
+            'amount': amount.toString(),
+            'durationMonths': durationMonths.toString(),
+            'transactionId': transactionId,
+          },
+        );
+      });
+    } catch (_) {
+      // Silent failure - notification is non-critical
+    }
+  }
+
   /// Sends notification to all admins when an owner requests a withdrawal.
   Future<void> notifyAdminWithdrawalRequested({
     required String ownerId,
@@ -176,10 +210,7 @@ class SubscriptionNotificationService {
         body:
             'Your referral withdrawal of ₹${amount.toStringAsFixed(0)} has been approved. '
             'Payment will be sent to your UPI shortly.',
-        data: {
-          'type': 'withdrawal_approved',
-          'amount': amount.toString(),
-        },
+        data: {'type': 'withdrawal_approved', 'amount': amount.toString()},
       );
     } catch (_) {
       // Silent failure - notification is non-critical

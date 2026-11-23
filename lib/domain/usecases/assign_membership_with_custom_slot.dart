@@ -59,11 +59,18 @@ class AssignMembershipWithCustomSlot
       return Left(validationError);
     }
 
-    // Verify custom slot exists and is active
-    final slotResult = await slotRepository.getSlotById(
+    // These reads are independent, so run them in one parallel round instead
+    // of one after another (each is a full Firestore round trip).
+    final slotFuture = slotRepository.getSlotById(
       params.libraryId,
       params.slotId,
     );
+    final studentFuture = userRepository.getUserByPhone(params.studentPhone);
+    final libraryMembershipsFuture = membershipRepository
+        .getActiveAndReservedMembershipsForLibrary(params.libraryId);
+
+    // Verify custom slot exists and is active
+    final slotResult = await slotFuture;
 
     return slotResult.fold((failure) => Left(failure), (slot) async {
       if (slot == null) {
@@ -79,9 +86,7 @@ class AssignMembershipWithCustomSlot
       }
 
       // Try to find existing student by phone
-      final studentResult = await userRepository.getUserByPhone(
-        params.studentPhone,
-      );
+      final studentResult = await studentFuture;
 
       String? userId;
       if (studentResult.isRight()) {
@@ -89,291 +94,295 @@ class AssignMembershipWithCustomSlot
         userId = student?.id;
       }
 
-      // Check for existing memberships by phone number
-      final existingByPhoneResult = await membershipRepository
-          .getMembershipsByPhoneNumber(params.studentPhone);
+      // Removed validation: Allow same phone number to have multiple seats in the same slot
+      // This enables siblings sharing a phone number to have separate seats
+      // Calculate effective start date for new membership
+      final effectiveStartDate = params.startDate ?? DateTime.now();
 
-      return existingByPhoneResult.fold((failure) => Left(failure), (
-        existingMemberships,
+      // Check if bed is already occupied/reserved.
+      // Use getActiveAndReservedMembershipsForLibrary to exclude expired memberships
+      final libraryMembershipsResult = await libraryMembershipsFuture;
+
+      return libraryMembershipsResult.fold((failure) => Left(failure), (
+        libraryMemberships,
       ) async {
-        // Removed validation: Allow same phone number to have multiple seats in the same slot
-        // This enables siblings sharing a phone number to have separate seats
-        // Calculate effective start date for new membership
-        final effectiveStartDate = params.startDate ?? DateTime.now();
+        // Allow extension if new start date is after current membership's end date
+        final conflictingSeatMembership = libraryMemberships.firstWhere(
+          (m) =>
+              m.assignedSeatId == params.seatId &&
+              (m.status == MembershipStatus.active ||
+                  m.status == MembershipStatus.pendingPayment) &&
+              effectiveStartDate.isBefore(m.endDate),
+          orElse: () => Membership(
+            id: '',
+            libraryId: '',
+            plan: MembershipPlan.monthly,
+            startDate: DateTime.now(),
+            endDate: DateTime.now(),
+            status: MembershipStatus.expired,
+            phoneNumber: '',
+          ),
+        );
 
-        // Check if bed is already occupied/reserved.
-        // Use getActiveAndReservedMembershipsForLibrary to exclude expired memberships
-        final libraryMembershipsResult = await membershipRepository
-            .getActiveAndReservedMembershipsForLibrary(params.libraryId);
-
-        return libraryMembershipsResult.fold((failure) => Left(failure), (
-          libraryMemberships,
-        ) async {
-          // Allow extension if new start date is after current membership's end date
-          final conflictingSeatMembership = libraryMemberships.firstWhere(
-            (m) =>
-                m.assignedSeatId == params.seatId &&
-                (m.status == MembershipStatus.active ||
-                    m.status == MembershipStatus.pendingPayment) &&
-                effectiveStartDate.isBefore(m.endDate),
-            orElse: () => Membership(
-              id: '',
-              libraryId: '',
-              plan: MembershipPlan.monthly,
-              startDate: DateTime.now(),
-              endDate: DateTime.now(),
-              status: MembershipStatus.expired,
-              phoneNumber: '',
+        if (conflictingSeatMembership.id.isNotEmpty) {
+          final endDateStr = conflictingSeatMembership.endDate.toString().split(
+            ' ',
+          )[0];
+          return Left(
+            SeatAlreadyOccupiedFailure(
+              message:
+                  'This bed is already occupied until $endDateStr. Please select a different bed or set a start date after the current stay ends.',
             ),
           );
+        }
 
-          if (conflictingSeatMembership.id.isNotEmpty) {
-            final endDateStr = conflictingSeatMembership.endDate
-                .toString()
-                .split(' ')[0];
-            return Left(
-              SeatAlreadyOccupiedFailure(
-                message:
-                    'This bed is already occupied until $endDateStr. Please select a different bed or set a start date after the current stay ends.',
-              ),
+        // Check if membership is already expired (end date has passed)
+        final now = DateTime.now();
+        final todayOnly = DateTime(now.year, now.month, now.day);
+        final endDateOnly = DateTime(
+          params.expiryDate.year,
+          params.expiryDate.month,
+          params.expiryDate.day,
+        );
+        final isAlreadyExpired = todayOnly.isAfter(endDateOnly);
+
+        // Determine payment status and membership status
+        // For partial payments: membership becomes active immediately since partial payment is recorded
+        // The paymentStatus remains pending if there's remaining balance
+        final hasPartialPayment =
+            params.paymentBreakdown != null &&
+            params.paymentBreakdown!.amountPaid > 0;
+        final hasRemainingBalance =
+            params.paymentBreakdown != null &&
+            params.paymentBreakdown!.amountRemaining > 0;
+
+        // A bed request awaiting approval is never paid yet; its payment
+        // record and invoice are created when the owner approves it.
+        final isSeatRequest =
+            params.statusOverride == MembershipStatus.pendingApproval;
+
+        final paymentStatus = isSeatRequest
+            ? MembershipPaymentStatus.pending
+            : params.markCashReceived
+            ? MembershipPaymentStatus.markedPaid
+            : (hasPartialPayment && hasRemainingBalance
+                  ? MembershipPaymentStatus
+                        .pending // Partial payment with remaining balance
+                  : (hasPartialPayment
+                        ? MembershipPaymentStatus
+                              .markedPaid // Partial payment covering full amount
+                        : MembershipPaymentStatus.pending)); // No payment yet
+
+        // If membership is already expired, mark as expired immediately
+        // This prevents expired memberships from showing as occupied
+        // For partial payments, activate membership immediately since payment is being recorded
+        // statusOverride (e.g. pendingApproval for resident requests) wins.
+        final membershipStatus =
+            params.statusOverride ??
+            (isAlreadyExpired
+                ? MembershipStatus.expired
+                : (params.markCashReceived || hasPartialPayment
+                      ? MembershipStatus.active
+                      : MembershipStatus.pendingPayment));
+
+        // Create membership with custom slot and payment breakdown
+        // Use effectiveStartDate calculated above
+        final membership = Membership(
+          id: params.membershipId,
+          userId: userId,
+          studentName: userId == null
+              ? params.studentName
+              : null, // Only store name for unregistered
+          libraryId: params.libraryId,
+          plan: params.plan,
+          startDate: effectiveStartDate,
+          endDate: params.expiryDate,
+          status: membershipStatus,
+          phoneNumber: params.studentPhone,
+          assignedSeatId: params.seatId,
+          slot: null, // No legacy slot enum
+          slotId: params.slotId,
+          createdAt: DateTime.now(),
+          paymentMethod: params.paymentMethod,
+          paymentStatus: paymentStatus,
+          paymentBreakdown: params.paymentBreakdown,
+          upiTransactionId: params.upiTransactionId,
+          assignedByOwner: userId == null,
+          customDurationDays: params.customDurationDays,
+          customDurationMonths: params.customDurationMonths,
+        );
+
+        final createMembershipResult = await membershipRepository
+            .createMembership(membership);
+
+        return createMembershipResult.fold((failure) => Left(failure), (
+          savedMembership,
+        ) async {
+          // If reassigning from an expired membership, clear the old one's seat
+          // so it no longer appears in the Expired tab.
+          if (params.excludeMembershipId != null) {
+            final oldResult = await membershipRepository.getMembershipById(
+              params.excludeMembershipId!,
             );
+            oldResult.fold((_) {}, (oldMembership) async {
+              if (oldMembership.status == MembershipStatus.expired ||
+                  oldMembership.status == MembershipStatus.cancelled) {
+                final cleared = oldMembership.clearSeat();
+                await membershipRepository.updateMembership(cleared);
+              }
+            });
           }
 
-          // Check if membership is already expired (end date has passed)
-          final now = DateTime.now();
-          final todayOnly = DateTime(now.year, now.month, now.day);
-          final endDateOnly = DateTime(
-            params.expiryDate.year,
-            params.expiryDate.month,
-            params.expiryDate.day,
-          );
-          final isAlreadyExpired = todayOnly.isAfter(endDateOnly);
-
-          // Determine payment status and membership status
-          // For partial payments: membership becomes active immediately since partial payment is recorded
-          // The paymentStatus remains pending if there's remaining balance
+          // Check if we need to create payment record and invoice
+          // This happens in two cases:
+          // 1. Payment is marked as received (markCashReceived = true)
+          // 2. Partial payment is marked (paymentBreakdown exists with amountPaid > 0)
+          //    For partial payments, create approved payment record immediately
+          //    so it shows in revenue/transactions but NOT in pending approvals
           final hasPartialPayment =
               params.paymentBreakdown != null &&
               params.paymentBreakdown!.amountPaid > 0;
-          final hasRemainingBalance =
-              params.paymentBreakdown != null &&
-              params.paymentBreakdown!.amountRemaining > 0;
+          final shouldCreatePayment =
+              !isSeatRequest &&
+              ((params.markCashReceived &&
+                      (params.paymentMethod == PaymentMode.cash ||
+                          params.paymentMethod == PaymentMode.upi)) ||
+                  hasPartialPayment);
 
-          final paymentStatus = params.markCashReceived
-              ? MembershipPaymentStatus.markedPaid
-              : (hasPartialPayment && hasRemainingBalance
-                    ? MembershipPaymentStatus
-                          .pending // Partial payment with remaining balance
-                    : (hasPartialPayment
-                          ? MembershipPaymentStatus
-                                .markedPaid // Partial payment covering full amount
-                          : MembershipPaymentStatus.pending)); // No payment yet
+          if (shouldCreatePayment) {
+            // Get library to get ownerId
+            final libraryResult = await libraryRepository.getLibraryById(
+              params.libraryId,
+            );
 
-          // If membership is already expired, mark as expired immediately
-          // This prevents expired memberships from showing as occupied
-          // For partial payments, activate membership immediately since payment is being recorded
-          final membershipStatus = isAlreadyExpired
-              ? MembershipStatus.expired
-              : (params.markCashReceived || hasPartialPayment
-                    ? MembershipStatus.active
-                    : MembershipStatus.pendingPayment);
+            return libraryResult.fold((failure) => Left(failure), (
+              library,
+            ) async {
+              if (library == null) {
+                return const Left(
+                  InvalidMembershipDataFailure(message: 'Library not found'),
+                );
+              }
 
-          // Create membership with custom slot and payment breakdown
-          // Use effectiveStartDate calculated above
-          final membership = Membership(
-            id: params.membershipId,
-            userId: userId,
-            studentName: userId == null
-                ? params.studentName
-                : null, // Only store name for unregistered
-            libraryId: params.libraryId,
-            plan: params.plan,
-            startDate: effectiveStartDate,
-            endDate: params.expiryDate,
-            status: membershipStatus,
-            phoneNumber: params.studentPhone,
-            assignedSeatId: params.seatId,
-            slot: null, // No legacy slot enum
-            slotId: params.slotId,
-            createdAt: DateTime.now(),
-            paymentMethod: params.paymentMethod,
-            paymentStatus: paymentStatus,
-            paymentBreakdown: params.paymentBreakdown,
-            assignedByOwner: userId == null,
-            customDurationDays: params.customDurationDays,
-            customDurationMonths: params.customDurationMonths,
-          );
+              // Calculate payment amount for this transaction
+              // For partial payments, use amountPaid (not totalAmount)
+              // This ensures invoice and payment record reflect actual amount paid
+              // IMPORTANT: When markCashReceived is true with discount but no partial payment,
+              // the amountPaid in paymentBreakdown will be 0, but we need to use the full
+              // discounted amount (totalAmount) for the invoice
+              final paymentAmount = params.paymentBreakdown != null
+                  ? (params.markCashReceived &&
+                            params.paymentBreakdown!.amountPaid == 0
+                        ? params
+                              .paymentBreakdown!
+                              .totalAmount // Full discounted amount
+                        : params
+                              .paymentBreakdown!
+                              .amountPaid) // Partial payment amount
+                  : _calculateFullPaymentAmount(savedMembership, slot.price);
 
-          final createMembershipResult = await membershipRepository
-              .createMembership(membership);
+              // Create and approve payment record
+              // Payment amount should reflect actual amount paid in this transaction
+              final createdPayment = params.paymentMethod == PaymentMode.upi
+                  ? Payment.createUpiPayment(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      membershipId: savedMembership.id,
+                      userId: userId ?? '',
+                      libraryId: params.libraryId,
+                      amount: paymentAmount,
+                      createdAt: params.paymentReceivedDate,
+                    )
+                  : Payment.createCashPayment(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      membershipId: savedMembership.id,
+                      userId: userId ?? '',
+                      libraryId: params.libraryId,
+                      amount: paymentAmount,
+                      createdAt: params.paymentReceivedDate,
+                    );
 
-          return createMembershipResult.fold((failure) => Left(failure), (
-            savedMembership,
-          ) async {
-            // If reassigning from an expired membership, clear the old one's seat
-            // so it no longer appears in the Expired tab.
-            if (params.excludeMembershipId != null) {
-              final oldResult = await membershipRepository.getMembershipById(
-                params.excludeMembershipId!,
-              );
-              oldResult.fold((_) {}, (oldMembership) async {
-                if (oldMembership.status == MembershipStatus.expired ||
-                    oldMembership.status == MembershipStatus.cancelled) {
-                  final cleared = oldMembership.clearSeat();
-                  await membershipRepository.updateMembership(cleared);
-                }
-              });
-            }
+              // Approve payment if markCashReceived is true OR if it's a partial payment
+              // For partial payments without activation, approve immediately so it shows
+              // in revenue/transactions but NOT in pending approvals (since it's already approved)
+              final payment = (params.markCashReceived || hasPartialPayment)
+                  ? (params.paymentMethod == PaymentMode.upi
+                        ? createdPayment.approveUpiPayment(
+                            library.ownerId,
+                            approvalDate: params.paymentReceivedDate,
+                          )
+                        : createdPayment.approveCashPayment(
+                            library.ownerId,
+                            approvalDate: params.paymentReceivedDate,
+                          ))
+                  : createdPayment;
 
-            // Check if we need to create payment record and invoice
-            // This happens in two cases:
-            // 1. Payment is marked as received (markCashReceived = true)
-            // 2. Partial payment is marked (paymentBreakdown exists with amountPaid > 0)
-            //    For partial payments, create approved payment record immediately
-            //    so it shows in revenue/transactions but NOT in pending approvals
-            final hasPartialPayment =
-                params.paymentBreakdown != null &&
-                params.paymentBreakdown!.amountPaid > 0;
-            final shouldCreatePayment =
-                (params.markCashReceived &&
-                    (params.paymentMethod == PaymentMode.cash ||
-                        params.paymentMethod == PaymentMode.upi)) ||
-                hasPartialPayment;
-
-            if (shouldCreatePayment) {
-              // Get library to get ownerId
-              final libraryResult = await libraryRepository.getLibraryById(
-                params.libraryId,
+              // Save payment record
+              final savePaymentResult = await paymentRepository.createPayment(
+                payment,
               );
 
-              return libraryResult.fold((failure) => Left(failure), (
-                library,
-              ) async {
-                if (library == null) {
-                  return const Left(
-                    InvalidMembershipDataFailure(message: 'Library not found'),
-                  );
-                }
-
-                // Calculate payment amount for this transaction
-                // For partial payments, use amountPaid (not totalAmount)
-                // This ensures invoice and payment record reflect actual amount paid
-                // IMPORTANT: When markCashReceived is true with discount but no partial payment,
-                // the amountPaid in paymentBreakdown will be 0, but we need to use the full
-                // discounted amount (totalAmount) for the invoice
-                final paymentAmount = params.paymentBreakdown != null
-                    ? (params.markCashReceived &&
-                              params.paymentBreakdown!.amountPaid == 0
-                          ? params
-                                .paymentBreakdown!
-                                .totalAmount // Full discounted amount
-                          : params
-                                .paymentBreakdown!
-                                .amountPaid) // Partial payment amount
-                    : _calculateFullPaymentAmount(savedMembership, slot.price);
-
-                // Create and approve payment record
-                // Payment amount should reflect actual amount paid in this transaction
-                final createdPayment = params.paymentMethod == PaymentMode.upi
-                    ? Payment.createUpiPayment(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        membershipId: savedMembership.id,
-                        userId: userId ?? '',
-                        libraryId: params.libraryId,
-                        amount: paymentAmount,
-                        createdAt: params.paymentReceivedDate,
-                      )
-                    : Payment.createCashPayment(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        membershipId: savedMembership.id,
-                        userId: userId ?? '',
-                        libraryId: params.libraryId,
-                        amount: paymentAmount,
-                        createdAt: params.paymentReceivedDate,
-                      );
-
-                // Approve payment if markCashReceived is true OR if it's a partial payment
-                // For partial payments without activation, approve immediately so it shows
-                // in revenue/transactions but NOT in pending approvals (since it's already approved)
-                final payment = (params.markCashReceived || hasPartialPayment)
-                    ? (params.paymentMethod == PaymentMode.upi
-                          ? createdPayment.approveUpiPayment(
-                              library.ownerId,
-                              approvalDate: params.paymentReceivedDate,
-                            )
-                          : createdPayment.approveCashPayment(
-                              library.ownerId,
-                              approvalDate: params.paymentReceivedDate,
-                            ))
-                    : createdPayment;
-
-                // Save payment record
-                final savePaymentResult = await paymentRepository.createPayment(
-                  payment,
+              if (savePaymentResult.isLeft()) {
+                // Log error but don't fail membership creation
+                log(
+                  'AssignMembershipWithCustomSlot: Failed to create payment record - ${savePaymentResult.fold((l) => l.message, (r) => '')}',
+                );
+              } else {
+                final savedPayment = savePaymentResult.getOrElse(
+                  () => throw Error(),
                 );
 
-                if (savePaymentResult.isLeft()) {
-                  // Log error but don't fail membership creation
+                // Generate invoice for the payment
+                if (generateInvoice != null && paymentAmount > 0) {
                   log(
-                    'AssignMembershipWithCustomSlot: Failed to create payment record - ${savePaymentResult.fold((l) => l.message, (r) => '')}',
+                    'AssignMembershipWithCustomSlot: Generating invoice for ${hasPartialPayment ? "partial" : "full"} payment (amount: ₹$paymentAmount)...',
                   );
-                } else {
-                  final savedPayment = savePaymentResult.getOrElse(
-                    () => throw Error(),
+                  final invoiceResult = await generateInvoice!(
+                    GenerateInvoiceParams(
+                      membershipId: savedMembership.id,
+                      paymentId: savedPayment.id,
+                      paymentDate: params.paymentReceivedDate ?? DateTime.now(),
+                      amountPaid: paymentAmount,
+                      currency: payment.currency,
+                    ),
                   );
-
-                  // Generate invoice for the payment
-                  if (generateInvoice != null && paymentAmount > 0) {
-                    log(
-                      'AssignMembershipWithCustomSlot: Generating invoice for ${hasPartialPayment ? "partial" : "full"} payment (amount: ₹$paymentAmount)...',
-                    );
-                    final invoiceResult = await generateInvoice!(
-                      GenerateInvoiceParams(
-                        membershipId: savedMembership.id,
-                        paymentId: savedPayment.id,
-                        paymentDate:
-                            params.paymentReceivedDate ?? DateTime.now(),
-                        amountPaid: paymentAmount,
-                        currency: payment.currency,
-                      ),
-                    );
-                    invoiceResult.fold(
-                      (failure) => log(
-                        'AssignMembershipWithCustomSlot: Invoice generation failed - ${failure.message}',
-                      ),
-                      (inv) {
-                        log(
-                          'AssignMembershipWithCustomSlot: Invoice generated: ${inv.invoiceNumber} for amount: ₹$paymentAmount',
+                  invoiceResult.fold(
+                    (failure) => log(
+                      'AssignMembershipWithCustomSlot: Invoice generation failed - ${failure.message}',
+                    ),
+                    (inv) {
+                      log(
+                        'AssignMembershipWithCustomSlot: Invoice generated: ${inv.invoiceNumber} for amount: ₹$paymentAmount',
+                      );
+                      if (whatsAppNotificationRepository != null) {
+                        whatsAppNotificationRepository!.sendInvoiceWhatsApp(
+                          inv,
                         );
-                        if (whatsAppNotificationRepository != null) {
-                          whatsAppNotificationRepository!.sendInvoiceWhatsApp(inv);
-                        }
-                      },
-                    );
-                  }
+                      }
+                    },
+                  );
                 }
+              }
 
-                // Send notification to student (fire-and-forget)
-                if (userId != null && notificationService != null) {
-                  _sendStudentNotification(savedMembership, library.name, slot);
-                }
+              // Send notification to student (fire-and-forget)
+              if (userId != null && notificationService != null) {
+                _sendStudentNotification(savedMembership, library.name, slot);
+              }
 
-                return Right(savedMembership);
-              });
-            }
+              return Right(savedMembership);
+            });
+          }
 
-            // If not creating payment/invoice, just return the membership
-            // Send notification to student (fire-and-forget)
-            if (userId != null && notificationService != null) {
-              _sendStudentNotificationSimple(
-                savedMembership,
-                params.libraryId,
-                slot,
-              );
-            }
+          // If not creating payment/invoice, just return the membership
+          // Send notification to student (fire-and-forget)
+          if (userId != null && notificationService != null) {
+            _sendStudentNotificationSimple(
+              savedMembership,
+              params.libraryId,
+              slot,
+            );
+          }
 
-            return Right(savedMembership);
-          });
+          return Right(savedMembership);
         });
       });
     });
@@ -387,6 +396,10 @@ class AssignMembershipWithCustomSlot
   ) async {
     try {
       if (membership.userId == null) return;
+
+      // A pending request is not an assignment; the resident is notified when
+      // the owner approves or rejects it.
+      if (membership.status == MembershipStatus.pendingApproval) return;
 
       // assignedSeatId stores the seat NUMBER (e.g., "S01"), not Firestore doc ID
       // So we can use it directly as the seat number
@@ -491,12 +504,14 @@ class AssignMembershipWithCustomSlotParams extends Equatable {
     this.studentName,
     this.paymentMethod,
     this.paymentBreakdown,
+    this.upiTransactionId,
     this.markCashReceived = false,
     this.startDate,
     this.customDurationDays,
     this.customDurationMonths,
     this.excludeMembershipId,
     this.paymentReceivedDate,
+    this.statusOverride,
   });
 
   final String membershipId;
@@ -505,6 +520,9 @@ class AssignMembershipWithCustomSlotParams extends Equatable {
   final String? studentName;
   final String seatId;
   final String slotId;
+
+  /// UPI reference entered by a resident on a bed request.
+  final String? upiTransactionId;
   final DateTime expiryDate;
   final MembershipPlan plan;
 
@@ -537,6 +555,10 @@ class AssignMembershipWithCustomSlotParams extends Equatable {
   /// Allows setting past dates for revenue tracking accuracy.
   final DateTime? paymentReceivedDate;
 
+  /// Overrides the computed membership status. Set to
+  /// [MembershipStatus.pendingApproval] for resident bed requests.
+  final MembershipStatus? statusOverride;
+
   @override
   List<Object?> get props => [
     membershipId,
@@ -545,6 +567,7 @@ class AssignMembershipWithCustomSlotParams extends Equatable {
     studentName,
     seatId,
     slotId,
+    upiTransactionId,
     expiryDate,
     plan,
     paymentMethod,
@@ -555,5 +578,6 @@ class AssignMembershipWithCustomSlotParams extends Equatable {
     customDurationMonths,
     excludeMembershipId,
     paymentReceivedDate,
+    statusOverride,
   ];
 }

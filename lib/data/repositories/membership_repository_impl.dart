@@ -506,6 +506,31 @@ class MembershipRepositoryImpl implements MembershipRepository {
   }
 
   @override
+  Future<Either<Failure, List<Membership>>> getPendingSeatRequestMemberships(
+    String libraryId,
+  ) async {
+    return FirebaseErrorHandler.guard(() async {
+      final query = await _collection
+          .where('libraryId', isEqualTo: libraryId)
+          .where('status', isEqualTo: MembershipStatus.pendingApproval.name)
+          .get();
+
+      final requests = query.docs
+          .map(
+            (doc) =>
+                MembershipMapper.toEntity(MembershipDto.fromFirestore(doc)),
+          )
+          .toList();
+      // Oldest request first so the owner works through them in order.
+      requests.sort(
+        (a, b) =>
+            (a.createdAt ?? a.startDate).compareTo(b.createdAt ?? b.startDate),
+      );
+      return requests;
+    });
+  }
+
+  @override
   Future<Either<Failure, void>> batchLinkMembershipsToUser({
     required String phoneNumber,
     required String userId,

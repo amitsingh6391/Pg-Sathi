@@ -122,9 +122,7 @@ class LocalNotificationService {
         message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch;
 
     // Serialize data as JSON for reliable parsing on tap
-    final payload = message.data.isNotEmpty
-        ? jsonEncode(message.data)
-        : null;
+    final payload = message.data.isNotEmpty ? jsonEncode(message.data) : null;
 
     await _notifications.show(
       notificationId,

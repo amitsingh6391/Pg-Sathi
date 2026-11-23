@@ -46,12 +46,17 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
 
     if (noticesResult.isLeft() || readStatusResult.isLeft()) {
       String errorMessage = 'Failed to load notices';
-      noticesResult.fold((l) => errorMessage = l.message ?? errorMessage, (_) {});
+      noticesResult.fold(
+        (l) => errorMessage = l.message ?? errorMessage,
+        (_) {},
+      );
       if (!isClosed) {
-        emit(state.copyWith(
-          status: StudentNoticeStatus.error,
-          errorMessage: errorMessage,
-        ));
+        emit(
+          state.copyWith(
+            status: StudentNoticeStatus.error,
+            errorMessage: errorMessage,
+          ),
+        );
       }
       return;
     }
@@ -60,10 +65,12 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
     noticesResult.fold(
       (failure) {
         if (!isClosed) {
-          emit(state.copyWith(
-            status: StudentNoticeStatus.error,
-            errorMessage: failure.message,
-          ));
+          emit(
+            state.copyWith(
+              status: StudentNoticeStatus.error,
+              errorMessage: failure.message,
+            ),
+          );
         }
       },
       (noticesList) {
@@ -72,10 +79,12 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
         readStatusResult.fold(
           (failure) {
             if (!isClosed) {
-              emit(state.copyWith(
-                status: StudentNoticeStatus.error,
-                errorMessage: failure.message,
-              ));
+              emit(
+                state.copyWith(
+                  status: StudentNoticeStatus.error,
+                  errorMessage: failure.message,
+                ),
+              );
             }
           },
           (readStatusMap) {
@@ -95,14 +104,16 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
             }
 
             if (!isClosed) {
-              emit(state.copyWith(
-                status: StudentNoticeStatus.loaded,
-                allNotices: notices,
-                unreadNotices: unreadNotices,
-                readNotices: readNotices,
-                readStatus: readStatus,
-                unreadCount: unreadNotices.length,
-              ));
+              emit(
+                state.copyWith(
+                  status: StudentNoticeStatus.loaded,
+                  allNotices: notices,
+                  unreadNotices: unreadNotices,
+                  readNotices: readNotices,
+                  readStatus: readStatus,
+                  unreadCount: unreadNotices.length,
+                ),
+              );
               // Prefetch library/owner info in one batch.
               _prefetchLibraryInfo(notices);
             }
@@ -132,7 +143,9 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
       (_) {
         if (isClosed) return;
         // Update local state
-        final updatedReadStatus = Map<String, NoticeReadStatus>.from(state.readStatus);
+        final updatedReadStatus = Map<String, NoticeReadStatus>.from(
+          state.readStatus,
+        );
         updatedReadStatus[noticeId] = NoticeReadStatus(
           noticeId: noticeId,
           studentId: studentId,
@@ -155,47 +168,23 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
         }
 
         if (!isClosed) {
-          emit(state.copyWith(
-            readStatus: updatedReadStatus,
-            unreadNotices: unreadNotices,
-            readNotices: readNotices,
-            unreadCount: unreadNotices.length,
-          ));
+          emit(
+            state.copyWith(
+              readStatus: updatedReadStatus,
+              unreadNotices: unreadNotices,
+              readNotices: readNotices,
+              unreadCount: unreadNotices.length,
+            ),
+          );
         }
       },
     );
   }
 
-  /// View a notice (increment view count and mark as read)
-  Future<void> viewNotice({
-    required String noticeId,
-    required String studentId,
-    required String libraryId,
-  }) async {
-    // Increment view count
-    await incrementNoticeViewCount(
-      noticeId: noticeId,
-      userId: studentId,
-    );
-
-    // Mark as read if not already read
-    final readStatus = state.readStatus[noticeId];
-    if (readStatus == null || !readStatus.isRead) {
-      await markAsRead(
-        noticeId: noticeId,
-        studentId: studentId,
-        libraryId: libraryId,
-      );
-    }
-  }
-
   /// Get a specific notice by ID
   Future<Notice?> getNotice(String noticeId) async {
     final result = await getNoticeById(noticeId);
-    return result.fold(
-      (_) => null,
-      (notice) => notice,
-    );
+    return result.fold((_) => null, (notice) => notice);
   }
 
   /// Refresh notices
@@ -217,15 +206,21 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
     try {
       // Fetch notices from all libraries in parallel
       final noticesResults = await Future.wait(
-        libraryIds.map((libraryId) => 
-          getActiveNoticesForStudent(libraryId: libraryId, studentId: studentId)
+        libraryIds.map(
+          (libraryId) => getActiveNoticesForStudent(
+            libraryId: libraryId,
+            studentId: studentId,
+          ),
         ),
       );
 
       // Fetch read status for all libraries
       final readStatusResults = await Future.wait(
-        libraryIds.map((libraryId) => 
-          getReadStatusForStudent(studentId: studentId, libraryId: libraryId)
+        libraryIds.map(
+          (libraryId) => getReadStatusForStudent(
+            studentId: studentId,
+            libraryId: libraryId,
+          ),
         ),
       );
 
@@ -239,24 +234,20 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
         final noticesResult = noticesResults[i];
         final readStatusResult = readStatusResults[i];
 
-        noticesResult.fold(
-          (failure) => null,
-          (notices) {
-            allNoticesList.addAll(notices);
-          },
-        );
+        noticesResult.fold((failure) => null, (notices) {
+          allNoticesList.addAll(notices);
+        });
 
-        readStatusResult.fold(
-          (failure) => null,
-          (statusMap) {
-            allReadStatus.addAll(statusMap);
-          },
-        );
+        readStatusResult.fold((failure) => null, (statusMap) {
+          allReadStatus.addAll(statusMap);
+        });
       }
 
       // Sort notices by published date (newest first)
-      allNoticesList.sort((a, b) => 
-        (b.publishedAt ?? b.createdAt).compareTo(a.publishedAt ?? a.createdAt)
+      allNoticesList.sort(
+        (a, b) => (b.publishedAt ?? b.createdAt).compareTo(
+          a.publishedAt ?? a.createdAt,
+        ),
       );
 
       // Separate read and unread notices
@@ -273,23 +264,27 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
       }
 
       if (!isClosed) {
-        emit(state.copyWith(
-          status: StudentNoticeStatus.loaded,
-          allNotices: allNoticesList,
-          unreadNotices: unreadNotices,
-          readNotices: readNotices,
-          readStatus: allReadStatus,
-          unreadCount: unreadNotices.length,
-        ));
+        emit(
+          state.copyWith(
+            status: StudentNoticeStatus.loaded,
+            allNotices: allNoticesList,
+            unreadNotices: unreadNotices,
+            readNotices: readNotices,
+            readStatus: allReadStatus,
+            unreadCount: unreadNotices.length,
+          ),
+        );
         // Prefetch library/owner info in one batch (non-blocking).
         _prefetchLibraryInfo(allNoticesList);
       }
     } catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(
-          status: StudentNoticeStatus.error,
-          errorMessage: 'Failed to load notices: $e',
-        ));
+        emit(
+          state.copyWith(
+            status: StudentNoticeStatus.error,
+            errorMessage: 'Failed to load notices: $e',
+          ),
+        );
       }
     }
   }
@@ -326,38 +321,32 @@ class StudentNoticeCubit extends Cubit<StudentNoticeState> {
     // Build cache from library results
     for (var i = 0; i < uniqueLibraryIds.length; i++) {
       final libId = uniqueLibraryIds[i];
-      libraryResults[i].fold(
-        (_) {},
-        (lib) {
-          if (lib != null) {
-            cache[libId] = NoticeLibraryInfo(
-              libraryName: lib.name,
-              ownerName: null,
-            );
-          }
-        },
-      );
+      libraryResults[i].fold((_) {}, (lib) {
+        if (lib != null) {
+          cache[libId] = NoticeLibraryInfo(
+            libraryName: lib.name,
+            ownerName: null,
+          );
+        }
+      });
     }
 
     // Merge owner names from batch user fetch
-    ownerResult.fold(
-      (_) {},
-      (usersMap) {
-        for (final notice in notices) {
-          final user = usersMap[notice.ownerId];
-          if (user != null && cache.containsKey(notice.libraryId)) {
-            cache[notice.libraryId] = cache[notice.libraryId]!.copyWith(
-              ownerName: user.displayName,
-            );
-          } else if (user != null) {
-            cache[notice.libraryId] = NoticeLibraryInfo(
-              libraryName: null,
-              ownerName: user.displayName,
-            );
-          }
+    ownerResult.fold((_) {}, (usersMap) {
+      for (final notice in notices) {
+        final user = usersMap[notice.ownerId];
+        if (user != null && cache.containsKey(notice.libraryId)) {
+          cache[notice.libraryId] = cache[notice.libraryId]!.copyWith(
+            ownerName: user.displayName,
+          );
+        } else if (user != null) {
+          cache[notice.libraryId] = NoticeLibraryInfo(
+            libraryName: null,
+            ownerName: user.displayName,
+          );
         }
-      },
-    );
+      }
+    });
 
     if (!isClosed) {
       emit(state.copyWith(libraryInfoCache: cache));
@@ -414,15 +403,15 @@ class StudentNoticeState extends Equatable {
 
   @override
   List<Object?> get props => [
-        status,
-        allNotices,
-        unreadNotices,
-        readNotices,
-        readStatus,
-        unreadCount,
-        errorMessage,
-        libraryInfoCache,
-      ];
+    status,
+    allNotices,
+    unreadNotices,
+    readNotices,
+    readStatus,
+    unreadCount,
+    errorMessage,
+    libraryInfoCache,
+  ];
 }
 
 /// Cached library/owner display info for notice cards.
@@ -443,9 +432,4 @@ class NoticeLibraryInfo extends Equatable {
   List<Object?> get props => [libraryName, ownerName];
 }
 
-enum StudentNoticeStatus {
-  initial,
-  loading,
-  loaded,
-  error,
-}
+enum StudentNoticeStatus { initial, loading, loaded, error }

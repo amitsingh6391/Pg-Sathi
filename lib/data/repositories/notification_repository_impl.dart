@@ -63,25 +63,25 @@ class NotificationRepositoryImpl implements NotificationRepository {
       // Fetch all batches in parallel for speed
       const batchSize = 10;
       final Map<String, FcmToken> tokensMap = {};
-      
+
       final futures = <Future<void>>[];
 
       for (var i = 0; i < userIds.length; i += batchSize) {
         final batch = userIds.skip(i).take(batchSize).toList();
-        
+
         futures.add(
           _tokensCollection
               .where(FieldPath.documentId, whereIn: batch)
               .get()
               .then((query) {
-            for (final doc in query.docs) {
-              final dto = FcmTokenDto.fromFirestore(doc);
-              tokensMap[doc.id] = FcmTokenMapper.toEntity(dto);
-            }
-          })
+                for (final doc in query.docs) {
+                  final dto = FcmTokenDto.fromFirestore(doc);
+                  tokensMap[doc.id] = FcmTokenMapper.toEntity(dto);
+                }
+              }),
         );
       }
-      
+
       // Wait for all queries to complete in parallel
       await Future.wait(futures);
 
@@ -122,7 +122,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
       if (validTokens.isEmpty) {
         return;
       }
-      
+
       // Firestore batch limit is 500 operations
       // Split into batches and commit in parallel for faster performance
       const batchSize = 500;
@@ -188,22 +188,25 @@ class NotificationRepositoryImpl implements NotificationRepository {
     // Get tokens first
     final tokensResult = await getFcmTokens(userIds);
 
-    return tokensResult.fold((failure) {
-      return Left(failure);
-    }, (tokensMap) async {
-      if (tokensMap.isEmpty) {
-        // No tokens - still return success (fire-and-forget)
-        return const Right(null);
-      }
+    return tokensResult.fold(
+      (failure) {
+        return Left(failure);
+      },
+      (tokensMap) async {
+        if (tokensMap.isEmpty) {
+          // No tokens - still return success (fire-and-forget)
+          return const Right(null);
+        }
 
-      final tokens = tokensMap.values.map((t) => t.token).toList();
-      
-      return sendNotificationsToTokens(
-        tokens: tokens,
-        title: title,
-        body: body,
-        data: data,
-      );
-    });
+        final tokens = tokensMap.values.map((t) => t.token).toList();
+
+        return sendNotificationsToTokens(
+          tokens: tokens,
+          title: title,
+          body: body,
+          data: data,
+        );
+      },
+    );
   }
 }

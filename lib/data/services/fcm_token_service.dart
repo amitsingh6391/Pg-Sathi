@@ -205,10 +205,7 @@ class FcmTokenService {
       );
 
       // Silently handle result
-      result.fold(
-        (failure) => null,
-        (_) => null,
-      );
+      result.fold((failure) => null, (_) => null);
     } catch (e) {
       // Silently handle error
     }

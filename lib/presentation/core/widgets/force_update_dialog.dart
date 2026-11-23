@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../cubit/version_check_cubit.dart';
+import 'package:pg_manager/presentation/core/app_ui_constants.dart';
 
 /// Dialog shown when force update is required.
 /// Prevents user from using the app until they update.
@@ -19,51 +20,82 @@ class ForceUpdateDialog extends StatelessWidget {
 
         return PopScope(
           canPop: false,
-          child: AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.system_update_rounded, color: Colors.orange),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Update Required',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+          child: Dialog(
+            backgroundColor: AppUIConstants.surface,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppUIConstants.radiusXl),
+              side: const BorderSide(color: AppUIConstants.border),
             ),
-            content: SingleChildScrollView(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(message, style: const TextStyle(fontSize: 15)),
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppUIConstants.surfaceMuted,
+                    ),
+                    child: const Icon(
+                      Icons.rocket_launch_rounded,
+                      size: 34,
+                      color: AppUIConstants.primaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Update required',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppUIConstants.textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      height: 1.5,
+                      color: AppUIConstants.textSecondary,
+                    ),
+                  ),
                   if (appVersion != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     _VersionInfo(
                       currentVersion: appVersion.currentVersion,
                       requiredVersion: appVersion.minimumRequiredVersion,
                     ),
                   ],
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          context.read<VersionCheckCubit>().openUpdateUrl(),
+                      icon: const Icon(Icons.download_rounded),
+                      label: const Text(
+                        'Update now',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      style: AppUIConstants.accentButtonStyle.copyWith(
+                        padding: const WidgetStatePropertyAll(
+                          EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            actions: [
-              ElevatedButton.icon(
-                onPressed: () =>
-                    context.read<VersionCheckCubit>().openUpdateUrl(),
-                icon: const Icon(Icons.download_rounded),
-                label: const Text('Update Now'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E3A5F),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ],
           ),
         );
       },
@@ -82,24 +114,37 @@ class _VersionInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
+    Widget cell(String label, String value, Color color) => Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Current Version: $currentVersion',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-          ),
+          Text(label, style: AppUIConstants.caption),
           const SizedBox(height: 4),
           Text(
-            'Required Version: $requiredVersion',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
           ),
+        ],
+      ),
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: AppUIConstants.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppUIConstants.radiusMd),
+      ),
+      child: Row(
+        children: [
+          cell('Installed', currentVersion, AppUIConstants.textSecondary),
+          const Icon(
+            Icons.arrow_forward_rounded,
+            size: 18,
+            color: AppUIConstants.textTertiary,
+          ),
+          cell('Required', requiredVersion, AppUIConstants.primaryLight),
         ],
       ),
     );
