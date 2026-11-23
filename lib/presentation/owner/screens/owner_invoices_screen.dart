@@ -18,10 +18,12 @@ class OwnerInvoicesScreen extends StatefulWidget {
   const OwnerInvoicesScreen({
     super.key,
     required this.ownerId,
+    required this.libraryId,
     required this.libraryName,
   });
 
   final String ownerId;
+  final String libraryId;
   final String libraryName;
 
   @override
@@ -32,7 +34,10 @@ class _OwnerInvoicesScreenState extends State<OwnerInvoicesScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<OwnerInvoiceCubit>().loadInvoices(widget.ownerId);
+    context.read<OwnerInvoiceCubit>().loadInvoices(
+      widget.ownerId,
+      libraryId: widget.libraryId,
+    );
   }
 
   @override
@@ -111,9 +116,11 @@ class _OwnerInvoicesScreenState extends State<OwnerInvoicesScreen> {
                           key: const ValueKey('list'),
                           color: AppUIConstants.primaryLight,
                           backgroundColor: AppUIConstants.surface,
-                          onRefresh: () async => context
-                              .read<OwnerInvoiceCubit>()
-                              .loadInvoices(widget.ownerId),
+                          onRefresh: () async =>
+                              context.read<OwnerInvoiceCubit>().loadInvoices(
+                                widget.ownerId,
+                                libraryId: widget.libraryId,
+                              ),
                           child: ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(

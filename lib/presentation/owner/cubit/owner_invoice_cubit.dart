@@ -22,8 +22,9 @@ class OwnerInvoiceCubit extends Cubit<OwnerInvoiceState> {
   final InvoicePdfService pdfService;
   final DeleteInvoice deleteInvoice;
 
-  /// Load all invoices for an owner.
-  Future<void> loadInvoices(String ownerId) async {
+  /// Load invoices for an owner, limited to [libraryId] (the selected branch)
+  /// when provided.
+  Future<void> loadInvoices(String ownerId, {String? libraryId}) async {
     emit(state.copyWith(status: OwnerInvoiceStatus.loading));
 
     final result = await getInvoicesForOwner(
@@ -37,7 +38,11 @@ class OwnerInvoiceCubit extends Cubit<OwnerInvoiceState> {
           errorMessage: failure.message ?? 'Failed to load invoices',
         ),
       ),
-      (invoices) {
+      (ownerInvoices) {
+        final invoices = libraryId == null
+            ? ownerInvoices
+            : ownerInvoices.where((inv) => inv.libraryId == libraryId).toList();
+
         // Extract unique students and months for filtering
         final students = _extractUniqueStudents(invoices);
         final months = _extractUniqueMonths(invoices);

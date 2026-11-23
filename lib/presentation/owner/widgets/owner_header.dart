@@ -18,6 +18,7 @@ class OwnerHeader extends StatelessWidget {
     this.onAddBranch,
     this.hasMultipleBranches = false,
     this.onSwitchBranch,
+    this.onReferEarn,
   });
 
   final String? libraryName;
@@ -35,6 +36,9 @@ class OwnerHeader extends StatelessWidget {
   /// Shows a dropdown arrow next to the PG name and makes it tappable.
   final bool hasMultipleBranches;
   final VoidCallback? onSwitchBranch;
+
+  /// When set, shows a 'Refer & Earn' gift button in the app bar.
+  final VoidCallback? onReferEarn;
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +105,16 @@ class OwnerHeader extends StatelessWidget {
         ),
       ),
       actions: [
+        if (onReferEarn != null)
+          IconButton(
+            icon: const Icon(
+              Icons.card_giftcard_rounded,
+              color: AppUIConstants.primary,
+              size: 22,
+            ),
+            onPressed: onReferEarn,
+            tooltip: 'Refer & Earn',
+          ),
         _ProfileButton(user: user, onTap: onProfile),
         IconButton(
           icon: const Icon(

@@ -14,6 +14,12 @@ class AuthConstants {
     '+916767676767',
     '+918080808080',
     '+916391345357',
+    // Test numbers configured in the pg-sathi Firebase Console.
+    '+917275663331',
+    '+919807557412',
+    '+919532506142',
+    '+916505553434',
+    '+19532506142',
   };
 
   /// Checks if a phone number is a test number

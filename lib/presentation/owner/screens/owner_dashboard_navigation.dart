@@ -149,6 +149,7 @@ mixin OwnerDashboardNavigation<T extends StatefulWidget> on State<T> {
           create: (_) => sl<OwnerInvoiceCubit>(),
           child: OwnerInvoicesScreen(
             ownerId: state.library!.ownerId,
+            libraryId: state.library!.id,
             libraryName: state.library!.name,
           ),
         ),

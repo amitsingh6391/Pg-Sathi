@@ -344,6 +344,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
                                 (user?.isManager ?? false) || !state.hasLibrary
                                 ? null
                                 : () => navigateToAddBranch(context),
+                            onReferEarn: state.hasLibrary && !_isIosApp
+                                ? () => _openReferEarn(context, state)
+                                : null,
                           ),
                           SliverToBoxAdapter(
                             child: Padding(
@@ -364,6 +367,20 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
         ),
       ),
     );
+  }
+
+  static bool get _isIosApp =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Refer & Earn requires an active paid plan; otherwise prompt to subscribe.
+  void _openReferEarn(BuildContext context, OwnerLibraryState state) {
+    final subState = context.read<SubscriptionCubit>().state;
+    final hasPaidPlan = subState.subscriptionStatus?.hasActivePaidPlan ?? false;
+    if (hasPaidPlan) {
+      navigateToReferral(context, state, subState);
+    } else {
+      showSubscriptionRequired(context, state, subState: subState);
+    }
   }
 
   Widget _buildContent(
@@ -531,8 +548,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
     SubscriptionState subState,
   ) {
     final hasAccess = subState.subscriptionStatus?.hasAccess ?? false;
-    final hasPaidPlan = subState.subscriptionStatus?.hasActivePaidPlan ?? false;
-    final isIosApp = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
     VoidCallback lockedOr(VoidCallback action) => hasAccess
         ? action
@@ -588,20 +603,6 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen>
           onTap: lockedOr(() => navigateToSlotManagement(context, state)),
           isLocked: !hasAccess,
         ),
-        if (!isIosApp)
-          QuickActionItem(
-            icon: Icons.card_giftcard_rounded,
-            label: 'Refer &\nEarn',
-            color: AppUIConstants.primary,
-            onTap: hasPaidPlan
-                ? () => navigateToReferral(context, state, subState)
-                : () => showSubscriptionRequired(
-                    context,
-                    state,
-                    subState: subState,
-                  ),
-            isLocked: !hasPaidPlan,
-          ),
       ],
     );
   }
