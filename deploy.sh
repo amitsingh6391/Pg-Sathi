@@ -55,6 +55,8 @@ mkdir -p build/deploy/app
 
 # 1. Copy static landing page to root
 cp landing/index.html build/deploy/index.html
+cp landing/privacy.html build/deploy/privacy.html
+cp landing/terms.html build/deploy/terms.html
 
 # 2. Copy shared web assets (favicon, icons, manifest, ads.txt)
 cp web/favicon.png build/deploy/favicon.png

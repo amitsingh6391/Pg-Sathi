@@ -18,7 +18,19 @@
       "**/node_modules/**",
       "functions/**"
     ],
+    "redirects": [
+      { "source": "/privacy-policy", "destination": "/privacy", "type": 301 },
+      { "source": "/terms-of-service", "destination": "/terms", "type": 301 }
+    ],
     "rewrites": [
+      {
+        "source": "/privacy",
+        "destination": "/privacy.html"
+      },
+      {
+        "source": "/terms",
+        "destination": "/terms.html"
+      },
       {
         "source": "/pg/**",
         "function": "getPgPage"

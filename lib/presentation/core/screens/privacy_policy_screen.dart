@@ -90,7 +90,7 @@ We use the information we collect to:
               title: '4. Data Sharing',
               content: '''
 We do not sell your personal information. We may share data with:
-• Library owners (for membership management)
+• PG owners (for membership management)
 • Payment processors for transaction processing
 • Service providers (Firebase) for app functionality
 ''',
